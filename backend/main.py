@@ -94,7 +94,10 @@ async def stats():
 
     active_plan_count = len(active_plans.data)
 
+    total_users = db.table("users").select("id", count="exact").execute()
+
     return {
         "free_now": total_free,
         "active_plans": active_plan_count,
+        "total_users": total_users.count or 0,
     }

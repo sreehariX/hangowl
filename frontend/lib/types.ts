@@ -55,6 +55,7 @@ export interface LeaderboardEntry {
 export interface Stats {
   free_now: number;
   active_plans: number;
+  total_users: number;
 }
 
 export type Activity = "Dhaba" | "Movie" | "Study" | "Cricket" | "Just vibe" | "Others";

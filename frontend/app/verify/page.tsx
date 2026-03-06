@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { Avatar } from "@/components/Avatar";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -89,7 +90,9 @@ export default function VerifyPage() {
   if (step === "welcome") {
     return (
       <div className="mx-auto max-w-sm px-4 pt-20 text-center">
-        <div className="text-6xl mb-6">🦉</div>
+        <div className="flex justify-center mb-6">
+          <Avatar name={persona} size={80} />
+        </div>
         <h1 className="text-2xl font-bold text-text-primary mb-2">
           {isNew ? "Welcome to HangOwl!" : "Welcome back!"}
         </h1>
@@ -128,7 +131,7 @@ export default function VerifyPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="yourname@iitb.ac.in"
+              placeholder="rollnumber@iitb.ac.in"
               className="w-full rounded-xl border border-border bg-surface px-4 py-3.5 text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
               autoFocus
               required

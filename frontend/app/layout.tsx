@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { Nav } from "@/components/Nav";
 import { SWRegister } from "@/components/SWRegister";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import "./globals.css";
 
 const inter = Inter({
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AuthProvider>
           <SWRegister />
+          <InstallPrompt />
           <div className="flex min-h-dvh flex-col">
             <Nav />
             <main className="flex-1 pb-20 md:pb-0">{children}</main>

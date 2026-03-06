@@ -4,8 +4,30 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { PlanCard } from "@/components/PlanCard";
-import { PlanListSkeleton, StatSkeleton } from "@/components/Skeleton";
+import { PlanListSkeleton } from "@/components/Skeleton";
 import type { Plan, Stats } from "@/lib/types";
+
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (value === 0) return;
+    const duration = 1200;
+    const start = Date.now();
+    const from = display;
+
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(from + (value - from) * eased));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [value]);
+
+  return <>{display}</>;
+}
 
 export default function HomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -59,30 +81,43 @@ export default function HomePage() {
           Anonymous campus hangout board. Make plans, join vibes, stay invisible.
         </p>
 
-        <div className="flex items-center justify-center gap-6 pt-2">
-          {loadingStats ? (
-            <>
-              <StatSkeleton />
-              <StatSkeleton />
-            </>
-          ) : (
-            <>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-amber animate-pulse-glow">
-                  {stats?.free_now ?? 0}
-                </div>
-                <div className="text-xs text-text-muted mt-1">people free</div>
+        {loadingStats ? (
+          <div className="flex justify-center gap-4 pt-4">
+            <div className="skeleton h-28 w-28 rounded-2xl" />
+            <div className="skeleton h-28 w-28 rounded-2xl" />
+            <div className="skeleton h-28 w-28 rounded-2xl" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3 pt-4">
+            <div className="relative overflow-hidden rounded-2xl border border-amber/20 bg-gradient-to-br from-amber/10 to-amber/5 p-4">
+              <div className="absolute -right-2 -top-2 text-4xl opacity-10">🦉</div>
+              <div className="text-3xl font-black text-amber tabular-nums">
+                <AnimatedNumber value={stats?.total_users ?? 0} />
               </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <div className="text-3xl font-bold text-mid-blue-light">
-                  {stats?.active_plans ?? 0}
-                </div>
-                <div className="text-xs text-text-muted mt-1">active plans</div>
+              <div className="text-[11px] font-medium text-amber/70 mt-1 uppercase tracking-wider">
+                Owls joined
               </div>
-            </>
-          )}
-        </div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-mid-blue/20 bg-gradient-to-br from-mid-blue/10 to-mid-blue/5 p-4">
+              <div className="absolute -right-2 -top-2 text-4xl opacity-10">⚡</div>
+              <div className="text-3xl font-black text-mid-blue-light tabular-nums">
+                <AnimatedNumber value={stats?.free_now ?? 0} />
+              </div>
+              <div className="text-[11px] font-medium text-mid-blue-light/70 mt-1 uppercase tracking-wider">
+                Free now
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success/10 to-success/5 p-4">
+              <div className="absolute -right-2 -top-2 text-4xl opacity-10">📋</div>
+              <div className="text-3xl font-black text-success tabular-nums">
+                <AnimatedNumber value={stats?.active_plans ?? 0} />
+              </div>
+              <div className="text-[11px] font-medium text-success/70 mt-1 uppercase tracking-wider">
+                Live plans
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="pt-4 space-y-3">
           <Link

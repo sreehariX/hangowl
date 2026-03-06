@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Avatar } from "@/components/Avatar";
 
 interface PlanCardProps {
   plan: Plan;
@@ -58,9 +59,12 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
               {remaining}
             </span>
           </div>
-          <p className="text-sm text-text-secondary mt-0.5">
-            {plan.location} &middot; {creatorName}
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Avatar name={creatorName} size={16} />
+            <p className="text-sm text-text-secondary truncate">
+              {plan.location} &middot; {creatorName}
+            </p>
+          </div>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useCountdown } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
+import { Avatar } from "@/components/Avatar";
 
 function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => void }) {
   const { isAuthenticated } = useAuth();
@@ -84,7 +85,10 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
 
         <div className="mb-6">
           <p className="text-xs text-text-muted mb-2">Created by</p>
-          <p className="text-sm font-medium text-text-primary">{creatorName}</p>
+          <div className="flex items-center gap-2">
+            <Avatar name={creatorName} size={28} />
+            <p className="text-sm font-medium text-text-primary">{creatorName}</p>
+          </div>
         </div>
 
         {members.length > 0 && (
@@ -96,8 +100,9 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
               {members.map((m, i) => (
                 <span
                   key={i}
-                  className="rounded-full bg-navy-lighter px-3 py-1 text-xs text-text-secondary"
+                  className="flex items-center gap-1.5 rounded-full bg-navy-lighter px-2 py-1 text-xs text-text-secondary"
                 >
+                  <Avatar name={m.users?.persona_name ?? "?"} size={18} />
                   {m.users?.persona_name ?? "?"}
                 </span>
               ))}
