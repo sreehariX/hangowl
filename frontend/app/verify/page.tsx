@@ -21,7 +21,7 @@ export default function VerifyPage() {
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.endsWith("@iitb.ac.in") && !email.endsWith("@gmail.com")) { // TODO: remove gmail before production
+    if (!email.endsWith("@iitb.ac.in")) {
       setError("Only @iitb.ac.in emails are allowed");
       return;
     }

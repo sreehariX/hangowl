@@ -75,8 +75,7 @@ def create_jwt(user_id: str) -> str:
 async def send_otp(body: SendOTPRequest):
     email = body.email.lower().strip()
 
-    ALLOWED_DOMAINS = ["@iitb.ac.in", "@gmail.com"]  # TODO: remove @gmail.com before production
-    if not any(email.endswith(d) for d in ALLOWED_DOMAINS):
+    if not email.endswith("@iitb.ac.in"):
         raise HTTPException(status_code=400, detail="Only @iitb.ac.in emails are allowed")
 
     settings = get_settings()
@@ -94,7 +93,7 @@ async def send_otp(body: SendOTPRequest):
 
     resend.api_key = settings.resend_api_key
     resend.Emails.send({
-        "from": "HangOwl <onboarding@resend.dev>",
+        "from": "HangOwl <noreply@hangowl.com>",
         "to": email,
         "subject": "Your HangOwl OTP",
         "html": (
@@ -113,8 +112,7 @@ async def send_otp(body: SendOTPRequest):
 async def verify_otp(body: VerifyOTPRequest, response: Response):
     email = body.email.lower().strip()
 
-    ALLOWED_DOMAINS = ["@iitb.ac.in", "@gmail.com"]  # TODO: remove @gmail.com before production
-    if not any(email.endswith(d) for d in ALLOWED_DOMAINS):
+    if not email.endswith("@iitb.ac.in"):
         raise HTTPException(status_code=400, detail="Only @iitb.ac.in emails are allowed")
 
     db = get_supabase()
