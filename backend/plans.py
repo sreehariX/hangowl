@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from config import get_settings
 from database import get_supabase
 from middleware import verify_token
 
@@ -15,28 +14,25 @@ class CreatePlanRequest(BaseModel):
     location: str
     description: str = ""
     max_people: int = 10
-
-
-def deactivate_expired(db):
-    cutoff = datetime.now(timezone.utc).isoformat()
-    db.table("plans").update({"is_active": False}).lt("expires_at", cutoff).eq("is_active", True).execute()
+    plan_date: str
+    starts_at: str
+    ends_at: str
 
 
 @router.get("")
-async def get_plans(hostel: str | None = None, activity: str | None = None):
+async def get_plans(location: str | None = None, activity: str | None = None):
     db = get_supabase()
-    deactivate_expired(db)
+    now = datetime.now(timezone.utc).isoformat()
 
     query = (
         db.table("plans")
         .select("*, plan_members(count), users!plans_creator_id_fkey(persona_name, hostel)")
-        .eq("is_active", True)
-        .gt("expires_at", datetime.now(timezone.utc).isoformat())
-        .order("created_at", desc=True)
+        .gt("ends_at", now)
+        .order("starts_at", desc=False)
     )
 
-    if hostel:
-        query = query.eq("location", hostel)
+    if location:
+        query = query.eq("location", location)
     if activity:
         query = query.eq("activity", activity)
 
@@ -47,7 +43,6 @@ async def get_plans(hostel: str | None = None, activity: str | None = None):
 @router.get("/{plan_id}")
 async def get_plan(plan_id: str):
     db = get_supabase()
-    deactivate_expired(db)
 
     result = (
         db.table("plans")
@@ -64,7 +59,6 @@ async def get_plan(plan_id: str):
 
 @router.post("")
 async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token)):
-    settings = get_settings()
     db = get_supabase()
 
     if not body.activity or len(body.activity) > 50:
@@ -72,8 +66,6 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
 
     if body.max_people < 2 or body.max_people > 50:
         raise HTTPException(status_code=400, detail="Max people must be between 2 and 50")
-
-    expires_at = (datetime.now(timezone.utc) + timedelta(hours=settings.plan_expiry_hours)).isoformat()
 
     result = (
         db.table("plans")
@@ -83,7 +75,10 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
             "location": body.location,
             "description": body.description,
             "max_people": body.max_people,
-            "expires_at": expires_at,
+            "plan_date": body.plan_date,
+            "starts_at": body.starts_at,
+            "ends_at": body.ends_at,
+            "expires_at": body.ends_at,
             "is_active": True,
         })
         .execute()
@@ -106,19 +101,18 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
 @router.post("/{plan_id}/join")
 async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
     db = get_supabase()
-    deactivate_expired(db)
+    now = datetime.now(timezone.utc).isoformat()
 
     plan_result = (
         db.table("plans")
         .select("*, plan_members(count)")
         .eq("id", plan_id)
-        .eq("is_active", True)
-        .gt("expires_at", datetime.now(timezone.utc).isoformat())
+        .gt("ends_at", now)
         .execute()
     )
 
     if not plan_result.data:
-        raise HTTPException(status_code=404, detail="Plan not found or expired")
+        raise HTTPException(status_code=404, detail="Plan not found or ended")
 
     plan = plan_result.data[0]
 
@@ -141,5 +135,9 @@ async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
         "plan_id": plan_id,
         "user_id": user["sub"],
     }).execute()
+
+    user_data = db.table("users").select("hangout_count").eq("id", user["sub"]).execute()
+    current_count = user_data.data[0]["hangout_count"] if user_data.data else 0
+    db.table("users").update({"hangout_count": current_count + 1}).eq("id", user["sub"]).execute()
 
     return {"message": "Joined plan successfully"}

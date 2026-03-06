@@ -3,14 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useCountdown } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
 function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => void }) {
   const { isAuthenticated } = useAuth();
-  const { remaining, expired } = useCountdown(plan.expires_at);
   const router = useRouter();
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
@@ -18,6 +25,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const members = plan.plan_members ?? [];
+  const ended = new Date(plan.ends_at) < new Date();
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -69,10 +77,12 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
 
         <div className="flex items-center justify-around mb-6 rounded-xl bg-navy-lighter p-3">
           <div className="text-center">
-            <div className={`text-lg font-bold ${expired ? "text-error" : "text-amber"}`}>
-              {remaining}
+            <div className="text-sm font-bold text-amber">
+              {plan.plan_date ? formatDate(plan.plan_date) : ""}
             </div>
-            <div className="text-xs text-text-muted">remaining</div>
+            <div className="text-xs text-text-muted">
+              {formatTime(plan.starts_at)} – {formatTime(plan.ends_at)}
+            </div>
           </div>
           <div className="h-8 w-px bg-border" />
           <div className="text-center">
@@ -110,7 +120,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
           </div>
         )}
 
-        {!expired && (
+        {!ended && (
           <div className="space-y-2">
             <button
               onClick={handleJoin}
@@ -127,7 +137,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
               onClick={handleShare}
               className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
             >
-              Share on WhatsApp
+              Share
             </button>
           </div>
         )}
@@ -136,9 +146,9 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
           <p className="mt-3 text-center text-sm text-error">{error}</p>
         )}
 
-        {expired && (
+        {ended && (
           <div className="rounded-xl bg-error/10 p-3 text-center">
-            <p className="text-sm font-medium text-error">This plan has expired</p>
+            <p className="text-sm font-medium text-error">This plan has ended</p>
           </div>
         )}
       </div>

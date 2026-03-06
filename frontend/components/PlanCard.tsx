@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { useCountdown } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+}
 
 interface PlanCardProps {
   plan: Plan;
@@ -16,7 +30,6 @@ interface PlanCardProps {
 
 export function PlanCard({ plan, onJoined }: PlanCardProps) {
   const { isAuthenticated } = useAuth();
-  const { remaining, expired } = useCountdown(plan.expires_at);
   const router = useRouter();
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
@@ -24,6 +37,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
+  const ended = new Date(plan.ends_at) < new Date();
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -42,7 +56,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
     }
   };
 
-  if (expired) return null;
+  if (ended) return null;
 
   return (
     <div className="animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-colors hover:bg-surface-hover">
@@ -56,7 +70,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
               {plan.activity}
             </h3>
             <span className="shrink-0 rounded-full bg-amber/15 px-2.5 py-0.5 text-xs font-medium text-amber">
-              {remaining}
+              {formatDate(plan.plan_date)} &middot; {formatTime(plan.starts_at)}–{formatTime(plan.ends_at)}
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">

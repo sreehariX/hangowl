@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import router as auth_router
 from config import get_settings
 from database import get_supabase
+from middleware import verify_token
 from plans import router as plans_router
 
 settings = get_settings()
@@ -40,64 +41,48 @@ async def leaderboard():
 
     result = (
         db.table("users")
-        .select("hostel, hangout_count")
-        .neq("hostel", None)
+        .select("persona_name, hangout_count")
+        .gt("hangout_count", 0)
+        .order("hangout_count", desc=True)
+        .limit(50)
         .execute()
     )
 
-    hostel_scores: dict[str, int] = {}
-    for user in result.data:
-        h = user.get("hostel")
-        if h:
-            hostel_scores[h] = hostel_scores.get(h, 0) + user.get("hangout_count", 0)
-
-    ranked = sorted(hostel_scores.items(), key=lambda x: x[1], reverse=True)
     leaderboard_data = [
-        {"hostel": h, "total_hangouts": s, "rank": i + 1}
-        for i, (h, s) in enumerate(ranked)
+        {"persona_name": u["persona_name"], "hangout_count": u["hangout_count"], "rank": i + 1}
+        for i, u in enumerate(result.data)
     ]
 
-    top_persona_result = (
-        db.table("users")
-        .select("persona_name, hangout_count, hostel")
-        .order("hangout_count", desc=True)
-        .limit(1)
-        .execute()
-    )
-
-    top_persona = top_persona_result.data[0] if top_persona_result.data else None
-
-    return {
-        "leaderboard": leaderboard_data,
-        "most_spontaneous": top_persona,
-    }
+    return {"leaderboard": leaderboard_data}
 
 
 @app.get("/stats")
 async def stats():
     db = get_supabase()
 
-    now = datetime.now(timezone.utc).isoformat()
-    active_plans = (
-        db.table("plans")
-        .select("id, plan_members(count)")
-        .eq("is_active", True)
-        .gt("expires_at", now)
-        .execute()
-    )
-
-    total_free = 0
-    for plan in active_plans.data:
-        members = plan.get("plan_members", [])
-        if members:
-            total_free += members[0].get("count", 0)
-
-    active_plan_count = len(active_plans.data)
+    five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    active_users = db.table("users").select("id", count="exact").gte("last_active_at", five_min_ago).execute()
 
     total_users = db.table("users").select("id", count="exact").execute()
 
+    now = datetime.now(timezone.utc).isoformat()
+    active_plans = (
+        db.table("plans")
+        .select("id")
+        .gt("ends_at", now)
+        .execute()
+    )
+
     return {
-        "free_now": total_free,
-        "active_plans": active_plan_count,
+        "free_now": active_users.count or 0,
+        "active_plans": len(active_plans.data),
         "total_users": total_users.count or 0,
     }
+
+
+@app.post("/heartbeat")
+async def heartbeat(user: dict = Depends(verify_token)):
+    db = get_supabase()
+    now = datetime.now(timezone.utc).isoformat()
+    db.table("users").update({"last_active_at": now}).eq("id", user["sub"]).execute()
+    return {"ok": True}

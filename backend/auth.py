@@ -16,13 +16,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 COLORS = [
     "Purple", "Crimson", "Golden", "Silver", "Emerald", "Azure", "Coral",
     "Indigo", "Scarlet", "Teal", "Amber", "Jade", "Onyx", "Ruby", "Sage",
-    "Cobalt", "Ivory", "Slate", "Blush", "Frost",
+    "Cobalt", "Ivory", "Slate", "Blush", "Frost", "Neon", "Velvet", "Copper",
+    "Midnight", "Solar", "Arctic", "Dusty", "Burnt", "Misty", "Storm",
+    "Shadow", "Bright", "Deep", "Wild", "Silent", "Dark", "Pale", "Warm",
+    "Cool", "Vivid",
 ]
 
 ANIMALS = [
     "Tiger", "Falcon", "Panda", "Wolf", "Phoenix", "Otter", "Lynx",
     "Hawk", "Bear", "Fox", "Eagle", "Raven", "Cobra", "Stag", "Viper",
-    "Owl", "Shark", "Crane", "Jaguar", "Bison",
+    "Owl", "Shark", "Crane", "Jaguar", "Bison", "Panther", "Mantis",
+    "Badger", "Heron", "Gecko", "Moth", "Sparrow", "Dolphin", "Moose",
+    "Condor", "Coyote", "Marten", "Ferret", "Osprey", "Puma", "Rhino",
+    "Lemur", "Chameleon", "Wombat", "Pelican", "Ibis", "Toucan", "Bison",
+    "Gazelle", "Meerkat", "Orca", "Penguin", "Quail", "Iguana", "Yak",
 ]
 
 
@@ -43,22 +50,19 @@ def hash_email(email: str) -> str:
 
 
 def generate_persona(db) -> str:
-    for _ in range(20):
-        color = random.choice(COLORS)
-        animal = random.choice(ANIMALS)
-        number = random.randint(1000, 9999)
-        name = f"{color}{animal}#{number}"
+    existing_names = set()
+    result = db.table("users").select("persona_name").execute()
+    for row in result.data:
+        existing_names.add(row["persona_name"])
 
-        result = (
-            db.table("users")
-            .select("id")
-            .eq("persona_name", name)
-            .execute()
-        )
-        if not result.data:
+    all_combos = [f"{c}{a}" for c in COLORS for a in ANIMALS]
+    random.shuffle(all_combos)
+
+    for name in all_combos:
+        if name not in existing_names:
             return name
 
-    raise HTTPException(status_code=500, detail="Failed to generate unique persona")
+    raise HTTPException(status_code=500, detail="No unique persona names available")
 
 
 def create_jwt(user_id: str) -> str:
@@ -146,10 +150,12 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
     )
 
     is_prod = get_settings().environment == "production"
+    now = datetime.now(timezone.utc).isoformat()
 
     if existing.data:
         user = existing.data[0]
         token = create_jwt(user["id"])
+        db.table("users").update({"last_active_at": now}).eq("id", user["id"]).execute()
         response.set_cookie(
             key="token",
             value=token,
@@ -176,6 +182,7 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
             "vibe_score": 0,
             "hangout_count": 0,
             "persona_badge": "New Owl",
+            "last_active_at": now,
         })
         .execute()
     )

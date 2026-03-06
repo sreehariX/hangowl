@@ -51,9 +51,9 @@ export const api = {
       body: JSON.stringify({ email, otp_code }),
     }),
 
-  getPlans: (params?: { hostel?: string; activity?: string }) => {
+  getPlans: (params?: { location?: string; activity?: string }) => {
     const query = new URLSearchParams();
-    if (params?.hostel) query.set("hostel", params.hostel);
+    if (params?.location) query.set("location", params.location);
     if (params?.activity) query.set("activity", params.activity);
     const qs = query.toString();
     return request<{ plans: import("./types").Plan[] }>(`/plans${qs ? `?${qs}` : ""}`);
@@ -67,6 +67,9 @@ export const api = {
     location: string;
     description?: string;
     max_people?: number;
+    plan_date: string;
+    starts_at: string;
+    ends_at: string;
   }) =>
     request<{ plan: import("./types").Plan }>("/plans", {
       method: "POST",
@@ -81,13 +84,11 @@ export const api = {
   getLeaderboard: () =>
     request<{
       leaderboard: import("./types").LeaderboardEntry[];
-      most_spontaneous: {
-        persona_name: string;
-        hangout_count: number;
-        hostel: string;
-      } | null;
     }>("/leaderboard"),
 
   getStats: () =>
     request<import("./types").Stats>("/stats"),
+
+  heartbeat: () =>
+    request<{ ok: boolean }>("/heartbeat", { method: "POST" }),
 };

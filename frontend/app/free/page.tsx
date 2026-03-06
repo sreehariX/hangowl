@@ -6,6 +6,22 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { ACTIVITIES, LOCATIONS, type Activity } from "@/lib/types";
 
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function nowTimeStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 30);
+  return d.toTimeString().slice(0, 5);
+}
+
+function laterTimeStr() {
+  const d = new Date();
+  d.setHours(d.getHours() + 2, d.getMinutes() + 30);
+  return d.toTimeString().slice(0, 5);
+}
+
 export default function FreePage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -15,6 +31,9 @@ export default function FreePage() {
   const [customLocation, setCustomLocation] = useState("");
   const [description, setDescription] = useState("");
   const [maxPeople, setMaxPeople] = useState(10);
+  const [planDate, setPlanDate] = useState(todayStr());
+  const [startTime, setStartTime] = useState(nowTimeStr());
+  const [endTime, setEndTime] = useState(laterTimeStr());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,6 +52,15 @@ export default function FreePage() {
       setError("Pick an activity and location");
       return;
     }
+
+    const startsAt = new Date(`${planDate}T${startTime}:00`).toISOString();
+    const endsAt = new Date(`${planDate}T${endTime}:00`).toISOString();
+
+    if (new Date(endsAt) <= new Date(startsAt)) {
+      setError("End time must be after start time");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
@@ -41,6 +69,9 @@ export default function FreePage() {
         location: resolvedLocation,
         description,
         max_people: maxPeople,
+        plan_date: planDate,
+        starts_at: startsAt,
+        ends_at: endsAt,
       });
       router.push("/board");
     } catch (err) {
@@ -131,6 +162,44 @@ export default function FreePage() {
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
+            Date
+          </label>
+          <input
+            type="date"
+            value={planDate}
+            min={todayStr()}
+            onChange={(e) => setPlanDate(e.target.value)}
+            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Start time
+            </label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              End time
+            </label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-2">
             Description (optional)
           </label>
           <textarea
@@ -170,7 +239,7 @@ export default function FreePage() {
           disabled={submitting || !resolvedActivity || !resolvedLocation}
           className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "Creating..." : "Post Plan (expires in 2h)"}
+          {submitting ? "Creating..." : "Post Plan"}
         </button>
       </form>
     </div>

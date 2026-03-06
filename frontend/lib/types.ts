@@ -14,8 +14,9 @@ export interface Plan {
   location: string;
   description: string;
   max_people: number;
-  expires_at: string;
-  is_active: boolean;
+  plan_date: string;
+  starts_at: string;
+  ends_at: string;
   created_at: string;
   plan_members?: { count: number }[];
   users?: {
@@ -31,8 +32,9 @@ export interface PlanDetail {
   location: string;
   description: string;
   max_people: number;
-  expires_at: string;
-  is_active: boolean;
+  plan_date: string;
+  starts_at: string;
+  ends_at: string;
   created_at: string;
   plan_members?: {
     user_id: string;
@@ -47,8 +49,8 @@ export interface PlanDetail {
 }
 
 export interface LeaderboardEntry {
-  hostel: string;
-  total_hangouts: number;
+  persona_name: string;
+  hangout_count: number;
   rank: number;
 }
 

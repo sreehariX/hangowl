@@ -23,9 +23,9 @@ export default function BoardPage() {
 
   const fetchPlans = useCallback(async () => {
     try {
-      const params: { hostel?: string; activity?: string } = {};
+      const params: { location?: string; activity?: string } = {};
       if (filterActivity !== "all") params.activity = filterActivity;
-      if (filterLocation !== "all") params.hostel = filterLocation;
+      if (filterLocation !== "all") params.location = filterLocation;
       const data = await api.getPlans(params);
       setPlans(data.plans);
     } catch {
