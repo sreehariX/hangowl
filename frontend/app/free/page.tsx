@@ -15,19 +15,29 @@ const DURATIONS = [
   { label: "4 hr", minutes: 240 },
 ];
 
+function getISTParts() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return values;
+}
+
 function todayIST() {
-  const now = new Date();
-  return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-    .toISOString()
-    .split("T")[0];
+  const { year, month, day } = getISTParts();
+  return `${year}-${month}-${day}`;
 }
 
 function nowTimeIST() {
-  const now = new Date();
-  const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-  const h = String(ist.getHours()).padStart(2, "0");
-  const m = String(ist.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  const { hour, minute } = getISTParts();
+  return `${hour}:${minute}`;
 }
 
 function formatTimeDisplay(time24: string) {
@@ -66,8 +76,8 @@ export default function FreePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resolvedActivity || !resolvedLocation) {
-      setError("Pick an activity and location");
+    if (!resolvedActivity || !resolvedLocation || !description.trim()) {
+      setError("Pick an activity, location, and add a description");
       return;
     }
 
@@ -81,7 +91,7 @@ export default function FreePage() {
       await api.createPlan({
         activity: resolvedActivity,
         location: resolvedLocation,
-        description,
+        description: description.trim(),
         max_people: maxPeople,
         plan_date: planDate,
         starts_at: startDate.toISOString(),
@@ -196,12 +206,13 @@ export default function FreePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">
-              Start time
+              Start time (IST)
             </label>
             <input
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
+              step={60}
               className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
             />
           </div>
@@ -234,15 +245,16 @@ export default function FreePage() {
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Short note (optional)
+            Description
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={200}
             rows={2}
-            placeholder="e.g. Late night maggi run, anyone?"
+            placeholder="e.g. Late night maggi run near H12"
             className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber resize-none transition-colors"
+            required
           />
         </div>
 
@@ -270,7 +282,7 @@ export default function FreePage() {
 
         <button
           type="submit"
-          disabled={submitting || !resolvedActivity || !resolvedLocation}
+          disabled={submitting || !resolvedActivity || !resolvedLocation || !description.trim()}
           className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Posting..." : "Post plan"}

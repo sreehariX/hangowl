@@ -67,7 +67,7 @@ export const ACTIVITIES: { label: Activity; emoji: string }[] = [
   { label: "Movie", emoji: "🎬" },
   { label: "Study", emoji: "📚" },
   { label: "Cricket", emoji: "🏏" },
-  { label: "Just vibe", emoji: "🎵" },
+  { label: "Just vibe", emoji: "🌊" },
   { label: "Others", emoji: "✨" },
 ];
 
@@ -83,6 +83,6 @@ export const ACTIVITY_EMOJI: Record<string, string> = {
   Movie: "🎬",
   Study: "📚",
   Cricket: "🏏",
-  "Just vibe": "🎵",
+  "Just vibe": "🌊",
   Others: "✨",
 };

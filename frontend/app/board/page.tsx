@@ -76,7 +76,7 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
+    <div className="mx-auto max-w-lg px-4 pt-20 pb-24 md:pt-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-text-primary">The Board</h1>

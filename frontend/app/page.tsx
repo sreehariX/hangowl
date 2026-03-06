@@ -100,24 +100,6 @@ export default function HomePage() {
           Post what you want to do. Other students see it and join. You stay anonymous to everyone else on the app.
         </p>
 
-        <div className="text-left bg-surface border border-border rounded-2xl p-4 max-w-sm mx-auto">
-          <p className="text-xs font-semibold text-amber mb-3 uppercase tracking-wider">How it works</p>
-          <div className="space-y-2.5">
-            <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">1</span>
-              <p className="text-sm text-text-secondary">Sign in with your IIT-B email (we use it only to send the login code)</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">2</span>
-              <p className="text-sm text-text-secondary">You get a random name like &quot;CoralPanda&quot;. No one sees your email.</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">3</span>
-              <p className="text-sm text-text-secondary">Post a plan or join someone else&apos;s. That&apos;s it and hangout with them.</p>
-            </div>
-          </div>
-        </div>
-
         {loadingStats ? (
           <div className="flex justify-center gap-4 pt-4">
             <div className="skeleton h-28 w-28 rounded-2xl" />

@@ -53,7 +53,7 @@ export function Nav() {
                   <div className="flex items-center gap-3 px-3 py-3 border-b border-border mb-1">
                     <Avatar name={personaName || ""} size={36} />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-text-primary break-all">
+                      <p className="truncate whitespace-nowrap text-sm font-semibold text-text-primary">
                         {personaName}
                       </p>
                     </div>
