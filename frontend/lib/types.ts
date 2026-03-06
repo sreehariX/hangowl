@@ -57,7 +57,7 @@ export interface Stats {
   active_plans: number;
 }
 
-export type Activity = "Dhaba" | "Movie" | "Study" | "Cricket" | "Just vibe";
+export type Activity = "Dhaba" | "Movie" | "Study" | "Cricket" | "Just vibe" | "Others";
 
 export const ACTIVITIES: { label: Activity; emoji: string }[] = [
   { label: "Dhaba", emoji: "🍜" },
@@ -65,12 +65,14 @@ export const ACTIVITIES: { label: Activity; emoji: string }[] = [
   { label: "Study", emoji: "📚" },
   { label: "Cricket", emoji: "🏏" },
   { label: "Just vibe", emoji: "🎵" },
+  { label: "Others", emoji: "✨" },
 ];
 
 export const LOCATIONS = [
   "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8",
   "H9", "H10", "H11", "H12", "H13", "H14", "H15",
-  "Academic Area", "Gymkhana",
+  "H16", "H17", "H18", "H19",
+  "Academic Area", "Gymkhana", "Others",
 ];
 
 export const ACTIVITY_EMOJI: Record<string, string> = {
@@ -79,4 +81,5 @@ export const ACTIVITY_EMOJI: Record<string, string> = {
   Study: "📚",
   Cricket: "🏏",
   "Just vibe": "🎵",
+  Others: "✨",
 };

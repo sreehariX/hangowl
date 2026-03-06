@@ -10,7 +10,9 @@ export default function FreePage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [activity, setActivity] = useState<Activity | "">("");
+  const [customActivity, setCustomActivity] = useState("");
   const [location, setLocation] = useState("");
+  const [customLocation, setCustomLocation] = useState("");
   const [description, setDescription] = useState("");
   const [maxPeople, setMaxPeople] = useState(10);
   const [submitting, setSubmitting] = useState(false);
@@ -22,9 +24,12 @@ export default function FreePage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
+  const resolvedActivity = activity === "Others" ? customActivity : activity;
+  const resolvedLocation = location === "Others" ? customLocation : location;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activity || !location) {
+    if (!resolvedActivity || !resolvedLocation) {
       setError("Pick an activity and location");
       return;
     }
@@ -32,8 +37,8 @@ export default function FreePage() {
     setError("");
     try {
       await api.createPlan({
-        activity,
-        location,
+        activity: resolvedActivity,
+        location: resolvedLocation,
         description,
         max_people: maxPeople,
       });
@@ -78,6 +83,17 @@ export default function FreePage() {
               </button>
             ))}
           </div>
+          {activity === "Others" && (
+            <input
+              type="text"
+              value={customActivity}
+              onChange={(e) => setCustomActivity(e.target.value)}
+              placeholder="What do you want to do?"
+              maxLength={50}
+              className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+              autoFocus
+            />
+          )}
         </div>
 
         <div>
@@ -100,6 +116,17 @@ export default function FreePage() {
               </button>
             ))}
           </div>
+          {location === "Others" && (
+            <input
+              type="text"
+              value={customLocation}
+              onChange={(e) => setCustomLocation(e.target.value)}
+              placeholder="Where exactly?"
+              maxLength={50}
+              className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-mid-blue focus:outline-none focus:ring-1 focus:ring-mid-blue transition-colors"
+              autoFocus
+            />
+          )}
         </div>
 
         <div>
@@ -140,7 +167,7 @@ export default function FreePage() {
 
         <button
           type="submit"
-          disabled={submitting || !activity || !location}
+          disabled={submitting || !resolvedActivity || !resolvedLocation}
           className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Creating..." : "Post Plan (expires in 2h)"}

@@ -67,9 +67,8 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
     settings = get_settings()
     db = get_supabase()
 
-    allowed_activities = ["Dhaba", "Movie", "Study", "Cricket", "Just vibe"]
-    if body.activity not in allowed_activities:
-        raise HTTPException(status_code=400, detail=f"Activity must be one of: {', '.join(allowed_activities)}")
+    if not body.activity or len(body.activity) > 50:
+        raise HTTPException(status_code=400, detail="Activity is required (max 50 chars)")
 
     if body.max_people < 2 or body.max_people > 50:
         raise HTTPException(status_code=400, detail="Max people must be between 2 and 50")
