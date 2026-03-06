@@ -97,7 +97,7 @@ export default function HomePage() {
           <span className="text-amber">with at IIT Bombay</span>
         </h1>
         <p className="text-text-secondary text-sm max-w-sm mx-auto leading-relaxed">
-          Post what you want to do. Other students see it and join. You stay anonymous to everyone else on the app.
+        Post what you want to do. Other students can see it and join, or you can join their plans. Stay anonymous to everyone on the app.
         </p>
 
         {loadingStats ? (
