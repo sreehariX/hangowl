@@ -79,7 +79,7 @@ export default function VerifyPage() {
       setIsNew(data.is_new);
       setStep("welcome");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Code didn't work");
+      setError(err instanceof Error ? err.message : "Invalid code, try again");
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
     } finally {
@@ -94,9 +94,9 @@ export default function VerifyPage() {
           <Avatar name={persona} size={80} />
         </div>
         <h1 className="text-2xl font-bold text-text-primary mb-2">
-          {isNew ? "You're in!" : "Welcome back!"}
+          {isNew ? "Welcome to HangOwl!" : "Welcome back!"}
         </h1>
-        <p className="text-text-secondary mb-6">Your nickname is</p>
+        <p className="text-text-secondary mb-6">Your anonymous name is</p>
         <div className="rounded-2xl bg-surface border border-amber/30 px-6 py-4 mb-8">
           <span className="text-xl font-bold text-amber">{persona}</span>
         </div>
@@ -104,7 +104,7 @@ export default function VerifyPage() {
           onClick={() => router.push("/board")}
           className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark"
         >
-          Go to feed
+          Go to Board
         </button>
       </div>
     );
@@ -115,12 +115,12 @@ export default function VerifyPage() {
       <div className="text-center mb-8">
         <div className="text-4xl mb-4">🦉</div>
         <h1 className="text-2xl font-bold text-text-primary mb-1">
-          {step === "email" ? "Sign in with IIT-B email" : "Enter the code"}
+          {step === "email" ? "Verify your IIT-B email" : "Enter the 6-digit code"}
         </h1>
         <p className="text-sm text-text-secondary">
           {step === "email"
-            ? "We send a 6-digit code to your inbox. We don't save your email."
-            : `Code sent to ${email}`}
+            ? "We send a code to your email to sign you in. Your email is only used for that. To everyone else on the app you're anonymous."
+            : `We sent a code to ${email}`}
         </p>
       </div>
 
@@ -142,7 +142,7 @@ export default function VerifyPage() {
             disabled={loading || !email}
             className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50"
           >
-            {loading ? "Sending code..." : "Send code"}
+            {loading ? "Sending..." : "Send verification code"}
           </button>
         </form>
       )}
@@ -167,7 +167,7 @@ export default function VerifyPage() {
           </div>
           {loading && (
             <p className="text-center text-sm text-text-secondary">
-              Checking...
+              Verifying...
             </p>
           )}
           <button

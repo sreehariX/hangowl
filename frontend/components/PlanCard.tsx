@@ -80,7 +80,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
               {plan.activity}
             </h3>
             <span className="shrink-0 rounded-full bg-amber/15 px-2.5 py-0.5 text-xs font-medium text-amber">
-              {formatDateIST(plan.plan_date)} &middot; {formatTimeIST(plan.starts_at)}&ndash;{formatTimeIST(plan.ends_at)}
+              {formatDateIST(plan.plan_date)} &middot; {formatTimeIST(plan.starts_at)}-{formatTimeIST(plan.ends_at)}
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">

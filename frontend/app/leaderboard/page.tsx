@@ -35,10 +35,10 @@ export default function LeaderboardPage() {
     <div className="mx-auto max-w-lg px-4 pt-8">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-text-primary">
-          Top joiners
+          Leaderboard
         </h1>
         <p className="text-sm text-text-secondary mt-1">
-          People who join the most plans
+          Most active people on campus
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default function LeaderboardPage() {
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <div className="text-3xl mb-3">🏆</div>
           <p className="text-text-secondary text-sm">
-            No one has joined a plan yet. Post one or join one to get on the list.
+            No hangouts yet. Be the first!
           </p>
         </div>
       ) : (

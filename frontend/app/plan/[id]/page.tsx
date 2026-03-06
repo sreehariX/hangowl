@@ -91,7 +91,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
               {plan.plan_date ? formatDateIST(plan.plan_date) : ""}
             </div>
             <div className="text-xs text-text-muted">
-              {formatTimeIST(plan.starts_at)} &ndash; {formatTimeIST(plan.ends_at)} IST
+              {formatTimeIST(plan.starts_at)} - {formatTimeIST(plan.ends_at)} IST
             </div>
           </div>
           <div className="h-8 w-px bg-border" />

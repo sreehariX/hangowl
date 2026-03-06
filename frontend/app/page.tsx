@@ -92,13 +92,31 @@ export default function HomePage() {
       <section className="text-center space-y-4 mb-10">
         <div className="text-5xl animate-float">🦉</div>
         <h1 className="text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
-          Post when you&apos;re free.
+          Find people to hang out
           <br />
-          <span className="text-amber">Join when you&apos;re bored.</span>
+          <span className="text-amber">with at IIT Bombay</span>
         </h1>
         <p className="text-text-secondary text-sm max-w-sm mx-auto leading-relaxed">
-          Only IIT-B students. You get a random nickname so you stay anonymous. See plans, post yours, or join someone else&apos;s. Simple.
+          Post what you want to do. Other students see it and join. You stay anonymous to everyone else on the app.
         </p>
+
+        <div className="text-left bg-surface border border-border rounded-2xl p-4 max-w-sm mx-auto">
+          <p className="text-xs font-semibold text-amber mb-3 uppercase tracking-wider">How it works</p>
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">1</span>
+              <p className="text-sm text-text-secondary">Sign in with your IIT-B email (we use it only to send the login code)</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">2</span>
+              <p className="text-sm text-text-secondary">You get a random name like &quot;CoralPanda&quot;. No one sees your email.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-xs font-bold text-amber">3</span>
+              <p className="text-sm text-text-secondary">Post a plan or join someone else&apos;s. That&apos;s it and hangout with them.</p>
+            </div>
+          </div>
+        </div>
 
         {loadingStats ? (
           <div className="flex justify-center gap-4 pt-4">
@@ -109,7 +127,6 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-3 gap-3 pt-4">
             <div className="animate-scale-in stagger-1 relative overflow-hidden rounded-2xl border border-amber/20 bg-gradient-to-br from-amber/10 to-amber/5 p-4">
-              <div className="absolute -right-2 -top-2 text-4xl opacity-10">🎓</div>
               <div className="text-3xl font-black text-amber tabular-nums">
                 <AnimatedNumber value={stats?.total_users ?? 0} />
               </div>
@@ -118,7 +135,6 @@ export default function HomePage() {
               </div>
             </div>
             <div className="animate-scale-in stagger-2 relative overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success/10 to-success/5 p-4">
-              <div className="absolute -right-2 -top-2 text-4xl opacity-10">⚡</div>
               <div className="flex items-center justify-center gap-1.5">
                 <LiveDot />
                 <span className="text-3xl font-black text-success tabular-nums">
@@ -130,7 +146,6 @@ export default function HomePage() {
               </div>
             </div>
             <div className="animate-scale-in stagger-3 relative overflow-hidden rounded-2xl border border-mid-blue/20 bg-gradient-to-br from-mid-blue/10 to-mid-blue/5 p-4">
-              <div className="absolute -right-2 -top-2 text-4xl opacity-10">📋</div>
               <div className="text-3xl font-black text-mid-blue-light tabular-nums">
                 <AnimatedNumber value={stats?.active_plans ?? 0} />
               </div>
@@ -149,7 +164,7 @@ export default function HomePage() {
             >
               <Avatar name={personaName || ""} size={28} />
               <span className="font-semibold text-text-primary">{personaName}</span>
-              <span className="text-text-muted text-sm ml-1">Go to feed &rarr;</span>
+              <span className="text-text-muted text-sm ml-1">&rarr;</span>
             </Link>
           ) : (
             <>
@@ -157,10 +172,10 @@ export default function HomePage() {
                 href="/verify"
                 className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
               >
-                Join now with your IIT-B email
+                Join with IIT-B email
               </Link>
               <p className="text-xs text-text-muted">
-                We don&apos;t store who you are.
+                No signup. No password. Just a one-time code to your inbox.
               </p>
             </>
           )}
@@ -171,13 +186,10 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-text-primary">
-              Plans
+              Happening now
             </h2>
             <LiveDot />
           </div>
-          <span className="text-xs text-text-muted">
-            updates every 15 sec
-          </span>
         </div>
 
         {loadingPlans ? (
@@ -186,7 +198,7 @@ export default function HomePage() {
           <div className="rounded-2xl border border-border bg-surface p-8 text-center">
             <div className="text-3xl mb-3">🌙</div>
             <p className="text-text-secondary text-sm">
-              No plans yet. Post one and see who joins.
+              No plans right now. Be the first to post one!
             </p>
           </div>
         ) : (

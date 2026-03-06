@@ -15,34 +15,29 @@ const DURATIONS = [
   { label: "4 hr", minutes: 240 },
 ];
 
-function getISTNow() {
-  const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  return ist;
-}
-
 function todayIST() {
-  const ist = getISTNow();
-  return ist.toISOString().split("T")[0];
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
+    .toISOString()
+    .split("T")[0];
 }
 
-function currentHourIST() {
-  const ist = getISTNow();
-  return ist.getUTCHours();
+function nowTimeIST() {
+  const now = new Date();
+  const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const h = String(ist.getHours()).padStart(2, "0");
+  const m = String(ist.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
 }
 
-function currentMinuteIST() {
-  const ist = getISTNow();
-  return ist.getUTCMinutes();
-}
-
-function to12Hour(h: number) {
-  if (h === 0) return 12;
-  if (h > 12) return h - 12;
-  return h;
-}
-
-function formatAmPm(h: number) {
-  return h < 12 ? "AM" : "PM";
+function formatTimeDisplay(time24: string) {
+  const [hStr, mStr] = time24.split(":");
+  let h = parseInt(hStr, 10);
+  const m = mStr;
+  const ampm = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${m} ${ampm}`;
 }
 
 export default function FreePage() {
@@ -55,9 +50,7 @@ export default function FreePage() {
   const [description, setDescription] = useState("");
   const [maxPeople, setMaxPeople] = useState(10);
   const [planDate, setPlanDate] = useState(todayIST());
-  const [hour, setHour] = useState(currentHourIST());
-  const [minute, setMinute] = useState(Math.ceil(currentMinuteIST() / 5) * 5 % 60);
-  const [ampm, setAmpm] = useState<"AM" | "PM">(formatAmPm(currentHourIST()) as "AM" | "PM");
+  const [startTime, setStartTime] = useState(nowTimeIST());
   const [duration, setDuration] = useState(60);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -71,39 +64,6 @@ export default function FreePage() {
   const resolvedActivity = activity === "Others" ? customActivity : activity;
   const resolvedLocation = location === "Others" ? customLocation : location;
 
-  const displayHour = to12Hour(hour);
-
-  const handleHourChange = (val: string) => {
-    let h = parseInt(val, 10);
-    if (isNaN(h)) return;
-    if (h > 12) h = 12;
-    if (h < 1) h = 1;
-
-    if (ampm === "AM") {
-      setHour(h === 12 ? 0 : h);
-    } else {
-      setHour(h === 12 ? 12 : h + 12);
-    }
-  };
-
-  const handleMinuteChange = (val: string) => {
-    let m = parseInt(val, 10);
-    if (isNaN(m)) return;
-    if (m > 59) m = 59;
-    if (m < 0) m = 0;
-    setMinute(m);
-  };
-
-  const toggleAmPm = () => {
-    if (ampm === "AM") {
-      setAmpm("PM");
-      setHour((h) => (h < 12 ? h + 12 : h));
-    } else {
-      setAmpm("AM");
-      setHour((h) => (h >= 12 ? h - 12 : h));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvedActivity || !resolvedLocation) {
@@ -111,7 +71,7 @@ export default function FreePage() {
       return;
     }
 
-    const startISO = `${planDate}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+05:30`;
+    const startISO = `${planDate}T${startTime}:00+05:30`;
     const startDate = new Date(startISO);
     const endDate = new Date(startDate.getTime() + duration * 60000);
 
@@ -135,27 +95,28 @@ export default function FreePage() {
     }
   };
 
-  const endPreviewMs = new Date(`${planDate}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+05:30`).getTime() + duration * 60000;
-  const endPreviewIST = new Date(endPreviewMs + 5.5 * 60 * 60 * 1000);
-  const endH = endPreviewIST.getUTCHours();
-  const endM = endPreviewIST.getUTCMinutes();
-  const endDisplay = `${to12Hour(endH)}:${String(endM).padStart(2, "0")} ${formatAmPm(endH)} IST`;
+  const endMs = new Date(`${planDate}T${startTime}:00+05:30`).getTime() + duration * 60000;
+  const endDate = new Date(endMs);
+  const endIST = new Date(endDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const endH = String(endIST.getHours()).padStart(2, "0");
+  const endM = String(endIST.getMinutes()).padStart(2, "0");
+  const endDisplay = formatTimeDisplay(`${endH}:${endM}`);
 
   if (authLoading) return null;
 
   return (
     <div className="mx-auto max-w-sm px-4 pt-8 pb-24">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-text-primary">I&apos;m free</h1>
+        <h1 className="text-2xl font-bold text-text-primary">Create a plan</h1>
         <p className="text-sm text-text-secondary mt-1">
-          Pick what you want to do and when. Others can join.
+          Others will see this and can join you
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-3">
-            Activity
+            What do you want to do?
           </label>
           <div className="grid grid-cols-2 gap-2">
             {ACTIVITIES.map((a) => (
@@ -165,7 +126,7 @@ export default function FreePage() {
                 onClick={() => setActivity(a.label)}
                 className={`rounded-xl border p-3 text-left transition-all ${
                   activity === a.label
-                    ? "border-amber bg-amber/10 text-amber scale-[1.02]"
+                    ? "border-amber bg-amber/10 text-amber"
                     : "border-border bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
                 }`}
               >
@@ -179,7 +140,7 @@ export default function FreePage() {
               type="text"
               value={customActivity}
               onChange={(e) => setCustomActivity(e.target.value)}
-              placeholder="What do you want to do?"
+              placeholder="Type your activity"
               maxLength={50}
               className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
               autoFocus
@@ -189,7 +150,7 @@ export default function FreePage() {
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-3">
-            Location
+            Where?
           </label>
           <div className="grid grid-cols-3 gap-2">
             {LOCATIONS.map((loc) => (
@@ -199,7 +160,7 @@ export default function FreePage() {
                 onClick={() => setLocation(loc)}
                 className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
                   location === loc
-                    ? "border-mid-blue bg-mid-blue/15 text-mid-blue-light scale-[1.02]"
+                    ? "border-mid-blue bg-mid-blue/15 text-mid-blue-light"
                     : "border-border bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
                 }`}
               >
@@ -212,7 +173,7 @@ export default function FreePage() {
               type="text"
               value={customLocation}
               onChange={(e) => setCustomLocation(e.target.value)}
-              placeholder="Where exactly?"
+              placeholder="Type location"
               maxLength={50}
               className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-mid-blue focus:outline-none focus:ring-1 focus:ring-mid-blue transition-colors"
               autoFocus
@@ -220,56 +181,35 @@ export default function FreePage() {
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-2">
-            Date
-          </label>
-          <input
-            type="date"
-            value={planDate}
-            min={todayIST()}
-            onChange={(e) => setPlanDate(e.target.value)}
-            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-2">
-            Start time
-          </label>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5">
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={displayHour}
-                onChange={(e) => handleHourChange(e.target.value)}
-                className="w-10 bg-transparent text-center text-lg font-bold text-text-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="text-lg font-bold text-text-muted">:</span>
-              <input
-                type="number"
-                min={0}
-                max={59}
-                value={String(minute).padStart(2, "0")}
-                onChange={(e) => handleMinuteChange(e.target.value)}
-                className="w-10 bg-transparent text-center text-lg font-bold text-text-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={toggleAmPm}
-              className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-bold text-amber transition-colors hover:bg-surface-hover active:scale-95"
-            >
-              {ampm}
-            </button>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Date
+            </label>
+            <input
+              type="date"
+              value={planDate}
+              min={todayIST()}
+              onChange={(e) => setPlanDate(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Start time
+            </label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+            />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Duration
+            How long?
           </label>
           <div className="grid grid-cols-3 gap-2">
             {DURATIONS.map((d) => (
@@ -279,7 +219,7 @@ export default function FreePage() {
                 onClick={() => setDuration(d.minutes)}
                 className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
                   duration === d.minutes
-                    ? "border-amber bg-amber/10 text-amber scale-[1.02]"
+                    ? "border-amber bg-amber/10 text-amber"
                     : "border-border bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
                 }`}
               >
@@ -288,13 +228,13 @@ export default function FreePage() {
             ))}
           </div>
           <p className="text-xs text-text-muted mt-2">
-            Ends at {endDisplay} IST
+            {formatTimeDisplay(startTime)} - {endDisplay} IST
           </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Description (optional)
+            Short note (optional)
           </label>
           <textarea
             value={description}
