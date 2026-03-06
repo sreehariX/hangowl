@@ -93,7 +93,7 @@ async def send_otp(body: SendOTPRequest):
 
     resend.api_key = settings.resend_api_key
     resend.Emails.send({
-        "from": "HangOwl <noreply@hangowl.com>",
+        "from": "HangOwl <noreply@verify.hangowl.com>",
         "to": email,
         "subject": "Your HangOwl OTP",
         "html": (
