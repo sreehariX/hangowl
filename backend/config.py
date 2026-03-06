@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 168  # 7 days
     frontend_url: str = "http://localhost:3000"
     plan_expiry_hours: int = 2
+    environment: str = "development"
 
     model_config = {"env_file": ".env"}
 

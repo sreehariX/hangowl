@@ -73,7 +73,7 @@ export default function VerifyPage() {
     setError("");
     try {
       const data = await api.verifyOTP(email, code);
-      login(data.user_id, data.persona_name);
+      login(data.user_id, data.persona_name, data.token);
       setPersona(data.persona_name);
       setIsNew(data.is_new);
       setStep("welcome");

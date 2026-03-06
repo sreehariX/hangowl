@@ -147,6 +147,8 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
         .execute()
     )
 
+    is_prod = get_settings().environment == "production"
+
     if existing.data:
         user = existing.data[0]
         token = create_jwt(user["id"])
@@ -154,14 +156,15 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
             key="token",
             value=token,
             httponly=True,
-            secure=False,
-            samesite="lax",
+            secure=is_prod,
+            samesite="none" if is_prod else "lax",
             max_age=7 * 24 * 3600,
         )
         return {
             "message": "Welcome back!",
             "persona_name": user["persona_name"],
             "user_id": user["id"],
+            "token": token,
             "is_new": False,
         }
 
@@ -186,8 +189,8 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
         key="token",
         value=token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
         max_age=7 * 24 * 3600,
     )
 
@@ -197,5 +200,6 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
         "message": "Welcome to HangOwl!",
         "persona_name": persona_name,
         "user_id": user["id"],
+        "token": token,
         "is_new": True,
     }

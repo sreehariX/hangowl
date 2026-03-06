@@ -17,7 +17,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   loading: boolean;
-  login: (userId: string, personaName: string) => void;
+  login: (userId: string, personaName: string, token?: string) => void;
   logout: () => void;
 }
 
@@ -71,9 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [loading] = useState(false);
 
-  const login = useCallback((userId: string, personaName: string) => {
+  const login = useCallback((userId: string, personaName: string, token?: string) => {
     localStorage.setItem("hangowl_user_id", userId);
     localStorage.setItem("hangowl_persona", personaName);
+    if (token) localStorage.setItem("hangowl_token", token);
     currentSnapshot = { isAuthenticated: true, userId, personaName };
     emitChange();
   }, []);
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem("hangowl_user_id");
     localStorage.removeItem("hangowl_persona");
+    localStorage.removeItem("hangowl_token");
     currentSnapshot = { isAuthenticated: false, userId: null, personaName: null };
     emitChange();
   }, []);
