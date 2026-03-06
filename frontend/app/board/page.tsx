@@ -76,19 +76,19 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6">
+    <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-text-primary">The Board</h1>
+          <h1 className="text-xl font-bold text-text-primary">Plans</h1>
           <p className="text-xs text-text-muted mt-0.5">
-            {personaName} &middot; {plans.length} active plans
+            {personaName} &middot; {plans.length} plan{plans.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Link
           href="/free"
           className="rounded-xl bg-amber px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-amber-dark"
         >
-          + I&apos;m Free
+          I&apos;m free
         </Link>
       </div>
 
@@ -102,7 +102,7 @@ export default function BoardPage() {
                 : "bg-surface text-text-secondary hover:text-text-primary"
             }`}
           >
-            All Activities
+            All
           </button>
           {ACTIVITIES.map((a) => (
             <button
@@ -127,7 +127,7 @@ export default function BoardPage() {
                 : "bg-surface text-text-secondary hover:text-text-primary"
             }`}
           >
-            All Campus
+            All campus
           </button>
           {LOCATIONS.map((loc) => (
             <button
@@ -151,13 +151,13 @@ export default function BoardPage() {
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <div className="text-3xl mb-3">🌙</div>
           <p className="text-text-secondary text-sm mb-4">
-            No plans match your filters right now.
+            No plans here yet. Post one and others can join.
           </p>
           <Link
             href="/free"
             className="inline-block rounded-xl bg-amber px-6 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-amber-dark"
           >
-            Create One
+            I&apos;m free
           </Link>
         </div>
       ) : (

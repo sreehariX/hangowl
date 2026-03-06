@@ -8,19 +8,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function formatTimeIST(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const today = new Date();
+function formatDateIST(dateStr: string) {
+  const now = new Date();
+  const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const today = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  const d = new Date(dateStr + "T00:00:00+05:30");
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (dDate.getTime() === today.getTime()) return "Today";
+  if (dDate.getTime() === tomorrow.getTime()) return "Tomorrow";
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric", timeZone: "Asia/Kolkata" });
 }
 
 interface PlanCardProps {
@@ -38,6 +47,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const ended = new Date(plan.ends_at) < new Date();
+  const spotsLeft = plan.max_people - memberCount;
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -59,9 +69,9 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   if (ended) return null;
 
   return (
-    <div className="animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-colors hover:bg-surface-hover">
+    <div className="group animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-all hover:bg-surface-hover hover:border-border/80 hover:shadow-lg hover:shadow-black/10">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy-lighter text-xl">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy-lighter text-xl transition-transform group-hover:scale-110">
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
@@ -70,7 +80,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
               {plan.activity}
             </h3>
             <span className="shrink-0 rounded-full bg-amber/15 px-2.5 py-0.5 text-xs font-medium text-amber">
-              {formatDate(plan.plan_date)} &middot; {formatTime(plan.starts_at)}–{formatTime(plan.ends_at)}
+              {formatDateIST(plan.plan_date)} &middot; {formatTimeIST(plan.starts_at)}&ndash;{formatTimeIST(plan.ends_at)}
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
@@ -89,9 +99,16 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
       )}
 
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs text-text-muted">
-          {memberCount}/{plan.max_people} joined
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-muted">
+            {memberCount}/{plan.max_people} joined
+          </span>
+          {spotsLeft <= 3 && spotsLeft > 0 && (
+            <span className="text-xs font-medium text-error animate-pulse">
+              {spotsLeft} spot{spotsLeft > 1 ? "s" : ""} left
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <Link
             href={`/plan/${plan.id}`}
@@ -102,7 +119,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
           <button
             onClick={handleJoin}
             disabled={joining || memberCount >= plan.max_people}
-            className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
           </button>

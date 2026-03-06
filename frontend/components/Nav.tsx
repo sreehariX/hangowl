@@ -9,11 +9,12 @@ import { Avatar } from "@/components/Avatar";
 const PUBLIC_LINKS = [
   { href: "/", label: "Home" },
   { href: "/leaderboard", label: "Ranks" },
+  { href: "/contact", label: "Contact" },
 ];
 
 const AUTH_LINKS = [
-  { href: "/board", label: "Board" },
-  { href: "/free", label: "I'm Free" },
+  { href: "/board", label: "Plans" },
+  { href: "/free", label: "I'm free" },
 ];
 
 export function Nav() {

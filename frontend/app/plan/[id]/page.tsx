@@ -7,13 +7,23 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function formatTimeIST(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+function formatDateIST(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00+05:30");
+  return d.toLocaleDateString("en-IN", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
 }
 
 function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => void }) {
@@ -78,10 +88,10 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
         <div className="flex items-center justify-around mb-6 rounded-xl bg-navy-lighter p-3">
           <div className="text-center">
             <div className="text-sm font-bold text-amber">
-              {plan.plan_date ? formatDate(plan.plan_date) : ""}
+              {plan.plan_date ? formatDateIST(plan.plan_date) : ""}
             </div>
             <div className="text-xs text-text-muted">
-              {formatTime(plan.starts_at)} – {formatTime(plan.ends_at)}
+              {formatTimeIST(plan.starts_at)} &ndash; {formatTimeIST(plan.ends_at)} IST
             </div>
           </div>
           <div className="h-8 w-px bg-border" />
@@ -125,7 +135,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
             <button
               onClick={handleJoin}
               disabled={joining}
-              className="w-full rounded-xl bg-amber py-3 font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50"
+              className="w-full rounded-xl bg-amber py-3 font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98] disabled:opacity-50"
             >
               {joining
                 ? "Joining..."

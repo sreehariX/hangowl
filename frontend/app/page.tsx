@@ -31,6 +31,15 @@ function AnimatedNumber({ value }: { value: number }) {
   return <>{display}</>;
 }
 
+function LiveDot() {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+    </span>
+  );
+}
+
 export default function HomePage() {
   const { isAuthenticated, personaName } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
@@ -79,16 +88,16 @@ export default function HomePage() {
   }, [isAuthenticated]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-10 md:pt-16">
+    <div className="mx-auto max-w-lg px-4 pt-10 pb-24 md:pt-16">
       <section className="text-center space-y-4 mb-10">
-        <div className="text-5xl">🦉</div>
+        <div className="text-5xl animate-float">🦉</div>
         <h1 className="text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
-          Who&apos;s free at IIT-B
+          Post when you&apos;re free.
           <br />
-          <span className="text-amber">right now?</span>
+          <span className="text-amber">Join when you&apos;re bored.</span>
         </h1>
-        <p className="text-text-secondary text-sm max-w-xs mx-auto leading-relaxed">
-          Anonymous campus hangout board. Make plans, join vibes, stay invisible.
+        <p className="text-text-secondary text-sm max-w-sm mx-auto leading-relaxed">
+          Only IIT-B students. You get a random nickname so you stay anonymous. See plans, post yours, or join someone else&apos;s. Simple.
         </p>
 
         {loadingStats ? (
@@ -99,25 +108,28 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3 pt-4">
-            <div className="relative overflow-hidden rounded-2xl border border-amber/20 bg-gradient-to-br from-amber/10 to-amber/5 p-4">
+            <div className="animate-scale-in stagger-1 relative overflow-hidden rounded-2xl border border-amber/20 bg-gradient-to-br from-amber/10 to-amber/5 p-4">
               <div className="absolute -right-2 -top-2 text-4xl opacity-10">🎓</div>
               <div className="text-3xl font-black text-amber tabular-nums">
                 <AnimatedNumber value={stats?.total_users ?? 0} />
               </div>
               <div className="text-[11px] font-medium text-amber/70 mt-1 uppercase tracking-wider">
-                Students
+                Total Students
               </div>
             </div>
-            <div className="relative overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success/10 to-success/5 p-4">
+            <div className="animate-scale-in stagger-2 relative overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success/10 to-success/5 p-4">
               <div className="absolute -right-2 -top-2 text-4xl opacity-10">⚡</div>
-              <div className="text-3xl font-black text-success tabular-nums">
-                <AnimatedNumber value={stats?.free_now ?? 0} />
+              <div className="flex items-center justify-center gap-1.5">
+                <LiveDot />
+                <span className="text-3xl font-black text-success tabular-nums">
+                  <AnimatedNumber value={stats?.free_now ?? 0} />
+                </span>
               </div>
               <div className="text-[11px] font-medium text-success/70 mt-1 uppercase tracking-wider">
                 Online now
               </div>
             </div>
-            <div className="relative overflow-hidden rounded-2xl border border-mid-blue/20 bg-gradient-to-br from-mid-blue/10 to-mid-blue/5 p-4">
+            <div className="animate-scale-in stagger-3 relative overflow-hidden rounded-2xl border border-mid-blue/20 bg-gradient-to-br from-mid-blue/10 to-mid-blue/5 p-4">
               <div className="absolute -right-2 -top-2 text-4xl opacity-10">📋</div>
               <div className="text-3xl font-black text-mid-blue-light tabular-nums">
                 <AnimatedNumber value={stats?.active_plans ?? 0} />
@@ -133,22 +145,22 @@ export default function HomePage() {
           {isAuthenticated ? (
             <Link
               href="/board"
-              className="flex items-center justify-center gap-3 w-full rounded-xl bg-surface border border-border py-3.5 transition-colors hover:bg-surface-hover"
+              className="flex items-center justify-center gap-3 w-full rounded-xl bg-surface border border-border py-3.5 transition-all hover:bg-surface-hover active:scale-[0.98]"
             >
               <Avatar name={personaName || ""} size={28} />
               <span className="font-semibold text-text-primary">{personaName}</span>
-              <span className="text-text-muted text-sm ml-1">Go to Board &rarr;</span>
+              <span className="text-text-muted text-sm ml-1">Go to feed &rarr;</span>
             </Link>
           ) : (
             <>
               <Link
                 href="/verify"
-                className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-colors hover:bg-amber-dark"
+                className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
               >
-                Join the network
+                Join now with your IIT-B email
               </Link>
               <p className="text-xs text-text-muted">
-                We can&apos;t identify you even if we wanted to.
+                We don&apos;t store who you are.
               </p>
             </>
           )}
@@ -157,11 +169,14 @@ export default function HomePage() {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Upcoming Plans
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">
+              Plans
+            </h2>
+            <LiveDot />
+          </div>
           <span className="text-xs text-text-muted">
-            auto-refreshes every 15s
+            updates every 15 sec
           </span>
         </div>
 
@@ -171,7 +186,7 @@ export default function HomePage() {
           <div className="rounded-2xl border border-border bg-surface p-8 text-center">
             <div className="text-3xl mb-3">🌙</div>
             <p className="text-text-secondary text-sm">
-              No active plans right now. Be the first!
+              No plans yet. Post one and see who joins.
             </p>
           </div>
         ) : (
