@@ -22,6 +22,7 @@ function formatTime(iso: string) {
 export function PlanChat({ planId }: PlanChatProps) {
   const { isAuthenticated, userId } = useAuth();
   const [messages, setMessages] = useState<PlanMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,14 +36,18 @@ export function PlanChat({ planId }: PlanChatProps) {
   };
 
   useEffect(() => {
+    let active = true;
     api.getMessages(planId).then((data) => {
+      if (!active) return;
       setMessages(data.messages);
+      setLoading(false);
       requestAnimationFrame(() => {
         if (containerRef.current) {
           containerRef.current.scrollTop = containerRef.current.scrollHeight;
         }
       });
-    }).catch(() => {});
+    }).catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [planId]);
 
   useEffect(() => {
@@ -116,7 +121,12 @@ export function PlanChat({ planId }: PlanChatProps) {
         onScroll={handleScroll}
         className="max-h-72 overflow-y-auto px-3 py-3 space-y-1"
       >
-        {messages.length === 0 && (
+        {loading && (
+          <div className="flex flex-col items-center gap-2 py-8">
+            <div className="h-4 w-4 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+          </div>
+        )}
+        {!loading && messages.length === 0 && (
           <p className="text-xs text-text-muted text-center py-8">
             No messages yet. Say hi!
           </p>
