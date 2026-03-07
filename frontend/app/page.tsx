@@ -19,7 +19,7 @@ function LiveDot() {
 }
 
 export default function HomePage() {
-  const { isAuthenticated, personaName } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -82,7 +82,7 @@ export default function HomePage() {
         Post what you want to do. Other students can see it and join, or you can join their plans. Stay anonymous to everyone on the app.
         </p>
 
-        {!isAuthenticated && (
+        {!authLoading && !isAuthenticated && (
           <div className="pt-4 space-y-3">
             <Link
               href="/verify"
