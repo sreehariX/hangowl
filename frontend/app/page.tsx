@@ -131,7 +131,7 @@ export default function HomePage() {
       </section>
 
       <footer className="mt-12 pb-8 text-center text-xs text-text-muted">
-        HangOwl &middot; Built for IIT Bombay
+        HangOwl &middot; Built for IIT Bombay students
       </footer>
     </div>
   );

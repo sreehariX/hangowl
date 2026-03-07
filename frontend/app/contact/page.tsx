@@ -61,7 +61,7 @@ export default function ContactPage() {
 
       <div className="mt-10 rounded-2xl border border-border bg-surface p-6 text-center">
         <p className="text-sm text-text-secondary leading-relaxed">
-          HangOwl is built for the IIT Bombay community.
+          HangOwl is built for the IIT Bombay students.
           Got feedback, bugs, or ideas? Reach out anytime.
         </p>
       </div>
