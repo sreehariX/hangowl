@@ -86,7 +86,8 @@ async def get_my_plans(user: dict = Depends(verify_token)):
     live = []
     past = []
     for p in all_plans.data:
-        if p.get("ends_at", "") > now:
+        ends_at = p.get("ends_at") or ""
+        if ends_at > now:
             live.append(p)
         else:
             past.append(p)
