@@ -82,30 +82,19 @@ export default function HomePage() {
         Post what you want to do. Other students can see it and join, or you can join their plans. Stay anonymous to everyone on the app.
         </p>
 
-        <div className="pt-4 space-y-3">
-          {isAuthenticated ? (
+        {!isAuthenticated && (
+          <div className="pt-4 space-y-3">
             <Link
-              href="/board"
-              className="flex items-center justify-center gap-3 w-full rounded-xl bg-surface border border-border py-3.5 transition-all hover:bg-surface-hover active:scale-[0.98]"
+              href="/verify"
+              className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
             >
-              <Avatar name={personaName || ""} size={28} />
-              <span className="font-semibold text-text-primary">{personaName}</span>
-              <span className="text-text-muted text-sm ml-1">&rarr;</span>
+              Join with IIT-B email
             </Link>
-          ) : (
-            <>
-              <Link
-                href="/verify"
-                className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
-              >
-                Join with IIT-B email
-              </Link>
-              <p className="text-xs text-text-muted">
-                No signup. No password. Just a one-time code to your inbox.
-              </p>
-            </>
-          )}
-        </div>
+            <p className="text-xs text-text-muted">
+              No signup. No password. Just a one-time code to your inbox.
+            </p>
+          </div>
+        )}
       </section>
 
       <section>
