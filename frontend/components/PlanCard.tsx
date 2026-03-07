@@ -38,9 +38,10 @@ interface PlanCardProps {
 }
 
 export function PlanCard({ plan, onJoined }: PlanCardProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userId } = useAuth();
   const router = useRouter();
   const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState(false);
   const [error, setError] = useState("");
 
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
@@ -48,6 +49,7 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const ended = new Date(plan.ends_at) < new Date();
   const spotsLeft = plan.max_people - memberCount;
+  const isCreator = userId === plan.creator_id;
 
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -60,9 +62,15 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
     setError("");
     try {
       await api.joinPlan(plan.id);
+      setJoined(true);
       onJoined?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join");
+      const msg = err instanceof Error ? err.message : "Failed to join";
+      if (msg.toLowerCase().includes("already")) {
+        setJoined(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setJoining(false);
     }
@@ -117,13 +125,19 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
             Tap for details
           </span>
         </div>
-        <button
-          onClick={handleJoin}
-          disabled={joining || memberCount >= plan.max_people}
-          className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
-        </button>
+        {joined || isCreator ? (
+          <span className="rounded-lg bg-success/15 border border-success/30 px-3 py-1.5 text-xs font-semibold text-success">
+            Joined
+          </span>
+        ) : (
+          <button
+            onClick={handleJoin}
+            disabled={joining || memberCount >= plan.max_people}
+            className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
+          </button>
+        )}
       </div>
 
       {error && (

@@ -40,6 +40,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const members = plan.plan_members ?? [];
   const ended = new Date(plan.ends_at) < new Date();
   const isCreator = userId === plan.creator_id;
+  const alreadyJoined = members.some((m) => m.user_id === userId);
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -154,14 +155,20 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           <div className="space-y-2">
             <button
               onClick={handleJoin}
-              disabled={joining}
-              className="w-full rounded-xl bg-amber py-3 font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98] disabled:opacity-50"
+              disabled={joining || alreadyJoined}
+              className={`w-full rounded-xl py-3 font-semibold transition-all active:scale-[0.98] ${
+                alreadyJoined
+                  ? "bg-success/15 text-success border border-success/30 cursor-default"
+                  : "bg-amber text-navy hover:bg-amber-dark disabled:opacity-50"
+              }`}
             >
               {joining
                 ? "Joining..."
-                : isAuthenticated
-                  ? "Join This Plan"
-                  : "Login to Join"}
+                : alreadyJoined
+                  ? "You're in this plan"
+                  : isAuthenticated
+                    ? "Join This Plan"
+                    : "Login to Join"}
             </button>
             <button
               onClick={handleShare}
