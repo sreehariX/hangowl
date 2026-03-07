@@ -113,6 +113,9 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
               {spotsLeft} spot{spotsLeft > 1 ? "s" : ""} left
             </span>
           )}
+          <span className="text-[10px] text-text-muted/60 hidden group-hover:inline md:inline">
+            Tap for details
+          </span>
         </div>
         <button
           onClick={handleJoin}

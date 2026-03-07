@@ -32,6 +32,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const router = useRouter();
   const [joining, setJoining] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
@@ -58,13 +59,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   };
 
   const handleDelete = async () => {
-    if (!confirm("Remove this plan? It will disappear from the board.")) return;
     setDeleting(true);
     try {
       await api.hidePlan(plan.id);
       router.push("/board");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete");
+      setConfirmDelete(false);
     } finally {
       setDeleting(false);
     }
@@ -168,14 +169,35 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             >
               Share with friends
             </button>
-            {isCreator && (
+            {isCreator && !confirmDelete && (
               <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="w-full rounded-xl border border-error/30 py-3 text-sm font-medium text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                onClick={() => setConfirmDelete(true)}
+                className="w-full rounded-xl border border-error/30 py-3 text-sm font-medium text-error transition-colors hover:bg-error/10"
               >
-                {deleting ? "Removing..." : "Delete this plan"}
+                Delete this plan
               </button>
+            )}
+            {isCreator && confirmDelete && (
+              <div className="rounded-xl border border-error/30 p-3 space-y-2">
+                <p className="text-xs text-text-secondary text-center">
+                  This will remove the plan from the board. Are you sure?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 rounded-lg border border-border py-2 text-sm text-text-secondary transition-colors hover:bg-surface-hover"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex-1 rounded-lg bg-error py-2 text-sm font-medium text-white transition-colors hover:bg-error/80 disabled:opacity-50"
+                  >
+                    {deleting ? "Removing..." : "Yes, delete"}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}

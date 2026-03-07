@@ -4,11 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { Avatar } from "@/components/Avatar";
 import type { PlanMessage } from "@/lib/types";
 
 interface PlanChatProps {
   planId: string;
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
 }
 
 export function PlanChat({ planId }: PlanChatProps) {
@@ -16,12 +24,24 @@ export function PlanChat({ planId }: PlanChatProps) {
   const [messages, setMessages] = useState<PlanMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScroll = useRef(true);
+
+  const scrollToBottom = () => {
+    const el = containerRef.current;
+    if (el && shouldAutoScroll.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
 
   useEffect(() => {
     api.getMessages(planId).then((data) => {
       setMessages(data.messages);
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        }
+      });
     }).catch(() => {});
   }, [planId]);
 
@@ -52,14 +72,22 @@ export function PlanChat({ planId }: PlanChatProps) {
   }, [planId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages]);
+
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    shouldAutoScroll.current = atBottom;
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || sending || !isAuthenticated) return;
 
     setSending(true);
+    shouldAutoScroll.current = true;
     try {
       const data = await api.sendMessage(planId, input.trim());
       setMessages((prev) => {
@@ -74,6 +102,8 @@ export function PlanChat({ planId }: PlanChatProps) {
     }
   };
 
+  let lastSender = "";
+
   return (
     <div className="rounded-2xl border border-border bg-surface overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
@@ -83,7 +113,9 @@ export function PlanChat({ planId }: PlanChatProps) {
 
       <div
         ref={containerRef}
-        className="h-64 overflow-y-auto p-3 space-y-2 scrollbar-hide"
+        onScroll={handleScroll}
+        className="h-72 overflow-y-auto px-3 py-3 space-y-1"
+        style={{ overscrollBehavior: "contain" }}
       >
         {messages.length === 0 && (
           <p className="text-xs text-text-muted text-center py-8">
@@ -93,23 +125,32 @@ export function PlanChat({ planId }: PlanChatProps) {
         {messages.map((msg) => {
           const isMe = msg.user_id === userId;
           const name = msg.users?.persona_name ?? "Anonymous";
+          const showName = !isMe && msg.user_id !== lastSender;
+          lastSender = msg.user_id;
+
           return (
-            <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
-              <Avatar name={name} size={24} className="shrink-0 mt-0.5" />
-              <div className={`max-w-[75%] ${isMe ? "text-right" : ""}`}>
-                <p className="text-[10px] text-text-muted mb-0.5">{name}</p>
-                <div className={`rounded-xl px-3 py-1.5 text-sm ${
-                  isMe
-                    ? "bg-amber/15 text-amber"
-                    : "bg-navy-lighter text-text-primary"
-                }`}>
-                  {msg.message}
-                </div>
+            <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+              {showName && (
+                <p className="text-[10px] font-medium text-mid-blue-light ml-2 mb-0.5 mt-2">
+                  {name}
+                </p>
+              )}
+              <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                isMe
+                  ? "bg-amber/20 rounded-br-md"
+                  : "bg-navy-lighter rounded-bl-md"
+              }`}>
+                {isMe && msg.user_id !== (messages[messages.indexOf(msg) - 1]?.user_id) && (
+                  <p className="text-[10px] font-medium text-amber mb-0.5">You</p>
+                )}
+                <p className="text-sm text-text-primary break-words">{msg.message}</p>
+                <p className={`text-[9px] mt-0.5 ${isMe ? "text-amber/50" : "text-text-muted/50"}`}>
+                  {formatTime(msg.created_at)}
+                </p>
               </div>
             </div>
           );
         })}
-        <div ref={bottomRef} />
       </div>
 
       {isAuthenticated ? (
@@ -120,14 +161,16 @@ export function PlanChat({ planId }: PlanChatProps) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
             maxLength={500}
-            className="flex-1 rounded-xl border border-border bg-navy-lighter px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none transition-colors"
+            className="flex-1 rounded-full border border-border bg-navy-lighter px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none transition-colors"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-xl bg-amber px-4 py-2 text-sm font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50"
+            className="rounded-full bg-amber h-9 w-9 flex items-center justify-center text-navy transition-colors hover:bg-amber-dark disabled:opacity-50 shrink-0"
           >
-            Send
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
+            </svg>
           </button>
         </form>
       ) : (

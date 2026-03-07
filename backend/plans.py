@@ -49,16 +49,27 @@ async def get_plans(location: str | None = None, activity: str | None = None):
 @router.get("/my")
 async def get_my_plans(user: dict = Depends(verify_token)):
     db = get_supabase()
+    user_id = user["sub"]
 
     memberships = (
         db.table("plan_members")
         .select("plan_id")
-        .eq("user_id", user["sub"])
+        .eq("user_id", user_id)
         .execute()
     )
-    plan_ids = [m["plan_id"] for m in memberships.data]
+    member_plan_ids = {m["plan_id"] for m in memberships.data}
 
-    if not plan_ids:
+    created_plans = (
+        db.table("plans")
+        .select("id")
+        .eq("creator_id", user_id)
+        .execute()
+    )
+    created_plan_ids = {p["id"] for p in created_plans.data}
+
+    all_ids = list(member_plan_ids | created_plan_ids)
+
+    if not all_ids:
         return {"live": [], "past": []}
 
     now = datetime.now(timezone.utc).isoformat()
@@ -66,7 +77,7 @@ async def get_my_plans(user: dict = Depends(verify_token)):
     all_plans = (
         db.table("plans")
         .select("*, plan_members(count), users!plans_creator_id_fkey(persona_name, hostel)")
-        .in_("id", plan_ids)
+        .in_("id", all_ids)
         .eq("is_hidden", False)
         .order("starts_at", desc=True)
         .execute()

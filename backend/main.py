@@ -69,6 +69,7 @@ async def stats():
     active_plans = (
         db.table("plans")
         .select("id")
+        .eq("is_hidden", False)
         .gt("ends_at", now)
         .execute()
     )
