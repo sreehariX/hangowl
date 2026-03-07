@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/Avatar";
@@ -11,18 +11,21 @@ import type { Plan, Stats } from "@/lib/types";
 
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
+  const currentRef = useRef(0);
 
   useEffect(() => {
     if (value === 0) return;
     const duration = 1200;
     const start = Date.now();
-    const from = display;
+    const from = currentRef.current;
 
     const tick = () => {
       const elapsed = Date.now() - start;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(from + (value - from) * eased));
+      const next = Math.round(from + (value - from) * eased);
+      currentRef.current = next;
+      setDisplay(next);
       if (progress < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
