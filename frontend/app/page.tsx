@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/Avatar";
 import { PlanCard } from "@/components/PlanCard";
 import { PlanListSkeleton } from "@/components/Skeleton";
-import type { Plan } from "@/lib/types";
+import type { Plan, Stats } from "@/lib/types";
 
 function LiveDot() {
   return (
@@ -20,25 +20,31 @@ function LiveDot() {
 
 export default function HomePage() {
   const { isAuthenticated, personaName } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
-  const fetchPlans = useCallback(async () => {
-    try {
-      const data = await api.getPlans();
-      setPlans(data.plans);
-    } catch {
-      /* silent */
-    } finally {
-      setLoadingPlans(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchPlans();
-    const plansInterval = setInterval(fetchPlans, 15000);
-    return () => clearInterval(plansInterval);
-  }, [fetchPlans]);
+    let active = true;
+    async function loadStats() {
+      try {
+        const data = await api.getStats();
+        if (active) setStats(data);
+      } catch { /* silent */ }
+    }
+    async function loadPlans() {
+      try {
+        const data = await api.getPlans();
+        if (active) setPlans(data.plans);
+      } catch { /* silent */ }
+      if (active) setLoadingPlans(false);
+    }
+    loadStats();
+    loadPlans();
+    const si = setInterval(loadStats, 30000);
+    const pi = setInterval(loadPlans, 15000);
+    return () => { active = false; clearInterval(si); clearInterval(pi); };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -48,7 +54,23 @@ export default function HomePage() {
   }, [isAuthenticated]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-10 pb-24 md:pt-16">
+    <div className="mx-auto max-w-lg px-4 pt-10 pb-24 md:pt-16 relative">
+      {stats && (
+        <div className="fixed top-0 left-0 z-50 p-3 md:p-4">
+          <div className="flex items-center gap-2.5 rounded-full border border-border bg-navy-light/90 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium">
+            <span className="flex items-center gap-1 text-success tabular-nums">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+              </span>
+              {stats.free_now} online
+            </span>
+            <span className="w-px h-3 bg-border" />
+            <span className="text-amber tabular-nums">{stats.total_users} students</span>
+          </div>
+        </div>
+      )}
+
       <section className="text-center space-y-4 mb-10">
         <div className="text-5xl animate-float">🦉</div>
         <h1 className="text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
@@ -94,6 +116,11 @@ export default function HomePage() {
             </h2>
             <LiveDot />
           </div>
+          {stats && (
+            <span className="text-xs font-medium text-mid-blue-light tabular-nums">
+              {stats.active_plans} live plan{stats.active_plans !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
         {loadingPlans ? (
@@ -108,7 +135,15 @@ export default function HomePage() {
         ) : (
           <div className="space-y-3">
             {plans.slice(0, 10).map((plan) => (
-              <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
+              <PlanCard key={plan.id} plan={plan} onJoined={() => {
+                async function reload() {
+                  try {
+                    const data = await api.getPlans();
+                    setPlans(data.plans);
+                  } catch { /* silent */ }
+                }
+                reload();
+              }} />
             ))}
           </div>
         )}

@@ -2,31 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/Avatar";
-import { api } from "@/lib/api";
-import type { Stats } from "@/lib/types";
 
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, personaName, loading: authLoading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const data = await api.getStats();
-        if (active) setStats(data);
-      } catch { /* silent */ }
-    }
-    load();
-    const interval = setInterval(load, 30000);
-    return () => { active = false; clearInterval(interval); };
-  }, []);
 
   const handleLogout = () => {
     logout();
@@ -51,22 +35,6 @@ export function Nav() {
 
   return (
     <>
-      {stats && (
-        <div className="fixed top-0 left-0 z-50 p-3 md:p-4">
-          <div className="flex items-center gap-3 text-[11px] font-medium">
-            <span className="text-amber tabular-nums">{stats.total_users} students</span>
-            <span className="flex items-center gap-1 text-success tabular-nums">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-              </span>
-              {stats.free_now} online
-            </span>
-            <span className="text-mid-blue-light tabular-nums">{stats.active_plans} plans</span>
-          </div>
-        </div>
-      )}
-
       {isAuthenticated && (
         <div className="fixed top-0 right-0 z-50 p-3 md:p-4">
           <div className="relative">
