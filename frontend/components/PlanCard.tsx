@@ -85,7 +85,7 @@ export function PlanCard({ plan }: PlanCardProps) {
             </span>
           )}
         </div>
-        <span className="text-xs text-amber font-medium group-hover:text-amber-dark transition-colors">
+        <span className="text-[11px] text-text-muted">
           Tap to join &amp; more details &rarr;
         </span>
       </div>
