@@ -23,6 +23,7 @@ export function Nav() {
         { href: "/", label: "Home" },
         { href: "/board", label: "Board" },
         { href: "/free", label: "I'm Free" },
+        { href: "/my-plans", label: "My Plans" },
         { href: "/leaderboard", label: "Ranks" },
         { href: "/contact", label: "Contact" },
       ]
@@ -49,14 +50,12 @@ export function Nav() {
                   className="fixed inset-0 z-40"
                   onClick={() => setMenuOpen(false)}
                 />
-                <div className="absolute top-full mt-2 right-0 z-50 w-52 rounded-xl border border-border bg-navy-light p-2 shadow-xl shadow-black/40">
+                <div className="absolute top-full mt-2 right-0 z-50 min-w-[13rem] rounded-xl border border-border bg-navy-light p-2 shadow-xl shadow-black/40">
                   <div className="flex items-center gap-3 px-3 py-3 border-b border-border mb-1">
                     <Avatar name={personaName || ""} size={36} />
-                    <div className="min-w-0">
-                      <p className="truncate whitespace-nowrap text-sm font-semibold text-text-primary">
-                        {personaName}
-                      </p>
-                    </div>
+                    <p className="text-sm font-semibold text-text-primary whitespace-nowrap">
+                      {personaName}
+                    </p>
                   </div>
                   <button
                     onClick={handleLogout}

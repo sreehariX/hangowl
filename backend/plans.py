@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -19,6 +20,10 @@ class CreatePlanRequest(BaseModel):
     ends_at: str
 
 
+class SendMessageRequest(BaseModel):
+    message: str
+
+
 @router.get("")
 async def get_plans(location: str | None = None, activity: str | None = None):
     db = get_supabase()
@@ -27,6 +32,7 @@ async def get_plans(location: str | None = None, activity: str | None = None):
     query = (
         db.table("plans")
         .select("*, plan_members(count), users!plans_creator_id_fkey(persona_name, hostel)")
+        .eq("is_hidden", False)
         .gt("ends_at", now)
         .order("starts_at", desc=False)
     )
@@ -38,6 +44,43 @@ async def get_plans(location: str | None = None, activity: str | None = None):
 
     result = query.execute()
     return {"plans": result.data}
+
+
+@router.get("/my")
+async def get_my_plans(user: dict = Depends(verify_token)):
+    db = get_supabase()
+
+    memberships = (
+        db.table("plan_members")
+        .select("plan_id")
+        .eq("user_id", user["sub"])
+        .execute()
+    )
+    plan_ids = [m["plan_id"] for m in memberships.data]
+
+    if not plan_ids:
+        return {"live": [], "past": []}
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    all_plans = (
+        db.table("plans")
+        .select("*, plan_members(count), users!plans_creator_id_fkey(persona_name, hostel)")
+        .in_("id", plan_ids)
+        .eq("is_hidden", False)
+        .order("starts_at", desc=True)
+        .execute()
+    )
+
+    live = []
+    past = []
+    for p in all_plans.data:
+        if p.get("ends_at", "") > now:
+            live.append(p)
+        else:
+            past.append(p)
+
+    return {"live": live, "past": past}
 
 
 @router.get("/{plan_id}")
@@ -55,6 +98,45 @@ async def get_plan(plan_id: str):
         raise HTTPException(status_code=404, detail="Plan not found")
 
     return {"plan": result.data[0]}
+
+
+@router.get("/{plan_id}/messages")
+async def get_messages(plan_id: str):
+    db = get_supabase()
+
+    result = (
+        db.table("plan_messages")
+        .select("*, users(persona_name)")
+        .eq("plan_id", plan_id)
+        .order("created_at", desc=False)
+        .limit(200)
+        .execute()
+    )
+
+    return {"messages": result.data}
+
+
+@router.post("/{plan_id}/messages")
+async def send_message(plan_id: str, body: SendMessageRequest, user: dict = Depends(verify_token)):
+    db = get_supabase()
+
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if len(body.message) > 500:
+        raise HTTPException(status_code=400, detail="Message too long (max 500 chars)")
+
+    result = (
+        db.table("plan_messages")
+        .insert({
+            "plan_id": plan_id,
+            "user_id": user["sub"],
+            "message": body.message.strip(),
+        })
+        .execute()
+    )
+
+    return {"message": result.data[0]}
 
 
 @router.post("")
@@ -80,6 +162,7 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
             "ends_at": body.ends_at,
             "expires_at": body.ends_at,
             "is_active": True,
+            "is_hidden": False,
         })
         .execute()
     )
@@ -98,6 +181,28 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
     return {"plan": plan}
 
 
+@router.delete("/{plan_id}")
+async def hide_plan(plan_id: str, user: dict = Depends(verify_token)):
+    db = get_supabase()
+
+    plan_result = (
+        db.table("plans")
+        .select("creator_id")
+        .eq("id", plan_id)
+        .execute()
+    )
+
+    if not plan_result.data:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    if plan_result.data[0]["creator_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Only the creator can delete this plan")
+
+    db.table("plans").update({"is_hidden": True}).eq("id", plan_id).execute()
+
+    return {"message": "Plan hidden"}
+
+
 @router.post("/{plan_id}/join")
 async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
     db = get_supabase()
@@ -107,6 +212,7 @@ async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
         db.table("plans")
         .select("*, plan_members(count)")
         .eq("id", plan_id)
+        .eq("is_hidden", False)
         .gt("ends_at", now)
         .execute()
     )

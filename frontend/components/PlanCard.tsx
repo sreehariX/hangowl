@@ -49,7 +49,9 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   const ended = new Date(plan.ends_at) < new Date();
   const spotsLeft = plan.max_people - memberCount;
 
-  const handleJoin = async () => {
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (!isAuthenticated) {
       router.push("/verify");
       return;
@@ -69,7 +71,10 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
   if (ended) return null;
 
   return (
-    <div className="group animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-all hover:bg-surface-hover hover:border-border/80 hover:shadow-lg hover:shadow-black/10">
+    <Link
+      href={`/plan/${plan.id}`}
+      className="block group animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-all hover:bg-surface-hover hover:border-border/80 hover:shadow-lg hover:shadow-black/10 cursor-pointer"
+    >
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy-lighter text-xl transition-transform group-hover:scale-110">
           {emoji}
@@ -109,26 +114,18 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
             </span>
           )}
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/plan/${plan.id}`}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
-          >
-            Details
-          </Link>
-          <button
-            onClick={handleJoin}
-            disabled={joining || memberCount >= plan.max_people}
-            className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
-          </button>
-        </div>
+        <button
+          onClick={handleJoin}
+          disabled={joining || memberCount >= plan.max_people}
+          className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
+        </button>
       </div>
 
       {error && (
         <p className="mt-2 text-xs text-error">{error}</p>
       )}
-    </div>
+    </Link>
   );
 }

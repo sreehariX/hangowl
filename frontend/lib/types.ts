@@ -18,6 +18,7 @@ export interface Plan {
   starts_at: string;
   ends_at: string;
   created_at: string;
+  is_hidden?: boolean;
   plan_members?: { count: number }[];
   users?: {
     persona_name: string;
@@ -36,6 +37,7 @@ export interface PlanDetail {
   starts_at: string;
   ends_at: string;
   created_at: string;
+  is_hidden?: boolean;
   plan_members?: {
     user_id: string;
     users: {
@@ -45,6 +47,17 @@ export interface PlanDetail {
   users?: {
     persona_name: string;
     hostel: string;
+  };
+}
+
+export interface PlanMessage {
+  id: string;
+  plan_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  users?: {
+    persona_name: string;
   };
 }
 

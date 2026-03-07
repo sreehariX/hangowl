@@ -59,6 +59,9 @@ export const api = {
     return request<{ plans: import("./types").Plan[] }>(`/plans${qs ? `?${qs}` : ""}`);
   },
 
+  getMyPlans: () =>
+    request<{ live: import("./types").Plan[]; past: import("./types").Plan[] }>("/plans/my"),
+
   getPlan: (id: string) =>
     request<{ plan: import("./types").PlanDetail }>(`/plans/${id}`),
 
@@ -79,6 +82,20 @@ export const api = {
   joinPlan: (id: string) =>
     request<{ message: string }>(`/plans/${id}/join`, {
       method: "POST",
+    }),
+
+  hidePlan: (id: string) =>
+    request<{ message: string }>(`/plans/${id}`, {
+      method: "DELETE",
+    }),
+
+  getMessages: (planId: string) =>
+    request<{ messages: import("./types").PlanMessage[] }>(`/plans/${planId}/messages`),
+
+  sendMessage: (planId: string, message: string) =>
+    request<{ message: import("./types").PlanMessage }>(`/plans/${planId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
     }),
 
   getLeaderboard: () =>

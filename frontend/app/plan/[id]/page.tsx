@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { PlanChat } from "@/components/PlanChat";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -26,16 +27,18 @@ function formatDateIST(dateStr: string) {
   });
 }
 
-function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => void }) {
-  const { isAuthenticated } = useAuth();
+function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => void }) {
+  const { isAuthenticated, userId } = useAuth();
   const router = useRouter();
   const [joining, setJoining] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const members = plan.plan_members ?? [];
   const ended = new Date(plan.ends_at) < new Date();
+  const isCreator = userId === plan.creator_id;
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -46,7 +49,7 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
     setError("");
     try {
       await api.joinPlan(plan.id);
-      onJoined();
+      onRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join");
     } finally {
@@ -54,22 +57,38 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Remove this plan? It will disappear from the board.")) return;
+    setDeleting(true);
+    try {
+      await api.hidePlan(plan.id);
+      router.push("/board");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const handleShare = async () => {
+    const time = `${formatTimeIST(plan.starts_at)} - ${formatTimeIST(plan.ends_at)}`;
+    const text = `${plan.activity} at ${plan.location} (${time} IST)${plan.description ? ` - "${plan.description}"` : ""}. Join on HangOwl:`;
+
     if (navigator.share) {
       await navigator.share({
         title: `${plan.activity} at ${plan.location} - HangOwl`,
-        text: plan.description || `Join ${plan.activity} at ${plan.location}!`,
+        text,
         url: shareUrl,
       });
     } else {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(`${text} ${shareUrl}`);
     }
   };
 
   return (
-    <div className="mx-auto max-w-sm px-4 pt-8">
+    <div className="mx-auto max-w-sm px-4 pt-8 pb-24 space-y-4">
       <div className="rounded-2xl border border-border bg-surface p-6">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">{emoji}</div>
@@ -147,8 +166,17 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
               onClick={handleShare}
               className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
             >
-              Share
+              Share with friends
             </button>
+            {isCreator && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full rounded-xl border border-error/30 py-3 text-sm font-medium text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+              >
+                {deleting ? "Removing..." : "Delete this plan"}
+              </button>
+            )}
           </div>
         )}
 
@@ -162,6 +190,8 @@ function PlanContent({ plan, onJoined }: { plan: PlanDetail; onJoined: () => voi
           </div>
         )}
       </div>
+
+      <PlanChat planId={plan.id} />
     </div>
   );
 }
@@ -213,5 +243,5 @@ export default function PlanPage() {
     );
   }
 
-  return <PlanContent plan={plan} onJoined={fetchPlan} />;
+  return <PlanContent plan={plan} onRefresh={fetchPlan} />;
 }
