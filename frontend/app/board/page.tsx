@@ -17,7 +17,6 @@ export default function BoardPage() {
   const { isAuthenticated, personaName, loading: authLoading } = useAuth();
   const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [filterActivity, setFilterActivity] = useState<FilterActivity>("all");
   const [filterLocation, setFilterLocation] = useState<FilterLocation>("all");
@@ -27,18 +26,14 @@ export default function BoardPage() {
       const params: { location?: string; activity?: string } = {};
       if (filterActivity !== "all") params.activity = filterActivity;
       if (filterLocation !== "all") params.location = filterLocation;
-      const [plansData, idsData] = await Promise.all([
-        api.getPlans(params),
-        isAuthenticated ? api.getMyPlanIds() : Promise.resolve({ plan_ids: [] }),
-      ]);
+      const plansData = await api.getPlans(params);
       setPlans(plansData.plans);
-      setJoinedIds(new Set(idsData.plan_ids));
     } catch {
       /* silent */
     } finally {
       setLoading(false);
     }
-  }, [filterActivity, filterLocation, isAuthenticated]);
+  }, [filterActivity, filterLocation]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -168,12 +163,7 @@ export default function BoardPage() {
       ) : (
         <div className="space-y-3">
           {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              isJoined={joinedIds.has(plan.id)}
-              onJoined={fetchPlans}
-            />
+            <PlanCard key={plan.id} plan={plan} />
           ))}
         </div>
       )}

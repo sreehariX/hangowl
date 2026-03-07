@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 
 function formatTimeIST(iso: string) {
@@ -34,48 +30,14 @@ function formatDateIST(dateStr: string) {
 
 interface PlanCardProps {
   plan: Plan;
-  isJoined?: boolean;
-  onJoined?: () => void;
 }
 
-export function PlanCard({ plan, isJoined, onJoined }: PlanCardProps) {
-  const { isAuthenticated, userId } = useAuth();
-  const router = useRouter();
-  const [joining, setJoining] = useState(false);
-  const [joined, setJoined] = useState(isJoined ?? false);
-  const [error, setError] = useState("");
-
+export function PlanCard({ plan }: PlanCardProps) {
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const ended = new Date(plan.ends_at) < new Date();
   const spotsLeft = plan.max_people - memberCount;
-  const isCreator = userId === plan.creator_id;
-
-  const handleJoin = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!isAuthenticated) {
-      router.push("/verify");
-      return;
-    }
-    setJoining(true);
-    setError("");
-    try {
-      await api.joinPlan(plan.id);
-      setJoined(true);
-      onJoined?.();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to join";
-      if (msg.toLowerCase().includes("already")) {
-        setJoined(true);
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setJoining(false);
-    }
-  };
 
   if (ended) return null;
 
@@ -122,28 +84,11 @@ export function PlanCard({ plan, isJoined, onJoined }: PlanCardProps) {
               {spotsLeft} spot{spotsLeft > 1 ? "s" : ""} left
             </span>
           )}
-          <span className="text-[10px] text-text-muted/60">
-            Tap for details
-          </span>
         </div>
-        {joined || isCreator ? (
-          <span className="rounded-lg bg-success/15 border border-success/30 px-3 py-1.5 text-xs font-semibold text-success">
-            Joined
-          </span>
-        ) : (
-          <button
-            onClick={handleJoin}
-            disabled={joining || memberCount >= plan.max_people}
-            className="rounded-lg bg-amber px-4 py-1.5 text-xs font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {joining ? "..." : memberCount >= plan.max_people ? "Full" : "Join"}
-          </button>
-        )}
+        <span className="text-xs text-amber font-medium group-hover:text-amber-dark transition-colors">
+          Tap to join &amp; more details &rarr;
+        </span>
       </div>
-
-      {error && (
-        <p className="mt-2 text-xs text-error">{error}</p>
-      )}
     </Link>
   );
 }

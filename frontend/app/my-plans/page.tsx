@@ -129,7 +129,7 @@ export default function MyPlansPage() {
             ) : (
               <div className="space-y-3">
                 {live.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} onJoined={fetchMyPlans} />
+                  <PlanCard key={plan.id} plan={plan} />
                 ))}
               </div>
             )}
