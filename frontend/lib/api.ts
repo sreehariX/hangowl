@@ -59,6 +59,9 @@ export const api = {
     return request<{ plans: import("./types").Plan[] }>(`/plans${qs ? `?${qs}` : ""}`);
   },
 
+  getMyPlanIds: () =>
+    request<{ plan_ids: string[] }>("/plans/my/ids"),
+
   getMyPlans: () =>
     request<{ live: import("./types").Plan[]; past: import("./types").Plan[] }>("/plans/my"),
 

@@ -22,6 +22,7 @@ export default function HomePage() {
   const { isAuthenticated, personaName } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [loadingPlans, setLoadingPlans] = useState(true);
 
   useEffect(() => {
@@ -48,10 +49,29 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    let active = true;
+    async function loadIds() {
+      try {
+        const data = await api.getMyPlanIds();
+        if (active) setJoinedIds(new Set(data.plan_ids));
+      } catch { /* silent */ }
+    }
+    loadIds();
     api.heartbeat().catch(() => {});
     const hb = setInterval(() => api.heartbeat().catch(() => {}), 60000);
-    return () => clearInterval(hb);
+    return () => { active = false; clearInterval(hb); };
   }, [isAuthenticated]);
+
+  const refreshPlans = async () => {
+    try {
+      const [plansData, idsData] = await Promise.all([
+        api.getPlans(),
+        isAuthenticated ? api.getMyPlanIds() : Promise.resolve({ plan_ids: [] }),
+      ]);
+      setPlans(plansData.plans);
+      setJoinedIds(new Set(idsData.plan_ids));
+    } catch { /* silent */ }
+  };
 
   return (
     <div className="mx-auto max-w-lg px-4 pt-10 pb-24 md:pt-16 relative">
@@ -135,15 +155,12 @@ export default function HomePage() {
         ) : (
           <div className="space-y-3">
             {plans.slice(0, 10).map((plan) => (
-              <PlanCard key={plan.id} plan={plan} onJoined={() => {
-                async function reload() {
-                  try {
-                    const data = await api.getPlans();
-                    setPlans(data.plans);
-                  } catch { /* silent */ }
-                }
-                reload();
-              }} />
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                isJoined={joinedIds.has(plan.id)}
+                onJoined={refreshPlans}
+              />
             ))}
           </div>
         )}

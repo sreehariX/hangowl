@@ -164,11 +164,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             >
               {joining
                 ? "Joining..."
-                : alreadyJoined
-                  ? "You're in this plan"
-                  : isAuthenticated
-                    ? "Join This Plan"
-                    : "Login to Join"}
+                : alreadyJoined && isCreator
+                  ? "You created this plan"
+                  : alreadyJoined
+                    ? "You're in this plan"
+                    : isAuthenticated
+                      ? "Join This Plan"
+                      : "Login to Join"}
             </button>
             <button
               onClick={handleShare}

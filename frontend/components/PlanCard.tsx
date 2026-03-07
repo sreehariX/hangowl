@@ -34,14 +34,15 @@ function formatDateIST(dateStr: string) {
 
 interface PlanCardProps {
   plan: Plan;
+  isJoined?: boolean;
   onJoined?: () => void;
 }
 
-export function PlanCard({ plan, onJoined }: PlanCardProps) {
+export function PlanCard({ plan, isJoined, onJoined }: PlanCardProps) {
   const { isAuthenticated, userId } = useAuth();
   const router = useRouter();
   const [joining, setJoining] = useState(false);
-  const [joined, setJoined] = useState(false);
+  const [joined, setJoined] = useState(isJoined ?? false);
   const [error, setError] = useState("");
 
   const memberCount = plan.plan_members?.[0]?.count ?? 0;

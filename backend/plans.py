@@ -46,6 +46,18 @@ async def get_plans(location: str | None = None, activity: str | None = None):
     return {"plans": result.data}
 
 
+@router.get("/my/ids")
+async def get_my_plan_ids(user: dict = Depends(verify_token)):
+    db = get_supabase()
+    memberships = (
+        db.table("plan_members")
+        .select("plan_id")
+        .eq("user_id", user["sub"])
+        .execute()
+    )
+    return {"plan_ids": [m["plan_id"] for m in memberships.data]}
+
+
 @router.get("/my")
 async def get_my_plans(user: dict = Depends(verify_token)):
     db = get_supabase()
