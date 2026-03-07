@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   background: #1A1A2E;
   color: #F0F0F5;

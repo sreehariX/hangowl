@@ -9,7 +9,7 @@ import { Avatar } from "@/components/Avatar";
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, personaName, logout } = useAuth();
+  const { isAuthenticated, personaName, loading: authLoading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -92,7 +92,7 @@ export function Nav() {
                 </Link>
               );
             })}
-            {!isAuthenticated && (
+            {!authLoading && !isAuthenticated && (
               <Link
                 href="/verify"
                 className="ml-2 rounded-lg bg-amber px-3 py-2 text-sm font-semibold text-navy transition-colors hover:bg-amber-dark"

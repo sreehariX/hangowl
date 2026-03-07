@@ -114,8 +114,7 @@ export function PlanChat({ planId }: PlanChatProps) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-72 overflow-y-auto px-3 py-3 space-y-1"
-        style={{ overscrollBehavior: "contain" }}
+        className="max-h-72 overflow-y-auto px-3 py-3 space-y-1"
       >
         {messages.length === 0 && (
           <p className="text-xs text-text-muted text-center py-8">

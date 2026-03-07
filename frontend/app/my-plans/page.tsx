@@ -8,7 +8,6 @@ import { PlanCard } from "@/components/PlanCard";
 import { PlanListSkeleton } from "@/components/Skeleton";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import Link from "next/link";
-import { Avatar } from "@/components/Avatar";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -26,7 +25,6 @@ function formatDateShort(dateStr: string) {
 
 function PastPlanCard({ plan }: { plan: Plan }) {
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
-  const creatorName = plan.users?.persona_name ?? "Anonymous";
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
 
   return (
@@ -54,35 +52,41 @@ export default function MyPlansPage() {
   const [live, setLive] = useState<Plan[]>([]);
   const [past, setPast] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   const fetchMyPlans = useCallback(async () => {
+    setLoading(true);
+    setFetchError("");
     try {
       const data = await api.getMyPlans();
       setLive(data.live);
       setPast(data.past);
-    } catch {
-      /* silent */
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Failed to load plans");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       router.push("/verify");
+      return;
     }
-  }, [authLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (isAuthenticated) fetchMyPlans();
-  }, [isAuthenticated, fetchMyPlans]);
+    fetchMyPlans();
+  }, [authLoading, isAuthenticated, router, fetchMyPlans]);
 
   if (authLoading) {
     return (
-      <div className="mx-auto max-w-lg px-4 pt-8">
+      <div className="mx-auto max-w-lg px-4 pt-20 md:pt-6">
         <PlanListSkeleton count={3} />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -96,6 +100,16 @@ export default function MyPlansPage() {
 
       {loading ? (
         <PlanListSkeleton count={3} />
+      ) : fetchError ? (
+        <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+          <p className="text-sm text-error mb-3">{fetchError}</p>
+          <button
+            onClick={fetchMyPlans}
+            className="rounded-xl bg-amber px-5 py-2 text-sm font-semibold text-navy hover:bg-amber-dark"
+          >
+            Retry
+          </button>
+        </div>
       ) : (
         <>
           <div className="mb-8">

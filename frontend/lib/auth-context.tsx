@@ -4,7 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useSyncExternalStore,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -35,56 +35,31 @@ function getStoredAuth(): AuthState {
   return { isAuthenticated: false, userId: null, personaName: null };
 }
 
-const serverSnapshot: AuthState = {
-  isAuthenticated: false,
-  userId: null,
-  personaName: null,
-};
-
-let listeners: (() => void)[] = [];
-let currentSnapshot = serverSnapshot;
-
-function subscribe(listener: () => void) {
-  listeners = [...listeners, listener];
-  return () => {
-    listeners = listeners.filter((l) => l !== listener);
-  };
-}
-
-function getServerSnapshot() {
-  return serverSnapshot;
-}
-
-function emitChange() {
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const state = useSyncExternalStore(subscribe, () => {
-    if (currentSnapshot === serverSnapshot) {
-      currentSnapshot = getStoredAuth();
-    }
-    return currentSnapshot;
-  }, getServerSnapshot);
+  const [state, setState] = useState<AuthState>({
+    isAuthenticated: false,
+    userId: null,
+    personaName: null,
+  });
+  const [loading, setLoading] = useState(true);
 
-  const [loading] = useState(false);
+  useEffect(() => {
+    setState(getStoredAuth());
+    setLoading(false);
+  }, []);
 
   const login = useCallback((userId: string, personaName: string, token?: string) => {
     localStorage.setItem("hangowl_user_id", userId);
     localStorage.setItem("hangowl_persona", personaName);
     if (token) localStorage.setItem("hangowl_token", token);
-    currentSnapshot = { isAuthenticated: true, userId, personaName };
-    emitChange();
+    setState({ isAuthenticated: true, userId, personaName });
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem("hangowl_user_id");
     localStorage.removeItem("hangowl_persona");
     localStorage.removeItem("hangowl_token");
-    currentSnapshot = { isAuthenticated: false, userId: null, personaName: null };
-    emitChange();
+    setState({ isAuthenticated: false, userId: null, personaName: null });
   }, []);
 
   return (
