@@ -97,6 +97,12 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="rounded-xl border border-amber/20 bg-amber/5 px-4 py-3 mb-6">
+        <p className="text-xs text-text-secondary leading-relaxed">
+          We launched 2 days ago and 50+ students across BTech, MTech, MBA, PhD and more have joined. It will take some time to reach enough people so plans keep going. Until then, be the first one to start a plan!
+        </p>
+      </div>
+
       <section>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
