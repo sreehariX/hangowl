@@ -99,7 +99,7 @@ export default function HomePage() {
 
       <div className="rounded-xl border border-amber/20 bg-amber/5 px-4 py-3 mb-6">
         <p className="text-xs text-text-secondary leading-relaxed">
-          We launched 2 days ago and 50+ students across BTech, MTech, MBA, PhD and more have joined. It will take some time to reach enough people so plans keep going. Until then, be the first one to start a plan!
+          We are new! 50+ students across BTech, MTech, MBA, PhD and more have already joined. It will take some time to reach enough people so plans keep going. Until then, be the first one to start a plan!
         </p>
       </div>
 
