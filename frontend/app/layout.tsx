@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { Nav } from "@/components/Nav";
 import { SWRegister } from "@/components/SWRegister";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -49,6 +50,7 @@ export default function RootLayout({
             <main className="flex-1 pb-20 md:pb-0">{children}</main>
           </div>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
