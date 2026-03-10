@@ -63,7 +63,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
     setDeleting(true);
     try {
       await api.hidePlan(plan.id);
-      router.push("/board");
+      router.push("/hangouts");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete");
       setConfirmDelete(false);

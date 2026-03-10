@@ -18,6 +18,7 @@ class CreatePlanRequest(BaseModel):
     plan_date: str
     starts_at: str
     ends_at: str
+    image_url: Optional[str] = None
 
 
 class SendMessageRequest(BaseModel):
@@ -173,21 +174,25 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
     if body.max_people < 2 or body.max_people > 50:
         raise HTTPException(status_code=400, detail="Max people must be between 2 and 50")
 
+    insert_data = {
+        "creator_id": user["sub"],
+        "activity": body.activity,
+        "location": body.location,
+        "description": body.description,
+        "max_people": body.max_people,
+        "plan_date": body.plan_date,
+        "starts_at": body.starts_at,
+        "ends_at": body.ends_at,
+        "expires_at": body.ends_at,
+        "is_active": True,
+        "is_hidden": False,
+    }
+    if body.image_url:
+        insert_data["image_url"] = body.image_url
+
     result = (
         db.table("plans")
-        .insert({
-            "creator_id": user["sub"],
-            "activity": body.activity,
-            "location": body.location,
-            "description": body.description,
-            "max_people": body.max_people,
-            "plan_date": body.plan_date,
-            "starts_at": body.starts_at,
-            "ends_at": body.ends_at,
-            "expires_at": body.ends_at,
-            "is_active": True,
-            "is_hidden": False,
-        })
+        .insert(insert_data)
         .execute()
     )
 

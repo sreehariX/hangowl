@@ -18,6 +18,7 @@ export interface Plan {
   starts_at: string;
   ends_at: string;
   created_at: string;
+  image_url?: string | null;
   is_hidden?: boolean;
   plan_members?: { count: number }[];
   users?: {

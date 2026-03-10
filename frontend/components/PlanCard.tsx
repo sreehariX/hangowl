@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -30,64 +33,112 @@ function formatDateIST(dateStr: string) {
 
 interface PlanCardProps {
   plan: Plan;
+  onJoined?: () => void;
 }
 
-export function PlanCard({ plan }: PlanCardProps) {
+export function PlanCard({ plan, onJoined }: PlanCardProps) {
+  const { isAuthenticated, userId } = useAuth();
+  const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState(false);
+  const [error, setError] = useState("");
+
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
-  const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
+  const emoji = ACTIVITY_EMOJI[plan.activity] || "?";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const ended = new Date(plan.ends_at) < new Date();
   const spotsLeft = plan.max_people - memberCount;
+  const isCreator = userId === plan.creator_id;
+  const isFull = spotsLeft <= 0;
 
   if (ended) return null;
+
+  async function handleJoin(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (joining || joined || isCreator || isFull || !isAuthenticated) return;
+    setJoining(true);
+    setError("");
+    try {
+      await api.joinPlan(plan.id);
+      setJoined(true);
+      onJoined?.();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      if (msg.includes("Already joined")) {
+        setJoined(true);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  const alreadyIn = isCreator || joined;
 
   return (
     <Link
       href={`/plan/${plan.id}`}
-      className="block group animate-slide-up rounded-2xl bg-surface border border-border p-4 transition-all hover:bg-surface-hover hover:border-border/80 hover:shadow-lg hover:shadow-black/10 cursor-pointer"
+      className="block group rounded-2xl bg-surface border border-border overflow-hidden transition-all hover:bg-surface-hover hover:shadow-lg hover:shadow-black/10"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy-lighter text-xl transition-transform group-hover:scale-110">
-          {emoji}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-text-primary truncate">
-              {plan.activity}
-            </h3>
-            <span className="shrink-0 rounded-full bg-amber/15 px-2.5 py-0.5 text-xs font-medium text-amber">
-              {formatDateIST(plan.plan_date)} &middot; {formatTimeIST(plan.starts_at)}-{formatTimeIST(plan.ends_at)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <Avatar name={creatorName} size={16} />
-            <p className="text-sm text-text-secondary truncate">
-              {plan.location} &middot; {creatorName}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {plan.description && (
-        <p className="mt-2.5 text-sm text-text-secondary line-clamp-2">
-          {plan.description}
-        </p>
+      {plan.image_url && (
+        <img
+          src={plan.image_url}
+          alt=""
+          className="w-full h-36 object-cover"
+          loading="lazy"
+        />
       )}
 
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted">
-            {memberCount}/{plan.max_people} joined
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-lighter text-xl shrink-0">
+            {emoji}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-[15px] text-text-primary truncate">{plan.activity}</h3>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Avatar name={creatorName} size={14} />
+              <p className="text-xs text-text-muted truncate">{creatorName} &middot; {plan.location}</p>
+            </div>
+          </div>
+          <span className="shrink-0 text-[11px] font-medium text-amber bg-amber/10 rounded-full px-2 py-0.5">
+            {formatDateIST(plan.plan_date)} {formatTimeIST(plan.starts_at)}
           </span>
-          {spotsLeft <= 3 && spotsLeft > 0 && (
-            <span className="text-xs font-medium text-error animate-pulse">
-              {spotsLeft} spot{spotsLeft > 1 ? "s" : ""} left
-            </span>
+        </div>
+
+        {plan.description && (
+          <p className="mt-2 text-sm text-text-secondary line-clamp-2">{plan.description}</p>
+        )}
+
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-muted tabular-nums">{memberCount}/{plan.max_people} joined</span>
+            {spotsLeft <= 3 && spotsLeft > 0 && (
+              <span className="text-[11px] font-medium text-error">{spotsLeft} left</span>
+            )}
+          </div>
+
+          {isAuthenticated && (
+            alreadyIn ? (
+              <span className="rounded-full bg-success/15 px-3 py-1 text-[11px] font-semibold text-success">
+                {isCreator ? "Your plan" : "Joined"}
+              </span>
+            ) : isFull ? (
+              <span className="rounded-full bg-surface px-3 py-1 text-[11px] font-medium text-text-muted">Full</span>
+            ) : (
+              <button
+                onClick={handleJoin}
+                disabled={joining}
+                className="rounded-full bg-amber px-4 py-1 text-[11px] font-bold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50"
+              >
+                {joining ? "..." : "Join"}
+              </button>
+            )
           )}
         </div>
-        <span className="text-[11px] text-text-muted">
-          Tap to join &amp; more details &rarr;
-        </span>
+
+        {error && <p className="mt-1 text-[11px] text-error">{error}</p>}
       </div>
     </Link>
   );

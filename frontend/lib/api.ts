@@ -76,6 +76,7 @@ export const api = {
     plan_date: string;
     starts_at: string;
     ends_at: string;
+    image_url?: string | null;
   }) =>
     request<{ plan: import("./types").Plan }>("/plans", {
       method: "POST",
