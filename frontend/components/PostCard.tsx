@@ -36,9 +36,10 @@ interface PostCardProps {
   isAdmin?: boolean;
   isReply?: boolean;
   onDeleted?: () => void;
+  onReply?: () => void;
 }
 
-export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, isReply, onDeleted }: PostCardProps) {
+export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, isReply, onDeleted, onReply }: PostCardProps) {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [liked, setLiked] = useState(initialLiked ?? false);
   const [liking, setLiking] = useState(false);
@@ -200,16 +201,28 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
             </button>
 
             {!isReply && (
-              <Link
-                href={`/feed/${post.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                </svg>
-                <span className="tabular-nums">{post.replies_count}</span>
-              </Link>
+              onReply ? (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReply(); }}
+                  className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                  </svg>
+                  <span className="tabular-nums">{post.replies_count}</span>
+                </button>
+              ) : (
+                <Link
+                  href={`/feed/${post.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                  </svg>
+                  <span className="tabular-nums">{post.replies_count}</span>
+                </Link>
+              )
             )}
 
             <button

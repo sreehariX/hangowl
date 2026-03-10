@@ -172,7 +172,7 @@ export default function FeedHomePage() {
       {/* Trust text */}
       {!authLoading && (
         <p className="text-[11px] text-text-muted mb-4">
-          Verified IITB students only. Completely anonymous.
+          Every student is verified with their IITB email. Completely anonymous.
         </p>
       )}
 

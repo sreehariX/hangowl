@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
 import type { Post } from "@/lib/types";
@@ -142,6 +143,7 @@ export default function PostDetailPage() {
         currentUserId={userId}
         isAdmin={isAdmin}
         onDeleted={handlePostDeleted}
+        onReply={() => setShowReply(true)}
       />
 
       <div className="px-4 py-3 border-b border-border">
@@ -198,12 +200,20 @@ export default function PostDetailPage() {
             <span className="text-sm font-semibold text-text-primary">Reply</span>
             <div className="w-5" />
           </div>
-          <div className="px-4 py-3 border-b border-border/50">
-            <p className="text-xs text-text-muted">
-              Replying to <span className="text-amber">{post.users?.persona_name ?? "Anonymous"}</span>
-            </p>
+          <div className="px-4 py-3 border-b border-border/50 flex gap-3">
+            <div className="flex flex-col items-center gap-1">
+              <Avatar name={post.users?.persona_name ?? "Anonymous"} size={32} />
+              <div className="w-0.5 flex-1 bg-border/50" />
+            </div>
+            <div className="flex-1 min-w-0 pb-3">
+              <p className="text-[13px] font-bold text-text-primary">{post.users?.persona_name ?? "Anonymous"}</p>
+              <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-wrap break-words">{post.content}</p>
+              <p className="text-xs text-text-muted mt-2">
+                Replying to <span className="text-amber">{post.users?.persona_name ?? "Anonymous"}</span>
+              </p>
+            </div>
           </div>
-          <div className="mx-auto max-w-lg px-4 pt-4">
+          <div className="mx-auto max-w-lg px-4 pt-3">
             <ComposeBox
               parentId={postId}
               placeholder="Post your reply"
