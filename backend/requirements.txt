@@ -9,3 +9,4 @@ resend
 pydantic
 pydantic-settings
 email-validator
+python-multipart
