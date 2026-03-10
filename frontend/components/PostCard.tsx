@@ -42,6 +42,7 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [liked, setLiked] = useState(initialLiked ?? false);
   const [liking, setLiking] = useState(false);
+  const [likeAnim, setLikeAnim] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showBanMenu, setShowBanMenu] = useState(false);
@@ -57,8 +58,13 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
     setLiking(true);
     const prevLiked = liked;
     const prevCount = likesCount;
-    setLiked(!liked);
+    const nowLiked = !liked;
+    setLiked(nowLiked);
     setLikesCount(liked ? Math.max(0, likesCount - 1) : likesCount + 1);
+    if (nowLiked) {
+      setLikeAnim(true);
+      setTimeout(() => setLikeAnim(false), 400);
+    }
 
     try {
       const res = await api.toggleLike(post.id);
@@ -114,10 +120,13 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
       <div className="flex items-start gap-3">
         <Avatar name={personaName} size={36} className="shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-sm font-semibold text-text-primary truncate">
               {personaName}
             </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-mid-blue-light" aria-label="Verified IITB student">
+              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 3.072 1.157 5.876 3.058 7.998C7.56 21.82 9.649 23 12 23s4.44-1.18 5.942-3.002A11.956 11.956 0 0 0 21 12c0-2.09-.535-4.058-1.382-5.616z" />
+            </svg>
             <span className="text-xs text-text-muted shrink-0">
               {timeAgo(post.created_at)}
             </span>
@@ -144,7 +153,7 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
             liked ? "text-error" : "text-text-muted hover:text-error"
           } disabled:opacity-40 disabled:cursor-not-allowed`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={likeAnim ? "animate-like-pop" : ""}>
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
           </svg>
           <span className="tabular-nums">{likesCount}</span>
