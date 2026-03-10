@@ -283,18 +283,20 @@ export default function HangoutsPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {plans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
-              ))}
-            </div>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-4 w-full py-4 text-center transition-colors hover:bg-surface/50 rounded-xl"
-            >
-              <p className="text-sm text-text-muted">Didn't find what you're looking for?</p>
-              <p className="text-sm font-medium text-amber mt-0.5">Create your own plan and let others join</p>
-            </button>
+            <>
+              <div className="space-y-3">
+                {plans.map((plan) => (
+                  <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
+                ))}
+              </div>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="mt-4 w-full py-4 text-center transition-colors hover:bg-surface/50 rounded-xl"
+              >
+                <p className="text-sm text-text-muted">Didn&apos;t find what you&apos;re looking for?</p>
+                <p className="text-sm font-medium text-amber mt-0.5">Create your own plan and let others join</p>
+              </button>
+            </>
           )}
         </div>
       )}
