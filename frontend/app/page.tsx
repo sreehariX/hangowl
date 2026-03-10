@@ -169,23 +169,11 @@ export default function FeedHomePage() {
         </div>
       </div>
 
-      {/* Trust banner */}
+      {/* Trust text */}
       {!authLoading && (
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <div className="flex items-center gap-1.5 rounded-full bg-mid-blue/10 px-2.5 py-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-mid-blue-light">
-              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 3.072 1.157 5.876 3.058 7.998C7.56 21.82 9.649 23 12 23s4.44-1.18 5.942-3.002A11.956 11.956 0 0 0 21 12c0-2.09-.535-4.058-1.382-5.616z" />
-            </svg>
-            <span className="text-[10px] font-medium text-mid-blue-light">IITB verified</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-amber/10 px-2.5 py-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <line x1="2" x2="22" y1="2" y2="22" />
-            </svg>
-            <span className="text-[10px] font-medium text-amber">100% anonymous</span>
-          </div>
-        </div>
+        <p className="text-[11px] text-text-muted mb-4">
+          Every student here is verified with their IITB email. Everyone stays anonymous.
+        </p>
       )}
 
       {/* Logged-out hero */}
@@ -254,24 +242,26 @@ export default function FeedHomePage() {
           <p className="text-text-secondary text-sm">No posts yet. Be the first to share something!</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              liked={likedIds.has(post.id)}
-              currentUserId={userId}
-              isAdmin={isAdmin}
-              onDeleted={() => handlePostDeleted(post.id)}
-            />
-          ))}
+        <>
+          <div className="rounded-2xl border border-border overflow-hidden">
+            {posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                liked={likedIds.has(post.id)}
+                currentUserId={userId}
+                isAdmin={isAdmin}
+                onDeleted={() => handlePostDeleted(post.id)}
+              />
+            ))}
+          </div>
           <div ref={observerRef} className="h-4" />
           {loadingMore && (
             <div className="flex justify-center py-4">
               <div className="h-5 w-5 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Compose FAB + Modal */}
@@ -289,24 +279,21 @@ export default function FeedHomePage() {
       )}
 
       {showCompose && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCompose(false)}>
-          <div
-            className="w-full max-w-lg animate-modal-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="rounded-t-2xl bg-navy-light border-t border-x border-border p-4 pb-6 safe-area-pb">
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => setShowCompose(false)}
-                  className="text-sm text-text-muted hover:text-text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-                <span className="text-sm font-semibold text-text-primary">New post</span>
-                <div className="w-12" />
-              </div>
-              <ComposeBox onPosted={handlePosted} />
-            </div>
+        <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <button
+              onClick={() => setShowCompose(false)}
+              className="text-sm text-text-muted hover:text-text-primary transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+              </svg>
+            </button>
+            <span className="text-sm font-semibold text-text-primary">New post</span>
+            <div className="w-5" />
+          </div>
+          <div className="mx-auto max-w-lg px-4 pt-4">
+            <ComposeBox onPosted={handlePosted} placeholder="What's happening?" />
           </div>
         </div>
       )}

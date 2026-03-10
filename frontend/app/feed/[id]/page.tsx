@@ -111,7 +111,7 @@ export default function PostDetailPage() {
       <div className="mx-auto max-w-lg px-4 pt-16 pb-24 md:pt-6">
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <p className="text-text-secondary mb-4">Post not found</p>
-          <Link href="/feed" className="text-amber hover:text-amber-dark text-sm">
+          <Link href="/" className="text-amber hover:text-amber-dark text-sm">
             Back to Feed
           </Link>
         </div>
@@ -120,17 +120,19 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-16 pb-24 md:pt-6">
-      <Link
-        href="/feed"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text-primary"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m12 19-7-7 7-7" />
-          <path d="M19 12H5" />
-        </svg>
-        Back to Feed
-      </Link>
+    <div className="mx-auto max-w-lg pb-24">
+      <div className="flex items-center gap-4 px-4 py-3 border-b border-border sticky top-0 bg-navy/95 backdrop-blur-md z-10">
+        <Link
+          href="/"
+          className="text-text-muted transition-colors hover:text-text-primary"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m12 19-7-7 7-7" />
+            <path d="M19 12H5" />
+          </svg>
+        </Link>
+        <span className="text-[15px] font-bold text-text-primary">Post</span>
+      </div>
 
       <PostCard
         post={post}
@@ -140,28 +142,28 @@ export default function PostDetailPage() {
         onDeleted={handlePostDeleted}
       />
 
-      <div className="mt-6 mb-4">
-        <h2 className="text-sm font-semibold text-text-secondary">
-          Replies ({post.replies_count})
-        </h2>
-      </div>
-
       {isAuthenticated && (
-        <div className="mb-4">
+        <div className="px-4 py-3 border-b border-border">
           <ComposeBox
             parentId={postId}
-            placeholder="Write a reply..."
+            placeholder="Post your reply"
             onPosted={handleReplied}
           />
         </div>
       )}
 
+      <div className="px-4 py-3 border-b border-border">
+        <span className="text-[13px] font-semibold text-text-secondary">
+          Replies ({post.replies_count})
+        </span>
+      </div>
+
       {replies.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+        <div className="px-4 py-8 text-center">
           <p className="text-sm text-text-muted">No replies yet</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div>
           {replies.map((reply) => (
             <PostCard
               key={reply.id}

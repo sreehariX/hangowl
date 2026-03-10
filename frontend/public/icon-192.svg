@@ -1,4 +1,27 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'>
-  <rect width='192' height='192' rx='40' fill='#1A1A2E'/>
-  <text x='96' y='120' font-size='100' text-anchor='middle' fill='#F5A623'>🦉</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="42" fill="#1A1A2E"/>
+  <!-- Owl body silhouette -->
+  <ellipse cx="96" cy="108" rx="48" ry="52" fill="#F5A623"/>
+  <!-- Ear tufts -->
+  <polygon points="62,62 72,82 52,80" fill="#F5A623"/>
+  <polygon points="130,62 120,82 140,80" fill="#F5A623"/>
+  <!-- Face disc -->
+  <ellipse cx="96" cy="100" rx="38" ry="38" fill="#1A1A2E"/>
+  <!-- Left eye white -->
+  <circle cx="80" cy="96" r="14" fill="#F0F0F5"/>
+  <!-- Right eye white -->
+  <circle cx="112" cy="96" r="14" fill="#F0F0F5"/>
+  <!-- Left pupil -->
+  <circle cx="82" cy="96" r="8" fill="#1A1A2E"/>
+  <!-- Right pupil -->
+  <circle cx="114" cy="96" r="8" fill="#1A1A2E"/>
+  <!-- Left eye glint -->
+  <circle cx="85" cy="93" r="3" fill="#F0F0F5"/>
+  <!-- Right eye glint -->
+  <circle cx="117" cy="93" r="3" fill="#F0F0F5"/>
+  <!-- Beak -->
+  <polygon points="96,106 90,114 102,114" fill="#F5A623"/>
+  <!-- Feet -->
+  <ellipse cx="84" cy="152" rx="10" ry="4" fill="#F5A623" opacity="0.7"/>
+  <ellipse cx="108" cy="152" rx="10" ry="4" fill="#F5A623" opacity="0.7"/>
 </svg>

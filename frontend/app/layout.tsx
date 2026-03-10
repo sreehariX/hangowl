@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   description:
     "Hyperlocal campus hangout board. See who's free, make plans, stay anonymous.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
