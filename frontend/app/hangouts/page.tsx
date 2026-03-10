@@ -244,21 +244,6 @@ export default function HangoutsPage() {
       {/* Browse Tab */}
       {tab === 0 && (
         <div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="mb-3 w-full flex items-center gap-3 rounded-xl bg-amber/10 px-4 py-3 text-left transition-all hover:bg-amber/20 active:scale-[0.98]"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber text-navy">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14" /><path d="M5 12h14" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-amber">Create your own hangout plan</p>
-              <p className="text-xs text-text-muted mt-0.5">Let other students discover and join</p>
-            </div>
-          </button>
-
           <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
             <button
               onClick={() => setFilterActivity("all")}
@@ -303,6 +288,13 @@ export default function HangoutsPage() {
                 <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
               ))}
             </div>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-4 w-full py-4 text-center transition-colors hover:bg-surface/50 rounded-xl"
+            >
+              <p className="text-sm text-text-muted">Didn't find what you're looking for?</p>
+              <p className="text-sm font-medium text-amber mt-0.5">Create your own plan and let others join</p>
+            </button>
           )}
         </div>
       )}
