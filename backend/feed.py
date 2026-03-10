@@ -134,8 +134,11 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify
     ext = (file.filename or "img.jpg").rsplit(".", 1)[-1] if file.filename else "jpg"
     path = f"{uuid.uuid4().hex}.{ext}"
 
-    db = get_supabase()
-    db.storage.from_("post-images").upload(path, contents, {"content-type": file.content_type})
+    try:
+        db = get_supabase()
+        db.storage.from_("post-images").upload(path, contents, {"content-type": file.content_type})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
 
     settings = get_settings()
     public_url = f"{settings.supabase_url}/storage/v1/object/public/post-images/{path}"

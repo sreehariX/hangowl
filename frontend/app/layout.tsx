@@ -46,8 +46,8 @@ export default function RootLayout({
           <SWRegister />
           <InstallPrompt />
           <div className="flex min-h-dvh flex-col">
+            <main className="flex-1">{children}</main>
             <Nav />
-            <main className="flex-1 pb-20 md:pb-0">{children}</main>
           </div>
         </AuthProvider>
         <Analytics />

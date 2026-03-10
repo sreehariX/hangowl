@@ -1,27 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { PlanCard } from "@/components/PlanCard";
-import { PlanListSkeleton } from "@/components/Skeleton";
-import type { Plan, Stats } from "@/lib/types";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { ComposeBox } from "@/components/ComposeBox";
+import { PostCard } from "@/components/PostCard";
+import type { Post, Stats } from "@/lib/types";
 
-function LiveDot() {
-  return (
-    <span className="relative flex h-2 w-2">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-    </span>
-  );
-}
-
-export default function HomePage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+export default function FeedHomePage() {
+  const { isAuthenticated, userId, loading: authLoading } = useAuth();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  const fetchFeed = useCallback(async (cursor?: string) => {
+    try {
+      const data = await api.getFeed(cursor);
+      if (cursor) {
+        setPosts((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          const newPosts = data.posts.filter((p) => !ids.has(p.id));
+          return [...prev, ...newPosts];
+        });
+      } else {
+        setPosts(data.posts);
+      }
+      setHasMore(data.posts.length >= 20);
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      await fetchFeed();
+      if (active) setLoading(false);
+    }
+    load();
+    return () => { active = false; };
+  }, [fetchFeed]);
 
   useEffect(() => {
     let active = true;
@@ -31,19 +57,29 @@ export default function HomePage() {
         if (active) setStats(data);
       } catch { /* silent */ }
     }
-    async function loadPlans() {
-      try {
-        const data = await api.getPlans();
-        if (active) setPlans(data.plans);
-      } catch { /* silent */ }
-      if (active) setLoadingPlans(false);
-    }
     loadStats();
-    loadPlans();
     const si = setInterval(loadStats, 30000);
-    const pi = setInterval(loadPlans, 15000);
-    return () => { active = false; clearInterval(si); clearInterval(pi); };
+    return () => { active = false; clearInterval(si); };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+    async function loadUserData() {
+      try {
+        const [likesData, adminData] = await Promise.all([
+          api.getMyLikedPostIds(),
+          api.checkAdmin().catch(() => ({ is_admin: false })),
+        ]);
+        if (active) {
+          setLikedIds(new Set(likesData.post_ids));
+          setIsAdmin(adminData.is_admin);
+        }
+      } catch { /* silent */ }
+    }
+    loadUserData();
+    return () => { active = false; };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -52,92 +88,142 @@ export default function HomePage() {
     return () => clearInterval(hb);
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("feed-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts", filter: "parent_id=is.null" },
+        (payload) => {
+          const newPost = payload.new as Post;
+          if (newPost.user_id === userId) return;
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === newPost.id)) return prev;
+            return [newPost, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!observerRef.current || !hasMore) return;
+    const target = observerRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && posts.length > 0) {
+          const lastPost = posts[posts.length - 1];
+          setLoadingMore(true);
+          fetchFeed(lastPost.created_at).finally(() => setLoadingMore(false));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, posts, fetchFeed]);
+
+  function handlePosted() {
+    fetchFeed();
+  }
+
+  function handlePostDeleted(postId: string) {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }
+
   return (
-    <div className="mx-auto max-w-lg px-4 pt-10 pb-24 md:pt-16 relative">
-      {stats && (
-        <div className="fixed top-0 left-0 z-50 p-3 md:p-4">
-          <div className="flex items-center gap-2.5 rounded-full border border-border bg-navy-light/90 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium">
-            <span className="flex items-center gap-1 text-success tabular-nums">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-              </span>
-              {stats.free_now} online
+    <div className="mx-auto max-w-lg px-4 pt-4 pb-24">
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">HangOwl</h1>
+        {stats && (
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-text-muted">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
             </span>
-            <span className="w-px h-3 bg-border" />
-            <span className="text-amber tabular-nums">{stats.total_users} students</span>
+            <span className="text-success tabular-nums">{stats.free_now}</span>
+            online
           </div>
+        )}
+      </div>
+
+      {/* Logged-out hero */}
+      {!authLoading && !isAuthenticated && (
+        <section className="mb-8 rounded-2xl border border-border bg-surface p-6 text-center">
+          <div className="text-4xl mb-3">🦉</div>
+          <h2 className="text-lg font-bold text-text-primary mb-1">
+            Find your people at IIT Bombay
+          </h2>
+          <p className="text-sm text-text-secondary mb-5">
+            Post what you want to do. Others join anonymously.
+          </p>
+          <Link
+            href="/verify"
+            className="inline-block w-full rounded-xl bg-amber py-3 font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
+          >
+            Join with IIT-B email
+          </Link>
+          <p className="text-[11px] text-text-muted mt-2">
+            No signup. No password. Just a one-time code.
+          </p>
+        </section>
+      )}
+
+      {/* Live hangouts nudge */}
+      {stats && stats.active_plans > 0 && (
+        <Link
+          href="/hangouts"
+          className="flex items-center justify-between mb-4 rounded-xl border border-amber/20 bg-amber/5 px-4 py-2.5 transition-colors hover:bg-amber/10 active:scale-[0.99]"
+        >
+          <span className="text-xs font-medium text-amber">
+            {stats.active_plans} hangout{stats.active_plans !== 1 ? "s" : ""} happening now
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </Link>
+      )}
+
+      {/* Compose */}
+      {isAuthenticated && (
+        <div className="mb-5">
+          <ComposeBox onPosted={handlePosted} />
         </div>
       )}
 
-      <section className="text-center space-y-4 mb-10">
-        <div className="text-5xl animate-float">🦉</div>
-        <h1 className="text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
-          Find people to hang out
-          <br />
-          <span className="text-amber">with at IIT Bombay</span>
-        </h1>
-        <p className="text-text-secondary text-sm max-w-sm mx-auto leading-relaxed">
-        Post what you want to do. Other students can see it and join, or you can join their plans. Stay anonymous to everyone on the app.
-        </p>
-
-        {!authLoading && !isAuthenticated && (
-          <div className="pt-4 space-y-3">
-            <Link
-              href="/verify"
-              className="block w-full rounded-xl bg-amber py-3.5 text-center font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
-            >
-              Join with IIT-B email
-            </Link>
-            <p className="text-xs text-text-muted">
-              No signup. No password. Just a one-time code to your inbox.
-            </p>
-          </div>
-        )}
-      </section>
-
-      <div className="rounded-xl border border-amber/20 bg-amber/5 px-4 py-3 mb-6">
-        <p className="text-xs text-text-secondary leading-relaxed">
-          We are new! 50+ students across BTech, MTech, MBA, PhD and more have already joined. It will take some time to reach enough people so plans keep going. Until then, be the first one to start a plan!
-        </p>
-      </div>
-
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-text-primary">
-              Happening now
-            </h2>
-            <LiveDot />
-          </div>
-          {stats && (
-            <span className="text-xs font-medium text-mid-blue-light tabular-nums">
-              {stats.active_plans} live plan{stats.active_plans !== 1 ? "s" : ""}
-            </span>
+      {/* Feed */}
+      {loading ? (
+        <div className="flex flex-col items-center gap-2 py-16">
+          <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+          <p className="text-sm text-text-muted">Loading...</p>
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-surface p-10 text-center">
+          <p className="text-text-secondary text-sm">No posts yet. Be the first to share something!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              liked={likedIds.has(post.id)}
+              currentUserId={userId}
+              isAdmin={isAdmin}
+              onDeleted={() => handlePostDeleted(post.id)}
+            />
+          ))}
+          <div ref={observerRef} className="h-4" />
+          {loadingMore && (
+            <div className="flex justify-center py-4">
+              <div className="h-5 w-5 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+            </div>
           )}
         </div>
-
-        {loadingPlans ? (
-          <PlanListSkeleton count={3} />
-        ) : plans.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-surface p-8 text-center">
-            <div className="text-3xl mb-3">🌙</div>
-            <p className="text-text-secondary text-sm">
-              No plans right now. Be the first to post one!
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {plans.slice(0, 10).map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <footer className="mt-12 pb-8 text-center text-xs text-text-muted">
-        HangOwl &middot; Built for IIT Bombay students
-      </footer>
+      )}
     </div>
   );
 }

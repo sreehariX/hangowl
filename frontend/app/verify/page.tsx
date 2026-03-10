@@ -101,10 +101,10 @@ export default function VerifyPage() {
           <span className="text-xl font-bold text-amber">{persona}</span>
         </div>
         <button
-          onClick={() => router.push("/board")}
+          onClick={() => router.push("/")}
           className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark"
         >
-          Go to Board
+          Go to Feed
         </button>
       </div>
     );
