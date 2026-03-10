@@ -1,0 +1,144 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { ImagePreview } from "@/components/ImagePreview";
+
+interface ComposeBoxProps {
+  parentId?: string;
+  placeholder?: string;
+  onPosted?: () => void;
+}
+
+const MAX_CHARS = 500;
+
+export function ComposeBox({ parentId, placeholder, onPosted }: ComposeBoxProps) {
+  const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const trimmed = content.trim();
+  const canPost = trimmed.length > 0 && trimmed.length <= MAX_CHARS && !posting && !uploading;
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files are allowed");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(path, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("post-images").getPublicUrl(path);
+      setImageUrl(data.publicUrl);
+    } catch {
+      setError("Failed to upload image");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handlePost() {
+    if (!canPost) return;
+    setPosting(true);
+    setError(null);
+
+    try {
+      await api.createPost({
+        content: trimmed,
+        image_url: imageUrl,
+        parent_id: parentId || null,
+      });
+      setContent("");
+      setImageUrl(null);
+      onPosted?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to post");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder={placeholder || "What's on your mind?"}
+        rows={3}
+        maxLength={MAX_CHARS}
+        className="w-full resize-none bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+      />
+
+      {imageUrl && (
+        <ImagePreview src={imageUrl} onRemove={() => setImageUrl(null)} />
+      )}
+
+      {error && (
+        <p className="mt-2 text-xs text-error">{error}</p>
+      )}
+
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImagePick}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="text-text-muted transition-colors hover:text-amber disabled:opacity-40"
+            title="Attach image"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+          </button>
+          {uploading && (
+            <span className="text-xs text-text-muted">Uploading...</span>
+          )}
+          <span className={`text-xs tabular-nums ${trimmed.length > MAX_CHARS ? "text-error" : "text-text-muted"}`}>
+            {trimmed.length}/{MAX_CHARS}
+          </span>
+        </div>
+
+        <button
+          onClick={handlePost}
+          disabled={!canPost}
+          className="rounded-lg bg-amber px-4 py-1.5 text-sm font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {posting ? "Posting..." : parentId ? "Reply" : "Post"}
+        </button>
+      </div>
+    </div>
+  );
+}

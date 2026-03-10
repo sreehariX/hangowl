@@ -111,4 +111,32 @@ export const api = {
 
   heartbeat: () =>
     request<{ ok: boolean }>("/heartbeat", { method: "POST" }),
+
+  getFeed: (cursor?: string) => {
+    const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return request<{ posts: import("./types").Post[] }>(`/feed${qs}`);
+  },
+
+  getPost: (id: string) =>
+    request<{ post: import("./types").Post; replies: import("./types").Post[] }>(`/feed/${id}`),
+
+  createPost: (data: { content: string; image_url?: string | null; parent_id?: string | null }) =>
+    request<{ post: import("./types").Post }>("/feed", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  deletePost: (id: string) =>
+    request<{ message: string }>(`/feed/${id}`, { method: "DELETE" }),
+
+  toggleLike: (postId: string) =>
+    request<{ liked: boolean; likes_count: number }>(`/feed/${postId}/like`, { method: "POST" }),
+
+  getMyLikedPostIds: () =>
+    request<{ post_ids: string[] }>("/feed/my/liked-ids"),
+
+  getMyPosts: (cursor?: string) => {
+    const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return request<{ posts: import("./types").Post[] }>(`/feed/my${qs}`);
+  },
 };

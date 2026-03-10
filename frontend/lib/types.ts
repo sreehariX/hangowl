@@ -61,6 +61,20 @@ export interface PlanMessage {
   };
 }
 
+export interface Post {
+  id: string;
+  user_id: string;
+  content: string;
+  image_url: string | null;
+  parent_id: string | null;
+  likes_count: number;
+  replies_count: number;
+  is_hidden?: boolean;
+  created_at: string;
+  users?: { persona_name: string };
+  user_liked?: boolean;
+}
+
 export interface LeaderboardEntry {
   persona_name: string;
   hangout_count: number;

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { Avatar } from "@/components/Avatar";
 import { PlanCard } from "@/components/PlanCard";
 import { PlanListSkeleton } from "@/components/Skeleton";
 import type { Plan, Stats } from "@/lib/types";

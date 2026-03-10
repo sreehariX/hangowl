@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth import router as auth_router
 from config import get_settings
 from database import get_supabase
+from feed import router as feed_router
 from middleware import verify_token
 from plans import router as plans_router
 
@@ -28,6 +29,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(plans_router)
+app.include_router(feed_router)
 
 
 @app.get("/")

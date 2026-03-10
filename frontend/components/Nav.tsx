@@ -22,6 +22,7 @@ export function Nav() {
     ? [
         { href: "/", label: "Home" },
         { href: "/board", label: "Board" },
+        { href: "/feed", label: "Feed" },
         { href: "/free", label: "I'm Free" },
         { href: "/my-plans", label: "My Plans" },
         { href: "/leaderboard", label: "Ranks" },
