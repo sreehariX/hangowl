@@ -1,5 +1,7 @@
 "use client";
 
+import { ProgressiveImage } from "@/components/ProgressiveImage";
+
 interface ImagePreviewProps {
   src: string;
   onRemove: () => void;
@@ -8,10 +10,11 @@ interface ImagePreviewProps {
 export function ImagePreview({ src, onRemove }: ImagePreviewProps) {
   return (
     <div className="relative mt-2 inline-block">
-      <img
+      <ProgressiveImage
         src={src}
         alt="Attachment preview"
         className="max-h-48 rounded-xl border border-border object-cover"
+        skeletonClassName="h-32 w-48 rounded-xl"
       />
       <button
         type="button"

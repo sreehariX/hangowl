@@ -6,6 +6,7 @@ import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -82,11 +83,10 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
       className="block group rounded-2xl bg-surface border border-border overflow-hidden transition-all hover:bg-surface-hover hover:shadow-lg hover:shadow-black/10"
     >
       {plan.image_url && (
-        <img
+        <ProgressiveImage
           src={plan.image_url}
-          alt=""
           className="w-full h-36 object-cover"
-          loading="lazy"
+          skeletonClassName="w-full h-36"
         />
       )}
 

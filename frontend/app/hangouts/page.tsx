@@ -179,8 +179,8 @@ export default function HangoutsPage() {
     }
   }
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async () => {
+    if (submitting) return;
     if (!resolvedActivity || !resolvedLocation || !description.trim()) {
       setCreateError("Pick an activity, location, and add a description");
       return;
@@ -206,7 +206,6 @@ export default function HangoutsPage() {
       fetchPlans();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to create plan");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -223,6 +222,7 @@ export default function HangoutsPage() {
     setDuration(60);
     setImageUrl(null);
     setCreateError("");
+    setSubmitting(false);
   }
 
   if (authLoading) {
@@ -359,8 +359,9 @@ export default function HangoutsPage() {
         <div className="fixed inset-0 z-50 bg-navy animate-fade-in overflow-y-auto">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-navy z-10">
             <button
-              onClick={() => { setShowCreate(false); resetForm(); }}
-              className="text-text-muted hover:text-text-primary transition-colors"
+              onClick={() => { if (!submitting) { setShowCreate(false); resetForm(); } }}
+              disabled={submitting}
+              className="text-text-muted hover:text-text-primary transition-colors disabled:opacity-30"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -370,13 +371,24 @@ export default function HangoutsPage() {
             <button
               onClick={handleCreate}
               disabled={submitting || !resolvedActivity || !resolvedLocation || !description.trim()}
-              className="rounded-full bg-amber px-4 py-1.5 text-xs font-bold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-40"
+              className="rounded-full bg-amber px-4 py-1.5 text-xs font-bold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-40 min-w-[56px] flex items-center justify-center"
             >
-              {submitting ? "..." : "Post"}
+              {submitting ? (
+                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : "Post"}
             </button>
           </div>
 
-          <form onSubmit={handleCreate} className="mx-auto max-w-lg px-4 py-4 space-y-5">
+          {createError && (
+            <div className="mx-auto max-w-lg px-4 pt-3">
+              <p className="text-xs text-error text-center bg-error/10 rounded-lg py-2 px-3">{createError}</p>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-lg px-4 py-4 space-y-5">
             {/* Activity */}
             <div>
               <p className="text-xs font-medium text-text-muted mb-2">Activity</p>
@@ -451,7 +463,6 @@ export default function HangoutsPage() {
                 rows={2}
                 placeholder="What's the plan? e.g. Late night maggi run"
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none resize-none"
-                required
               />
             </div>
 
@@ -535,8 +546,7 @@ export default function HangoutsPage() {
               )}
             </div>
 
-            {createError && <p className="text-xs text-error text-center">{createError}</p>}
-          </form>
+          </div>
         </div>
       )}
     </div>

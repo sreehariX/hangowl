@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
 
@@ -165,11 +166,10 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
             </p>
 
             {post.image_url && (
-              <img
+              <ProgressiveImage
                 src={post.image_url}
-                alt=""
                 className="mt-3 max-h-[350px] w-full rounded-2xl border border-border object-cover"
-                loading="lazy"
+                skeletonClassName="mt-3 w-full h-[200px] rounded-2xl"
               />
             )}
 
