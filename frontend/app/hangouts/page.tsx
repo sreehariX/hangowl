@@ -293,8 +293,8 @@ export default function HangoutsPage() {
                 onClick={() => setShowCreate(true)}
                 className="mt-4 w-full py-4 text-center transition-colors hover:bg-surface/50 rounded-xl"
               >
-                <p className="text-sm text-text-muted">Didn&apos;t find what you&apos;re looking for?</p>
-                <p className="text-sm font-medium text-amber mt-0.5">Create your own plan and let others join</p>
+              <p className="text-sm text-text-muted">Didn&apos;t find any plans that you&apos;re interested in?</p>
+              <p className="text-sm font-medium text-amber mt-0.5">Tap here to create your own plan and let others join</p>
               </button>
             </>
           )}
