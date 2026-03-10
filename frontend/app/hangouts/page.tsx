@@ -246,10 +246,17 @@ export default function HangoutsPage() {
         <div>
           <button
             onClick={() => setShowCreate(true)}
-            className="mb-3 w-full rounded-xl border border-dashed border-amber/40 bg-amber/5 px-4 py-2.5 text-left transition-colors hover:bg-amber/10"
+            className="mb-3 w-full flex items-center gap-3 rounded-xl bg-amber/10 px-4 py-3 text-left transition-all hover:bg-amber/20 active:scale-[0.98]"
           >
-            <p className="text-sm font-medium text-text-primary">Create your own hangout plan</p>
-            <p className="text-xs text-text-muted mt-0.5">Let other students discover and join</p>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber text-navy">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14" /><path d="M5 12h14" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber">Create your own hangout plan</p>
+              <p className="text-xs text-text-muted mt-0.5">Let other students discover and join</p>
+            </div>
           </button>
 
           <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
