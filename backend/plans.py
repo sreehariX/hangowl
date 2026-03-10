@@ -232,6 +232,44 @@ async def hide_plan(plan_id: str, user: dict = Depends(verify_token)):
     return {"message": "Plan hidden"}
 
 
+@router.post("/{plan_id}/leave")
+async def leave_plan(plan_id: str, user: dict = Depends(verify_token)):
+    db = get_supabase()
+
+    plan_result = (
+        db.table("plans")
+        .select("creator_id")
+        .eq("id", plan_id)
+        .execute()
+    )
+
+    if not plan_result.data:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    if plan_result.data[0]["creator_id"] == user["sub"]:
+        raise HTTPException(status_code=400, detail="Creator cannot leave their own plan")
+
+    existing = (
+        db.table("plan_members")
+        .select("id")
+        .eq("plan_id", plan_id)
+        .eq("user_id", user["sub"])
+        .execute()
+    )
+
+    if not existing.data:
+        raise HTTPException(status_code=400, detail="You are not in this plan")
+
+    db.table("plan_members").delete().eq("plan_id", plan_id).eq("user_id", user["sub"]).execute()
+
+    user_data = db.table("users").select("hangout_count").eq("id", user["sub"]).execute()
+    current_count = user_data.data[0]["hangout_count"] if user_data.data else 0
+    if current_count > 0:
+        db.table("users").update({"hangout_count": current_count - 1}).eq("id", user["sub"]).execute()
+
+    return {"message": "Left plan successfully"}
+
+
 @router.post("/{plan_id}/join")
 async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
     db = get_supabase()

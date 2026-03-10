@@ -31,6 +31,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const { isAuthenticated, userId } = useAuth();
   const router = useRouter();
   const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +58,20 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       setError(err instanceof Error ? err.message : "Failed to join");
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    setLeaving(true);
+    setError("");
+    try {
+      await api.leavePlan(plan.id);
+      setConfirmLeave(false);
+      onRefresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to leave");
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -178,6 +194,36 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             >
               Share with friends
             </button>
+            {alreadyJoined && !isCreator && !confirmLeave && (
+              <button
+                onClick={() => setConfirmLeave(true)}
+                className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover"
+              >
+                Leave this plan
+              </button>
+            )}
+            {alreadyJoined && !isCreator && confirmLeave && (
+              <div className="rounded-xl border border-border p-3 space-y-2">
+                <p className="text-xs text-text-secondary text-center">
+                  Are you sure you want to leave this plan?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmLeave(false)}
+                    className="flex-1 rounded-lg border border-border py-2 text-sm text-text-secondary transition-colors hover:bg-surface-hover"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLeave}
+                    disabled={leaving}
+                    className="flex-1 rounded-lg bg-error py-2 text-sm font-medium text-white transition-colors hover:bg-error/80 disabled:opacity-50"
+                  >
+                    {leaving ? "Leaving..." : "Yes, leave"}
+                  </button>
+                </div>
+              </div>
+            )}
             {isCreator && !confirmDelete && (
               <button
                 onClick={() => setConfirmDelete(true)}

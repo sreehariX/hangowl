@@ -244,6 +244,14 @@ export default function HangoutsPage() {
       {/* Browse Tab */}
       {tab === 0 && (
         <div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="mb-3 w-full rounded-xl border border-dashed border-amber/40 bg-amber/5 px-4 py-2.5 text-left transition-colors hover:bg-amber/10"
+          >
+            <p className="text-sm font-medium text-text-primary">Create your own hangout plan</p>
+            <p className="text-xs text-text-muted mt-0.5">Let other students discover and join</p>
+          </button>
+
           <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
             <button
               onClick={() => setFilterActivity("all")}

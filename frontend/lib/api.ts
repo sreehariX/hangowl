@@ -88,6 +88,11 @@ export const api = {
       method: "POST",
     }),
 
+  leavePlan: (id: string) =>
+    request<{ message: string }>(`/plans/${id}/leave`, {
+      method: "POST",
+    }),
+
   hidePlan: (id: string) =>
     request<{ message: string }>(`/plans/${id}`, {
       method: "DELETE",
