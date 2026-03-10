@@ -1,8 +1,10 @@
+import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from config import get_settings
 from database import get_supabase
 from middleware import verify_token
 
@@ -208,6 +210,26 @@ async def check_liked(post_id: str, user: dict = Depends(verify_token)):
     )
 
     return {"liked": len(existing.data) > 0}
+
+
+@router.post("/upload")
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify_token)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 5MB")
+
+    ext = (file.filename or "img.jpg").rsplit(".", 1)[-1] if file.filename else "jpg"
+    path = f"{uuid.uuid4().hex}.{ext}"
+
+    db = get_supabase()
+    db.storage.from_("post-images").upload(path, contents, {"content-type": file.content_type})
+
+    settings = get_settings()
+    public_url = f"{settings.supabase_url}/storage/v1/object/public/post-images/{path}"
+    return {"url": public_url}
 
 
 @router.get("/my/liked-ids")

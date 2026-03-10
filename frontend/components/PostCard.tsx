@@ -23,23 +23,34 @@ function timeAgo(iso: string): string {
   });
 }
 
+const BAN_OPTIONS = [
+  { type: "1_week", label: "1 week" },
+  { type: "1_month", label: "1 month" },
+  { type: "permanent", label: "Permanent" },
+] as const;
+
 interface PostCardProps {
   post: Post;
   liked?: boolean;
   currentUserId?: string | null;
+  isAdmin?: boolean;
   isReply?: boolean;
   onDeleted?: () => void;
 }
 
-export function PostCard({ post, liked: initialLiked, currentUserId, isReply, onDeleted }: PostCardProps) {
+export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, isReply, onDeleted }: PostCardProps) {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [liked, setLiked] = useState(initialLiked ?? false);
   const [liking, setLiking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showBanMenu, setShowBanMenu] = useState(false);
+  const [banning, setBanning] = useState(false);
+  const [banDone, setBanDone] = useState<string | null>(null);
 
   const personaName = post.users?.persona_name ?? "Anonymous";
   const isAuthor = currentUserId === post.user_id;
+  const canDelete = isAuthor || isAdmin;
 
   async function handleLike() {
     if (liking || !currentUserId) return;
@@ -64,11 +75,28 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isReply, on
   async function handleDelete() {
     setDeleting(true);
     try {
-      await api.deletePost(post.id);
+      if (isAdmin && !isAuthor) {
+        await api.adminDeletePost(post.id);
+      } else {
+        await api.deletePost(post.id);
+      }
       onDeleted?.();
     } catch {
       setDeleting(false);
       setConfirmDelete(false);
+    }
+  }
+
+  async function handleBan(banType: string) {
+    setBanning(true);
+    try {
+      await api.banUser(post.user_id, banType);
+      setBanDone(banType);
+      setShowBanMenu(false);
+    } catch {
+      /* silent */
+    } finally {
+      setBanning(false);
     }
   }
 
@@ -146,7 +174,7 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isReply, on
           </svg>
         </button>
 
-        {isAuthor && !confirmDelete && (
+        {canDelete && !confirmDelete && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(true); }}
             className="ml-auto text-xs text-text-muted transition-colors hover:text-error"
@@ -154,7 +182,7 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isReply, on
             Delete
           </button>
         )}
-        {isAuthor && confirmDelete && (
+        {canDelete && confirmDelete && (
           <span className="ml-auto flex items-center gap-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
             <button
               onClick={() => setConfirmDelete(false)}
@@ -172,6 +200,41 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isReply, on
           </span>
         )}
       </div>
+
+      {isAdmin && !isAuthor && (
+        <div className="mt-2 pl-12" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+          {banDone ? (
+            <span className="text-[11px] text-success">Banned ({banDone.replace("_", " ")})</span>
+          ) : !showBanMenu ? (
+            <button
+              onClick={() => setShowBanMenu(true)}
+              className="text-[11px] text-text-muted transition-colors hover:text-error"
+            >
+              Ban user
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-text-muted">Ban for:</span>
+              {BAN_OPTIONS.map((opt) => (
+                <button
+                  key={opt.type}
+                  onClick={() => handleBan(opt.type)}
+                  disabled={banning}
+                  className="rounded-md border border-error/30 px-2 py-0.5 text-[11px] text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowBanMenu(false)}
+                className="text-[11px] text-text-muted hover:text-text-primary"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 

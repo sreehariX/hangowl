@@ -19,6 +19,7 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchPost = useCallback(async () => {
@@ -40,15 +41,21 @@ export default function PostDetailPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     let active = true;
-    async function loadLikes() {
+    async function loadUserData() {
       try {
-        const data = await api.getMyLikedPostIds();
-        if (active) setLikedIds(new Set(data.post_ids));
+        const [likesData, adminData] = await Promise.all([
+          api.getMyLikedPostIds(),
+          api.checkAdmin().catch(() => ({ is_admin: false })),
+        ]);
+        if (active) {
+          setLikedIds(new Set(likesData.post_ids));
+          setIsAdmin(adminData.is_admin);
+        }
       } catch {
         /* silent */
       }
     }
-    loadLikes();
+    loadUserData();
     return () => { active = false; };
   }, [isAuthenticated]);
 
@@ -129,6 +136,7 @@ export default function PostDetailPage() {
         post={post}
         liked={likedIds.has(post.id)}
         currentUserId={userId}
+        isAdmin={isAdmin}
         onDeleted={handlePostDeleted}
       />
 
@@ -160,6 +168,7 @@ export default function PostDetailPage() {
               post={reply}
               liked={likedIds.has(reply.id)}
               currentUserId={userId}
+              isAdmin={isAdmin}
               isReply
               onDeleted={() => handleReplyDeleted(reply.id)}
             />

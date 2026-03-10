@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
 import { ImagePreview } from "@/components/ImagePreview";
 
 interface ComposeBoxProps {
@@ -42,19 +41,10 @@ export function ComposeBox({ parentId, placeholder, onPosted }: ComposeBoxProps)
     setError(null);
 
     try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(path, file, { contentType: file.type });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from("post-images").getPublicUrl(path);
-      setImageUrl(data.publicUrl);
-    } catch {
-      setError("Failed to upload image");
+      const result = await api.uploadImage(file);
+      setImageUrl(result.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload image");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

@@ -12,6 +12,7 @@ export default function FeedPage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -49,15 +50,21 @@ export default function FeedPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     let active = true;
-    async function loadLikes() {
+    async function loadUserData() {
       try {
-        const data = await api.getMyLikedPostIds();
-        if (active) setLikedIds(new Set(data.post_ids));
+        const [likesData, adminData] = await Promise.all([
+          api.getMyLikedPostIds(),
+          api.checkAdmin().catch(() => ({ is_admin: false })),
+        ]);
+        if (active) {
+          setLikedIds(new Set(likesData.post_ids));
+          setIsAdmin(adminData.is_admin);
+        }
       } catch {
         /* silent */
       }
     }
-    loadLikes();
+    loadUserData();
     return () => { active = false; };
   }, [isAuthenticated]);
 
@@ -145,6 +152,7 @@ export default function FeedPage() {
               post={post}
               liked={likedIds.has(post.id)}
               currentUserId={userId}
+              isAdmin={isAdmin}
               onDeleted={() => handlePostDeleted(post.id)}
             />
           ))}

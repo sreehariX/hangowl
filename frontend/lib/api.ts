@@ -135,8 +135,40 @@ export const api = {
   getMyLikedPostIds: () =>
     request<{ post_ids: string[] }>("/feed/my/liked-ids"),
 
+  uploadImage: async (file: File) => {
+    const token = getToken();
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_URL}/feed/upload`, {
+      method: "POST",
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+      throw new Error(err.detail || "Upload failed");
+    }
+    return res.json() as Promise<{ url: string }>;
+  },
+
   getMyPosts: (cursor?: string) => {
     const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     return request<{ posts: import("./types").Post[] }>(`/feed/my${qs}`);
   },
+
+  checkAdmin: () =>
+    request<{ is_admin: boolean }>("/admin/check"),
+
+  adminDeletePost: (postId: string) =>
+    request<{ message: string }>(`/admin/posts/${postId}`, { method: "DELETE" }),
+
+  banUser: (userId: string, banType: string, reason?: string) =>
+    request<{ message: string }>("/admin/ban", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, ban_type: banType, reason }),
+    }),
+
+  unbanUser: (userId: string) =>
+    request<{ message: string }>(`/admin/unban/${userId}`, { method: "POST" }),
 };

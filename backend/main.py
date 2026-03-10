@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from admin import router as admin_router
 from auth import router as auth_router
 from config import get_settings
 from database import get_supabase
@@ -30,6 +31,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(plans_router)
 app.include_router(feed_router)
+app.include_router(admin_router)
 
 
 @app.get("/")
