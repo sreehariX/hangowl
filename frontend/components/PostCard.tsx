@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
@@ -48,6 +48,8 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
   const [showBanMenu, setShowBanMenu] = useState(false);
   const [banning, setBanning] = useState(false);
   const [banDone, setBanDone] = useState<string | null>(null);
+  const [doubleTapHeart, setDoubleTapHeart] = useState(false);
+  const lastTapRef = useRef(0);
 
   const personaName = post.users?.persona_name ?? "Anonymous";
   const isAuthor = currentUserId === post.user_id;
@@ -106,6 +108,20 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
     }
   }
 
+  function handleDoubleTap(e: React.MouseEvent | React.TouchEvent) {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!liked && currentUserId) {
+        handleLike();
+      }
+      setDoubleTapHeart(true);
+      setTimeout(() => setDoubleTapHeart(false), 600);
+    }
+    lastTapRef.current = now;
+  }
+
   function handleShare() {
     const url = `${window.location.origin}/feed/${post.id}`;
     if (navigator.share) {
@@ -142,24 +158,34 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
             )}
           </div>
 
-          <p className="text-[15px] text-text-primary leading-snug whitespace-pre-wrap break-words mt-0.5">
-            {post.content}
-          </p>
+          <div className="relative" onClick={handleDoubleTap}>
+            <p className="text-[15px] text-text-primary leading-snug whitespace-pre-wrap break-words mt-0.5">
+              {post.content}
+            </p>
 
-          {post.image_url && (
-            <img
-              src={post.image_url}
-              alt=""
-              className="mt-3 max-h-[350px] w-full rounded-2xl border border-border object-cover"
-              loading="lazy"
-            />
-          )}
+            {post.image_url && (
+              <img
+                src={post.image_url}
+                alt=""
+                className="mt-3 max-h-[350px] w-full rounded-2xl border border-border object-cover"
+                loading="lazy"
+              />
+            )}
+
+            {doubleTapHeart && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="text-error animate-like-pop opacity-90 drop-shadow-lg">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                </svg>
+              </div>
+            )}
+          </div>
 
           <p className="mt-2 text-xs text-text-muted">
             {formatFullDate(post.created_at)}
           </p>
 
-          <div className="mt-2 flex items-center gap-6 pt-2 border-t border-border/50">
+          <div className="mt-2 flex items-center gap-6">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
               disabled={!currentUserId}

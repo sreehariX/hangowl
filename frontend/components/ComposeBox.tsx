@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { ImagePreview } from "@/components/ImagePreview";
 
@@ -8,17 +8,25 @@ interface ComposeBoxProps {
   parentId?: string;
   placeholder?: string;
   onPosted?: () => void;
+  autoFocus?: boolean;
 }
 
 const MAX_CHARS = 500;
 
-export function ComposeBox({ parentId, placeholder, onPosted }: ComposeBoxProps) {
+export function ComposeBox({ parentId, placeholder, onPosted, autoFocus }: ComposeBoxProps) {
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [autoFocus]);
 
   const trimmed = content.trim();
   const canPost = trimmed.length > 0 && trimmed.length <= MAX_CHARS && !posting && !uploading;
@@ -75,6 +83,7 @@ export function ComposeBox({ parentId, placeholder, onPosted }: ComposeBoxProps)
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <textarea
+        ref={textareaRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder={placeholder || "What's on your mind?"}

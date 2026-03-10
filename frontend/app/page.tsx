@@ -172,7 +172,7 @@ export default function FeedHomePage() {
       {/* Trust text */}
       {!authLoading && (
         <p className="text-[11px] text-text-muted mb-4">
-          Every student here is verified with their IITB email. Everyone stays anonymous.
+          Verified IITB students only. Completely anonymous.
         </p>
       )}
 
@@ -293,7 +293,7 @@ export default function FeedHomePage() {
             <div className="w-5" />
           </div>
           <div className="mx-auto max-w-lg px-4 pt-4">
-            <ComposeBox onPosted={handlePosted} placeholder="What's happening?" />
+            <ComposeBox onPosted={handlePosted} placeholder="What's happening?" autoFocus />
           </div>
         </div>
       )}

@@ -21,6 +21,7 @@ export default function PostDetailPage() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showReply, setShowReply] = useState(false);
 
   const fetchPost = useCallback(async () => {
     try {
@@ -84,11 +85,12 @@ export default function PostDetailPage() {
   }, [postId]);
 
   function handleReplied() {
+    setShowReply(false);
     fetchPost();
   }
 
   function handlePostDeleted() {
-    router.push("/feed");
+    router.push("/");
   }
 
   function handleReplyDeleted(replyId: string) {
@@ -142,16 +144,6 @@ export default function PostDetailPage() {
         onDeleted={handlePostDeleted}
       />
 
-      {isAuthenticated && (
-        <div className="px-4 py-3 border-b border-border">
-          <ComposeBox
-            parentId={postId}
-            placeholder="Post your reply"
-            onPosted={handleReplied}
-          />
-        </div>
-      )}
-
       <div className="px-4 py-3 border-b border-border">
         <span className="text-[13px] font-semibold text-text-secondary">
           Replies ({post.replies_count})
@@ -175,6 +167,50 @@ export default function PostDetailPage() {
               onDeleted={() => handleReplyDeleted(reply.id)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Reply FAB */}
+      {isAuthenticated && !showReply && (
+        <button
+          onClick={() => setShowReply(true)}
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
+          aria-label="Reply"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Reply modal (full-screen like Twitter) */}
+      {showReply && (
+        <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <button
+              onClick={() => setShowReply(false)}
+              className="text-text-muted hover:text-text-primary transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+              </svg>
+            </button>
+            <span className="text-sm font-semibold text-text-primary">Reply</span>
+            <div className="w-5" />
+          </div>
+          <div className="px-4 py-3 border-b border-border/50">
+            <p className="text-xs text-text-muted">
+              Replying to <span className="text-amber">{post.users?.persona_name ?? "Anonymous"}</span>
+            </p>
+          </div>
+          <div className="mx-auto max-w-lg px-4 pt-4">
+            <ComposeBox
+              parentId={postId}
+              placeholder="Post your reply"
+              onPosted={handleReplied}
+              autoFocus
+            />
+          </div>
         </div>
       )}
     </div>
