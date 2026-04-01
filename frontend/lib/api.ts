@@ -5,9 +5,31 @@ function getToken(): string | null {
   return localStorage.getItem("hangowl_token");
 }
 
+async function tryRefreshToken(): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem("hangowl_token", data.token);
+      return data.token;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 async function request<T>(
   path: string,
-  options?: RequestInit
+  options?: RequestInit,
+  isRetry = false
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -25,6 +47,16 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && !isRetry) {
+      const newToken = await tryRefreshToken();
+      if (newToken) {
+        return request<T>(path, options, true);
+      }
+      localStorage.removeItem("hangowl_token");
+      localStorage.removeItem("hangowl_user_id");
+      localStorage.removeItem("hangowl_persona");
+      window.location.href = "/verify";
+    }
     const error = await res.json().catch(() => ({ detail: "Something went wrong" }));
     throw new Error(error.detail || `Request failed: ${res.status}`);
   }
@@ -141,7 +173,7 @@ export const api = {
   getMyLikedPostIds: () =>
     request<{ post_ids: string[] }>("/feed/my/liked-ids"),
 
-  uploadImage: async (file: File) => {
+  uploadImage: async (file: File, isRetry = false): Promise<{ url: string }> => {
     const token = getToken();
     const form = new FormData();
     form.append("file", file);
@@ -152,10 +184,18 @@ export const api = {
       body: form,
     });
     if (!res.ok) {
+      if (res.status === 401 && !isRetry) {
+        const newToken = await tryRefreshToken();
+        if (newToken) return api.uploadImage(file, true);
+        localStorage.removeItem("hangowl_token");
+        localStorage.removeItem("hangowl_user_id");
+        localStorage.removeItem("hangowl_persona");
+        window.location.href = "/verify";
+      }
       const err = await res.json().catch(() => ({ detail: "Upload failed" }));
       throw new Error(err.detail || "Upload failed");
     }
-    return res.json() as Promise<{ url: string }>;
+    return res.json();
   },
 
   getMyPosts: (cursor?: string) => {

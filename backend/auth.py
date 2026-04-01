@@ -75,6 +75,50 @@ def create_jwt(user_id: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
+@router.post("/refresh")
+async def refresh_token(request: Request, response: Response):
+    token = request.cookies.get("token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="No token provided")
+
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db = get_supabase()
+    user = db.table("users").select("id, persona_name").eq("id", user_id).execute()
+    if not user.data:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    new_token = create_jwt(user_id)
+    is_prod = settings.environment == "production"
+    response.set_cookie(
+        key="token",
+        value=new_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        max_age=30 * 24 * 3600,
+    )
+    return {"token": new_token}
+
+
 @router.post("/send-otp")
 async def send_otp(body: SendOTPRequest):
     email = body.email.lower().strip()

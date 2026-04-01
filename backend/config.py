@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     secret_salt: str = ""
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
-    jwt_expiry_hours: int = 168  # 7 days
+    jwt_expiry_hours: int = 720  # 30 days
     frontend_url: str = "http://localhost:3000"
     plan_expiry_hours: int = 2
     environment: str = "development"
