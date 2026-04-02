@@ -9,8 +9,10 @@ import { supabase } from "@/lib/supabase";
 import { Avatar } from "@/components/Avatar";
 import type { Notification } from "@/lib/types";
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
   const s = Math.floor(diff / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
@@ -19,12 +21,17 @@ function timeAgo(dateStr: string): string {
   if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d`;
-  return `${Math.floor(d / 7)}w`;
+  // For older: show "Mar 28" or "Mar 28, 2024" if different year
+  const opts: Intl.DateTimeFormatOptions =
+    date.getFullYear() === now.getFullYear()
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" };
+  return date.toLocaleDateString("en-US", opts);
 }
 
 function LikeIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
       <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
     </svg>
   );
@@ -32,7 +39,7 @@ function LikeIcon() {
 
 function ReplyIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
     </svg>
   );
@@ -40,7 +47,7 @@ function ReplyIcon() {
 
 function JoinIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <line x1="19" x2="19" y1="8" y2="14" />
@@ -53,19 +60,19 @@ const TYPE_META = {
   like: {
     icon: <LikeIcon />,
     color: "text-red-400",
-    bg: "bg-red-500/10",
+    bg: "bg-red-500/15",
     label: "liked your post",
   },
   reply: {
     icon: <ReplyIcon />,
     color: "text-blue-400",
-    bg: "bg-blue-500/10",
+    bg: "bg-blue-500/15",
     label: "replied to your post",
   },
   plan_join: {
     icon: <JoinIcon />,
     color: "text-amber",
-    bg: "bg-amber/10",
+    bg: "bg-amber/15",
     label: "joined your hangout",
   },
 };
@@ -80,6 +87,7 @@ function NotificationItem({
   isNew?: boolean;
 }) {
   const meta = TYPE_META[n.type];
+  const preview = n.posts?.content ?? (n.plans ? `${n.plans.activity} · ${n.plans.location}` : null);
 
   return (
     <button
@@ -90,29 +98,38 @@ function NotificationItem({
     >
       {/* Unread dot */}
       {isNew && (
-        <div className="absolute left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
       )}
 
-      {/* Action icon column */}
-      <div className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${meta.bg} ${meta.color}`}>
-        {meta.icon}
+      {/* Action icon column — fixed width, like Twitter */}
+      <div className="flex w-10 flex-shrink-0 flex-col items-end pt-0.5">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-full ${meta.bg} ${meta.color}`}>
+          {meta.icon}
+        </div>
       </div>
 
-      {/* Right side */}
+      {/* Content column */}
       <div className="flex-1 min-w-0">
         {/* Avatar row */}
-        <div className="mb-2">
-          <Avatar name={n.actor_persona || "?"} size={36} />
+        <div className="mb-2 flex items-center gap-1">
+          <Avatar name={n.actor_persona || "?"} size={34} />
         </div>
 
-        {/* Text */}
-        <p className="text-[14px] leading-snug text-text">
-          <span className="font-bold">{n.actor_persona || "Someone"}</span>{" "}
+        {/* Action text */}
+        <p className="text-[14px] leading-snug">
+          <span className="font-bold text-text">{n.actor_persona || "Someone"}</span>{" "}
           <span className="text-text-muted">{meta.label}</span>
         </p>
 
+        {/* Post/plan preview */}
+        {preview && (
+          <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-text-muted/70 border-l-2 border-border/60 pl-2">
+            {preview}
+          </p>
+        )}
+
         {/* Timestamp */}
-        <p className="mt-0.5 text-xs text-text-muted/60">{timeAgo(n.created_at)}</p>
+        <p className="mt-1.5 text-xs text-text-muted/50">{formatDate(n.created_at)}</p>
       </div>
     </button>
   );
@@ -157,7 +174,6 @@ export default function NotificationsPage() {
     }
   }, [isAuthenticated, authLoading, load, router, clearUnread]);
 
-  // Real-time: listen for new notifications while on this page
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
 
@@ -190,11 +206,8 @@ export default function NotificationsPage() {
 
   const handleTap = useCallback(
     (n: Notification) => {
-      if (n.post_id) {
-        router.push(`/feed/${n.post_id}`);
-      } else if (n.plan_id) {
-        router.push(`/plan/${n.plan_id}`);
-      }
+      if (n.post_id) router.push(`/feed/${n.post_id}`);
+      else if (n.plan_id) router.push(`/plan/${n.plan_id}`);
     },
     [router]
   );

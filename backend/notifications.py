@@ -11,7 +11,7 @@ async def get_notifications(user: dict = Depends(verify_token)):
     db = get_supabase()
     result = (
         db.table("notifications")
-        .select("*")
+        .select("*, posts(content), plans(activity, location)")
         .eq("user_id", user["sub"])
         .order("created_at", desc=True)
         .limit(60)

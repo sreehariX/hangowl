@@ -101,6 +101,8 @@ export interface Notification {
   plan_id: string | null;
   is_read: boolean;
   created_at: string;
+  posts: { content: string } | null;
+  plans: { activity: string; location: string } | null;
 }
 
 export type Activity = "Dhaba" | "Movie" | "Study" | "Cricket" | "Just vibe" | "Others";
