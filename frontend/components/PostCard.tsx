@@ -7,8 +7,26 @@ import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
 
-// Module-level set so the same post isn't counted twice in one session
-const viewedInSession = new Set<string>();
+// sessionStorage-backed dedup — persists through same-tab refreshes, clears on tab close
+function getViewed(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem("ho_viewed");
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addViewed(id: string): void {
+  try {
+    const viewed = getViewed();
+    if (viewed.has(id)) return;
+    viewed.add(id);
+    const arr = Array.from(viewed);
+    if (arr.length > 500) arr.splice(0, arr.length - 500);
+    sessionStorage.setItem("ho_viewed", JSON.stringify(arr));
+  } catch {}
+}
 
 function formatViewCount(n: number): string {
   if (n < 1000) return String(n);
@@ -66,7 +84,7 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
 
   // Track impression: count a view after card is 50% visible for 1s
   useEffect(() => {
-    if (viewedInSession.has(post.id)) return;
+    if (getViewed().has(post.id)) return;
     const el = cardRef.current;
     if (!el) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -74,8 +92,8 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
       (entries) => {
         if (entries[0].isIntersecting) {
           timer = setTimeout(() => {
-            if (viewedInSession.has(post.id)) return;
-            viewedInSession.add(post.id);
+            if (getViewed().has(post.id)) return;
+            addViewed(post.id);
             api.recordPostView(post.id).catch(() => {});
             setViewsCount((c) => c + 1);
             observer.disconnect();
@@ -275,19 +293,18 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
                 <line x1="12" x2="12" y1="2" y2="15" />
               </svg>
             </button>
-          </div>
 
-          {viewsCount > 0 && (
-            <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <span className="text-[12px] text-text-muted tabular-nums">
-                {formatViewCount(viewsCount)} {viewsCount === 1 ? "view" : "views"}
+            {viewsCount > 0 && (
+              <span className="ml-auto flex items-center gap-1.5 text-[13px] text-text-muted">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/>
+                  <line x1="12" y1="20" x2="12" y2="4"/>
+                  <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                <span className="tabular-nums">{formatViewCount(viewsCount)}</span>
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
