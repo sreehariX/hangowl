@@ -9,6 +9,7 @@ from config import get_settings
 from database import get_supabase
 from feed import router as feed_router
 from middleware import verify_token
+from notifications import router as notifications_router
 from plans import router as plans_router
 
 settings = get_settings()
@@ -32,6 +33,7 @@ app.include_router(auth_router)
 app.include_router(plans_router)
 app.include_router(feed_router)
 app.include_router(admin_router)
+app.include_router(notifications_router)
 
 
 @app.get("/")

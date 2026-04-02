@@ -77,13 +77,26 @@ async def create_post(body: CreatePostRequest, user: dict = Depends(verify_token
     if body.parent_id:
         parent_post = (
             db.table("posts")
-            .select("replies_count")
+            .select("replies_count, user_id")
             .eq("id", body.parent_id)
             .execute()
         )
         if parent_post.data:
             new_count = (parent_post.data[0].get("replies_count") or 0) + 1
             db.table("posts").update({"replies_count": new_count}).eq("id", body.parent_id).execute()
+
+            # Notify parent post owner (skip if same user)
+            parent_owner_id = parent_post.data[0].get("user_id")
+            if parent_owner_id and parent_owner_id != user["sub"]:
+                actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
+                actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+                db.table("notifications").insert({
+                    "user_id": parent_owner_id,
+                    "type": "reply",
+                    "actor_id": user["sub"],
+                    "actor_persona": actor_persona,
+                    "post_id": body.parent_id,
+                }).execute()
 
     return {"post": post}
 
@@ -201,7 +214,7 @@ async def toggle_like(post_id: str, user: dict = Depends(verify_token)):
 
     post_result = (
         db.table("posts")
-        .select("id, likes_count")
+        .select("id, likes_count, user_id")
         .eq("id", post_id)
         .eq("is_hidden", False)
         .execute()
@@ -232,6 +245,20 @@ async def toggle_like(post_id: str, user: dict = Depends(verify_token)):
         }).execute()
         new_count = current_count + 1
         db.table("posts").update({"likes_count": new_count}).eq("id", post_id).execute()
+
+        # Notify post owner (skip if liker == owner)
+        post_owner_id = post_result.data[0].get("user_id") if post_result.data else None
+        if post_owner_id and post_owner_id != user["sub"]:
+            actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
+            actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+            db.table("notifications").insert({
+                "user_id": post_owner_id,
+                "type": "like",
+                "actor_id": user["sub"],
+                "actor_persona": actor_persona,
+                "post_id": post_id,
+            }).execute()
+
         return {"liked": True, "likes_count": new_count}
 
 

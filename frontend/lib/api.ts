@@ -217,4 +217,16 @@ export const api = {
 
   unbanUser: (userId: string) =>
     request<{ message: string }>(`/admin/unban/${userId}`, { method: "POST" }),
+
+  getNotifications: () =>
+    request<{ notifications: import("./types").Notification[] }>("/notifications"),
+
+  getUnreadCount: () =>
+    request<{ count: number }>("/notifications/unread-count"),
+
+  markAllRead: () =>
+    request<{ ok: boolean }>("/notifications/read-all", { method: "POST" }),
+
+  markRead: (id: string) =>
+    request<{ ok: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
 };

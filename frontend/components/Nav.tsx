@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { Avatar } from "@/components/Avatar";
 
 const NAV_ITEMS = [
@@ -42,14 +44,54 @@ const NAV_ITEMS = [
   },
 ];
 
+function BellIcon({ active }: { active: boolean }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
 export function Nav() {
   const pathname = usePathname();
   const { isAuthenticated, personaName, loading: authLoading } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchCount = () => {
+      api.getUnreadCount()
+        .then((d) => setUnreadCount(d.count))
+        .catch(() => {});
+    };
+
+    fetchCount();
+    intervalRef.current = setInterval(fetchCount, 30_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isAuthenticated]);
+
+  // Reset badge when user navigates to notifications page
+  useEffect(() => {
+    if (pathname === "/notifications") {
+      setUnreadCount(0);
+    }
+  }, [pathname]);
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
+
+  const bellActive = pathname === "/notifications";
+  const badgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-navy/95 backdrop-blur-md safe-area-pb">
@@ -69,6 +111,26 @@ export function Nav() {
             </Link>
           );
         })}
+
+        {/* Notification Bell */}
+        {!authLoading && isAuthenticated && (
+          <Link
+            href="/notifications"
+            className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
+              bellActive ? "text-amber" : "text-text-muted"
+            }`}
+          >
+            <div className="relative">
+              <BellIcon active={bellActive} />
+              {badgeLabel && (
+                <span className="absolute -right-2 -top-1.5 flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-[3px] py-[1px] text-[9px] font-bold leading-none text-white">
+                  {badgeLabel}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-medium">Alerts</span>
+          </Link>
+        )}
 
         {!authLoading && isAuthenticated ? (
           <Link

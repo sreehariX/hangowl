@@ -313,4 +313,17 @@ async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
     current_count = user_data.data[0]["hangout_count"] if user_data.data else 0
     db.table("users").update({"hangout_count": current_count + 1}).eq("id", user["sub"]).execute()
 
+    # Notify plan creator (skip if creator is the joiner)
+    creator_id = plan.get("creator_id")
+    if creator_id and creator_id != user["sub"]:
+        actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
+        actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+        db.table("notifications").insert({
+            "user_id": creator_id,
+            "type": "plan_join",
+            "actor_id": user["sub"],
+            "actor_persona": actor_persona,
+            "plan_id": plan_id,
+        }).execute()
+
     return {"message": "Joined plan successfully"}

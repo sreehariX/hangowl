@@ -88,6 +88,18 @@ export interface Stats {
   total_users: number;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: "like" | "reply" | "plan_join";
+  actor_id: string | null;
+  actor_persona: string | null;
+  post_id: string | null;
+  plan_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
 export type Activity = "Dhaba" | "Movie" | "Study" | "Cricket" | "Just vibe" | "Others";
 
 export const ACTIVITIES: { label: Activity; emoji: string }[] = [
