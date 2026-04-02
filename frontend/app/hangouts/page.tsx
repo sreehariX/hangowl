@@ -11,6 +11,7 @@ import { PlanListSkeleton } from "@/components/Skeleton";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { ImagePreview } from "@/components/ImagePreview";
 import { ACTIVITIES, LOCATIONS, ACTIVITY_EMOJI, type Activity, type Plan } from "@/lib/types";
+import { compressImage } from "@/lib/compress-image";
 
 const TABS = ["Browse", "My Plans"];
 
@@ -106,10 +107,12 @@ export default function HangoutsPage() {
   const [duration, setDuration] = useState(60);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadLabel, setUploadLabel] = useState("Uploading...");
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push("/verify");
@@ -134,22 +137,29 @@ export default function HangoutsPage() {
     finally { setLoadingMyPlans(false); }
   }, []);
 
+  // Debounced refetch — prevents burst of updates from firing multiple sequential fetches
+  const debouncedFetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchPlans(), 300);
+  }, [fetchPlans]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchPlans();
-    const interval = setInterval(fetchPlans, 15000);
-    return () => clearInterval(interval);
   }, [fetchPlans, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     const channel = supabase
       .channel("hangouts-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => fetchPlans())
-      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => fetchPlans())
+      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, debouncedFetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, debouncedFetch)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchPlans, isAuthenticated]);
+    return () => {
+      supabase.removeChannel(channel);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [debouncedFetch, isAuthenticated]);
 
   useEffect(() => {
     if (tab === 1 && isAuthenticated) {
@@ -164,12 +174,15 @@ export default function HangoutsPage() {
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setCreateError("Image must be under 5MB"); return; }
     if (!file.type.startsWith("image/")) { setCreateError("Only images allowed"); return; }
+    if (file.size > 20 * 1024 * 1024) { setCreateError("Image must be under 20MB"); return; }
     setUploading(true);
     setCreateError("");
     try {
-      const result = await api.uploadImage(file);
+      setUploadLabel("Optimizing...");
+      const compressed = await compressImage(file, { maxWidth: 1280, maxHeight: 720, quality: 0.85, maxSizeMB: 2 });
+      setUploadLabel("Uploading...");
+      const result = await api.uploadImage(compressed);
       setImageUrl(result.url);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Upload failed");
@@ -555,7 +568,7 @@ export default function HangoutsPage() {
                     <circle cx="9" cy="9" r="2" />
                     <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                   </svg>
-                  {uploading ? "Uploading..." : "Add a cover photo (optional)"}
+                  {uploading ? <span className="animate-pulse">{uploadLabel}</span> : "Add a cover photo (optional)"}
                 </button>
               )}
             </div>

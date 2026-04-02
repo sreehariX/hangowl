@@ -23,9 +23,10 @@ class CreatePostRequest(BaseModel):
 async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] = None):
     db = get_supabase()
 
+    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     query = (
         db.table("posts")
-        .select("*, users(persona_name)")
+        .select(COLS)
         .is_("parent_id", "null")
         .eq("is_hidden", False)
         .order("created_at", desc=True)
@@ -104,10 +105,10 @@ async def create_post(body: CreatePostRequest, user: dict = Depends(verify_token
 @router.get("/my")
 async def get_my_posts(user: dict = Depends(verify_token), cursor: Optional[str] = None):
     db = get_supabase()
-
+    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     query = (
         db.table("posts")
-        .select("*, users(persona_name)")
+        .select(COLS)
         .eq("user_id", user["sub"])
         .eq("is_hidden", False)
         .order("created_at", desc=True)
@@ -141,8 +142,8 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify
         raise HTTPException(status_code=400, detail="Only image files are allowed")
 
     contents = await file.read()
-    if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Image must be under 5MB")
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 10MB")
 
     ext = (file.filename or "img.jpg").rsplit(".", 1)[-1] if file.filename else "jpg"
     path = f"{uuid.uuid4().hex}.{ext}"
@@ -173,9 +174,10 @@ async def record_view(post_id: str):
 async def get_post(post_id: str):
     db = get_supabase()
 
+    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     post_result = (
         db.table("posts")
-        .select("*, users(persona_name)")
+        .select(COLS)
         .eq("id", post_id)
         .eq("is_hidden", False)
         .execute()
@@ -186,7 +188,7 @@ async def get_post(post_id: str):
 
     replies_result = (
         db.table("posts")
-        .select("*, users(persona_name)")
+        .select(COLS)
         .eq("parent_id", post_id)
         .eq("is_hidden", False)
         .order("created_at", desc=False)

@@ -54,14 +54,21 @@ export default function FeedHomePage() {
   useEffect(() => {
     let active = true;
     async function loadStats() {
+      if (document.hidden) return; // skip when tab is hidden
       try {
         const data = await api.getStats();
         if (active) setStats(data);
       } catch { /* silent */ }
     }
     loadStats();
-    const si = setInterval(loadStats, 30000);
-    return () => { active = false; clearInterval(si); };
+    const si = setInterval(loadStats, 60000); // 60s — halves the polling cost
+    const onVisible = () => { if (!document.hidden) loadStats(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      clearInterval(si);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {

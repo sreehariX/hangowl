@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Avatar } from "@/components/Avatar";
 
 const NAV_ITEMS = [
@@ -55,28 +56,38 @@ function BellIcon({ active }: { active: boolean }) {
 
 export function Nav() {
   const pathname = usePathname();
-  const { isAuthenticated, personaName, loading: authLoading } = useAuth();
+  const { isAuthenticated, userId, personaName, loading: authLoading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pulse, setPulse] = useState(false);
 
+  // Fetch initial count once, then use Supabase real-time for subsequent updates.
+  // This replaces a 30s polling loop (~2,880 req/user/day) with a single fetch + push.
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !userId) {
       setUnreadCount(0);
       return;
     }
 
-    const fetchCount = () => {
-      api.getUnreadCount()
-        .then((d) => setUnreadCount(d.count))
-        .catch(() => {});
-    };
+    api.getUnreadCount()
+      .then((d) => setUnreadCount(d.count))
+      .catch(() => {});
 
-    fetchCount();
-    intervalRef.current = setInterval(fetchCount, 30_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isAuthenticated]);
+    const channel = supabase
+      .channel(`nav-notif-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => {
+          setUnreadCount((c) => c + 1);
+          // Pulse the bell to draw attention
+          setPulse(true);
+          setTimeout(() => setPulse(false), 1000);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isAuthenticated, userId]);
 
   // Reset badge when user navigates to notifications page
   useEffect(() => {
@@ -120,7 +131,7 @@ export function Nav() {
               bellActive ? "text-amber" : "text-text-muted"
             }`}
           >
-            <div className="relative">
+            <div className={`relative ${pulse ? "animate-like-pop" : ""}`}>
               <BellIcon active={bellActive} />
               {badgeLabel && (
                 <span className="absolute -right-2 -top-1.5 flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-[3px] py-[1px] text-[9px] font-bold leading-none text-white">
