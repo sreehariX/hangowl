@@ -7,24 +7,34 @@ import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
 
-// sessionStorage-backed dedup — persists through same-tab refreshes, clears on tab close
-function getViewed(): Set<string> {
+// localStorage-backed dedup with 24h TTL — survives app reopen but re-counts after a day
+const VIEWS_KEY = "ho_viewed_v2";
+const VIEWS_TTL = 24 * 60 * 60 * 1000;
+
+function getViewedStore(): Record<string, number> {
   try {
-    const raw = sessionStorage.getItem("ho_viewed");
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    return JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}");
   } catch {
-    return new Set();
+    return {};
   }
+}
+
+function hasViewed(id: string): boolean {
+  const store = getViewedStore();
+  return !!store[id] && Date.now() < store[id];
 }
 
 function addViewed(id: string): void {
   try {
-    const viewed = getViewed();
-    if (viewed.has(id)) return;
-    viewed.add(id);
-    const arr = Array.from(viewed);
-    if (arr.length > 500) arr.splice(0, arr.length - 500);
-    sessionStorage.setItem("ho_viewed", JSON.stringify(arr));
+    const store = getViewedStore();
+    if (store[id] && Date.now() < store[id]) return;
+    store[id] = Date.now() + VIEWS_TTL;
+    // Prune expired + keep max 500
+    const pruned = Object.entries(store)
+      .filter(([, exp]) => Date.now() < exp)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 500);
+    localStorage.setItem(VIEWS_KEY, JSON.stringify(Object.fromEntries(pruned)));
   } catch {}
 }
 
@@ -84,7 +94,7 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
 
   // Track impression: count a view after card is 50% visible for 1s
   useEffect(() => {
-    if (getViewed().has(post.id)) return;
+    if (hasViewed(post.id)) return;
     const el = cardRef.current;
     if (!el) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -92,7 +102,7 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
       (entries) => {
         if (entries[0].isIntersecting) {
           timer = setTimeout(() => {
-            if (getViewed().has(post.id)) return;
+            if (hasViewed(post.id)) return;
             addViewed(post.id);
             api.recordPostView(post.id).catch(() => {});
             setViewsCount((c) => c + 1);

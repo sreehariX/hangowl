@@ -71,6 +71,11 @@ export function Nav() {
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, userId]);
 
+  // Reset badge when user opens the notifications page
+  useEffect(() => {
+    if (pathname === "/notifications") setUnreadCount(0);
+  }, [pathname]);
+
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
@@ -111,7 +116,7 @@ export function Nav() {
             <div className={`relative ${pulse ? "animate-like-pop" : ""}`}>
               <BellIcon active={bellActive} />
               {badgeLabel && (
-                <span className="absolute -right-2 -top-1.5 flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-[3px] py-[1px] text-[9px] font-bold leading-none text-white">
+                <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
                   {badgeLabel}
                 </span>
               )}
