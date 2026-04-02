@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { NotificationsProvider } from "@/lib/notifications-context";
 import { Nav } from "@/components/Nav";
 import { SWRegister } from "@/components/SWRegister";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -47,12 +48,14 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <AuthProvider>
-          <SWRegister />
-          <InstallPrompt />
-          <div className="flex min-h-dvh flex-col">
-            <main className="flex-1">{children}</main>
-            <Nav />
-          </div>
+          <NotificationsProvider>
+            <SWRegister />
+            <InstallPrompt />
+            <div className="flex min-h-dvh flex-col">
+              <main className="flex-1">{children}</main>
+              <Nav />
+            </div>
+          </NotificationsProvider>
         </AuthProvider>
         <Analytics />
       </body>

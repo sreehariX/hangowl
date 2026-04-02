@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { useNotifications } from "@/lib/notifications-context";
 import { Avatar } from "@/components/Avatar";
 
 const NAV_ITEMS = [
@@ -42,34 +40,8 @@ function BellIcon({ active }: { active: boolean }) {
 
 export function Nav() {
   const pathname = usePathname();
-  const { isAuthenticated, userId, personaName, loading: authLoading } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [pulse, setPulse] = useState(false);
-
-  // Fetch initial count once, then use Supabase real-time for subsequent updates.
-  // This replaces a 30s polling loop (~2,880 req/user/day) with a single fetch + push.
-  useEffect(() => {
-    if (!isAuthenticated || !userId) return;
-
-    api.getUnreadCount()
-      .then((d) => setUnreadCount(d.count))
-      .catch(() => {});
-
-    const channel = supabase
-      .channel(`nav-notif-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => {
-          setUnreadCount((c) => c + 1);
-          setPulse(true);
-          setTimeout(() => setPulse(false), 1000);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [isAuthenticated, userId]);
+  const { isAuthenticated, personaName, loading: authLoading } = useAuth();
+  const { unreadCount, pulse } = useNotifications();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
