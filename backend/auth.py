@@ -50,18 +50,20 @@ def hash_email(email: str) -> str:
 
 
 def generate_persona(db) -> str:
-    existing_names = set()
-    result = db.table("users").select("persona_name").execute()
-    for row in result.data:
-        existing_names.add(row["persona_name"])
-
-    all_combos = [f"{c}{a}" for c in COLORS for a in ANIMALS]
-    random.shuffle(all_combos)
-
-    for name in all_combos:
-        if name not in existing_names:
+    # O(1) per attempt: pick a random combo, check if it exists with a targeted count query.
+    # Expected < 2 attempts at campus scale (2000 combos, typical users << 2000).
+    for _ in range(50):
+        color = random.choice(COLORS)
+        animal = random.choice(ANIMALS)
+        name = f"{color}{animal}"
+        result = (
+            db.table("users")
+            .select("id", count="exact")
+            .eq("persona_name", name)
+            .execute()
+        )
+        if (result.count or 0) == 0:
             return name
-
     raise HTTPException(status_code=500, detail="No unique persona names available")
 
 

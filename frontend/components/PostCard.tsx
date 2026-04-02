@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
@@ -49,7 +49,7 @@ interface PostCardProps {
   onReply?: () => void;
 }
 
-export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, isReply, onDeleted, onReply }: PostCardProps) {
+const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, isReply, onDeleted, onReply }: PostCardProps) {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [liked, setLiked] = useState(initialLiked ?? false);
   const [liking, setLiking] = useState(false);
@@ -335,4 +335,6 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
       {content}
     </Link>
   );
-}
+});
+
+export { PostCard };

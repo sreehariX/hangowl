@@ -33,7 +33,7 @@ function ImageInner({ src, alt = "", className = "", skeletonClassName }: Progre
         className={`${className} transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
-        loading="eager"
+        loading="lazy"
         decoding="async"
       />
     </div>

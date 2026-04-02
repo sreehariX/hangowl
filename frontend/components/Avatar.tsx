@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 function hashCode(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -26,7 +28,7 @@ interface AvatarProps {
   className?: string;
 }
 
-export function Avatar({ name, size = 40, className = "" }: AvatarProps) {
+function AvatarComponent({ name, size = 40, className = "" }: AvatarProps) {
   const hash = hashCode(name);
 
   const hue1 = hash % 360;
@@ -97,3 +99,5 @@ export function Avatar({ name, size = 40, className = "" }: AvatarProps) {
     </svg>
   );
 }
+
+export const Avatar = memo(AvatarComponent);

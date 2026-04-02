@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ACTIVITY_EMOJI, type Plan } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { api } from "@/lib/api";
@@ -37,7 +37,7 @@ interface PlanCardProps {
   onJoined?: () => void;
 }
 
-export function PlanCard({ plan, onJoined }: PlanCardProps) {
+const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
   const { isAuthenticated, userId } = useAuth();
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -142,4 +142,6 @@ export function PlanCard({ plan, onJoined }: PlanCardProps) {
       </div>
     </Link>
   );
-}
+});
+
+export { PlanCard };
