@@ -138,6 +138,19 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             </div>
             <div className="text-xs text-text-muted">joined</div>
           </div>
+          {(plan.views_count ?? 0) > 0 && (
+            <>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-center">
+                <div className="text-lg font-bold text-text-secondary">
+                  {plan.views_count! >= 1000
+                    ? `${(plan.views_count! / 1000).toFixed(plan.views_count! < 10000 ? 1 : 0)}K`
+                    : plan.views_count}
+                </div>
+                <div className="text-xs text-text-muted">views</div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mb-6">
@@ -292,7 +305,9 @@ export default function PlanPage() {
 
   useEffect(() => {
     fetchPlan();
-  }, [fetchPlan]);
+    // Record a view each time someone opens the plan detail
+    api.recordPlanView(params.id as string).catch(() => {});
+  }, [fetchPlan, params.id]);
 
   if (loading) {
     return (

@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
+
+// Module-level set so the same post isn't counted twice in one session
+const viewedInSession = new Set<string>();
+
+function formatViewCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}K`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
+}
 
 function formatFullDate(iso: string): string {
   const d = new Date(iso);
@@ -51,7 +60,38 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
   const [banning, setBanning] = useState(false);
   const [banDone, setBanDone] = useState<string | null>(null);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
+  const [viewsCount, setViewsCount] = useState(post.views_count ?? 0);
   const lastTapRef = useRef(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Track impression: count a view after card is 50% visible for 1s
+  useEffect(() => {
+    if (viewedInSession.has(post.id)) return;
+    const el = cardRef.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          timer = setTimeout(() => {
+            if (viewedInSession.has(post.id)) return;
+            viewedInSession.add(post.id);
+            api.recordPostView(post.id).catch(() => {});
+            setViewsCount((c) => c + 1);
+            observer.disconnect();
+          }, 1000);
+        } else {
+          if (timer) clearTimeout(timer);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, [post.id]);
 
   const personaName = post.users?.persona_name ?? "Anonymous";
   const isAuthor = currentUserId === post.user_id;
@@ -134,7 +174,7 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
   }
 
   const content = (
-    <div className={`border-b border-border px-4 py-3 transition-colors ${!isReply ? "hover:bg-surface-hover/50" : ""}`}>
+    <div ref={cardRef} className={`border-b border-border px-4 py-3 transition-colors ${!isReply ? "hover:bg-surface-hover/50" : ""}`}>
       <div className="flex gap-3">
         <Avatar name={personaName} size={40} className="shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
@@ -236,6 +276,18 @@ export function PostCard({ post, liked: initialLiked, currentUserId, isAdmin, is
               </svg>
             </button>
           </div>
+
+          {viewsCount > 0 && (
+            <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span className="text-[12px] text-text-muted tabular-nums">
+                {formatViewCount(viewsCount)} {viewsCount === 1 ? "view" : "views"}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

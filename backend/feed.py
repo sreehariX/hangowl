@@ -158,6 +158,16 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify
     return {"url": public_url}
 
 
+@router.post("/{post_id}/view")
+async def record_view(post_id: str):
+    db = get_supabase()
+    post = db.table("posts").select("views_count").eq("id", post_id).eq("is_hidden", False).execute()
+    if post.data:
+        current = post.data[0].get("views_count") or 0
+        db.table("posts").update({"views_count": current + 1}).eq("id", post_id).execute()
+    return {"ok": True}
+
+
 # Dynamic {post_id} routes must come AFTER all static routes
 @router.get("/{post_id}")
 async def get_post(post_id: str):

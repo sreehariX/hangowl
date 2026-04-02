@@ -232,6 +232,16 @@ async def hide_plan(plan_id: str, user: dict = Depends(verify_token)):
     return {"message": "Plan hidden"}
 
 
+@router.post("/{plan_id}/view")
+async def record_plan_view(plan_id: str):
+    db = get_supabase()
+    plan = db.table("plans").select("views_count").eq("id", plan_id).execute()
+    if plan.data:
+        current = plan.data[0].get("views_count") or 0
+        db.table("plans").update({"views_count": current + 1}).eq("id", plan_id).execute()
+    return {"ok": True}
+
+
 @router.post("/{plan_id}/leave")
 async def leave_plan(plan_id: str, user: dict = Depends(verify_token)):
     db = get_supabase()

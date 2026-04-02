@@ -229,4 +229,10 @@ export const api = {
 
   markRead: (id: string) =>
     request<{ ok: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
+
+  recordPostView: (postId: string) =>
+    request<{ ok: boolean }>(`/feed/${postId}/view`, { method: "POST" }),
+
+  recordPlanView: (planId: string) =>
+    request<{ ok: boolean }>(`/plans/${planId}/view`, { method: "POST" }),
 };

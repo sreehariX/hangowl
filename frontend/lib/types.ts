@@ -20,6 +20,7 @@ export interface Plan {
   created_at: string;
   image_url?: string | null;
   is_hidden?: boolean;
+  views_count?: number;
   plan_members?: { count: number }[];
   users?: {
     persona_name: string;
@@ -39,6 +40,7 @@ export interface PlanDetail {
   ends_at: string;
   created_at: string;
   is_hidden?: boolean;
+  views_count?: number;
   plan_members?: {
     user_id: string;
     users: {
@@ -70,6 +72,7 @@ export interface Post {
   parent_id: string | null;
   likes_count: number;
   replies_count: number;
+  views_count: number;
   is_hidden?: boolean;
   created_at: string;
   users?: { persona_name: string };

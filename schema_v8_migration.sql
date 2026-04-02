@@ -1,0 +1,3 @@
+-- Add view counts to posts and plans
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0 NOT NULL;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0 NOT NULL;
