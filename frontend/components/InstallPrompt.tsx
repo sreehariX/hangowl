@@ -140,7 +140,7 @@ export function InstallPrompt() {
               </div>
             </div>
             <button
-              onClick={handleDismiss}
+              onClick={() => setShow(false)}
               className="mt-4 w-full rounded-xl bg-amber py-2.5 text-sm font-bold text-navy transition-colors hover:bg-amber-dark"
             >
               Got it!
