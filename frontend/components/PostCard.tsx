@@ -294,16 +294,14 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
               </svg>
             </button>
 
-            {viewsCount > 0 && (
-              <span className="ml-auto flex items-center gap-1.5 text-[13px] text-text-muted">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"/>
-                  <line x1="12" y1="20" x2="12" y2="4"/>
-                  <line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
-                <span className="tabular-nums">{formatViewCount(viewsCount)}</span>
-              </span>
-            )}
+            <span className="ml-auto flex items-center gap-1.5 text-[13px] text-text-muted">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              <span className="tabular-nums">{formatViewCount(viewsCount)}</span>
+            </span>
           </div>
         </div>
       </div>

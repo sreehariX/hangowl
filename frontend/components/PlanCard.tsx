@@ -117,16 +117,14 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
             {spotsLeft <= 3 && spotsLeft > 0 && (
               <span className="text-[11px] font-medium text-error">{spotsLeft} left</span>
             )}
-            {(plan.views_count ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-[11px] text-text-muted">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"/>
-                  <line x1="12" y1="20" x2="12" y2="4"/>
-                  <line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
-                <span className="tabular-nums">{plan.views_count}</span>
-              </span>
-            )}
+            <span className="flex items-center gap-1 text-[11px] text-text-muted">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              <span className="tabular-nums">{plan.views_count ?? 0}</span>
+            </span>
           </div>
 
           {isAuthenticated && (
