@@ -16,7 +16,14 @@ export function InstallPrompt() {
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("hangowl_installed") === "true") return;
+    // If already running as installed app, never show
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator && (window.navigator as Navigator & { standalone: boolean }).standalone);
+    if (isStandalone) return;
+
+    // Clear stale "installed" flag if app is no longer on home screen
+    localStorage.removeItem("hangowl_installed");
 
     const lastDismissed = localStorage.getItem("hangowl_install_dismissed");
     if (lastDismissed) {
