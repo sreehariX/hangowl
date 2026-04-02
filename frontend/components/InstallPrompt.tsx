@@ -7,7 +7,18 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISS_COOLDOWN = 60 * 60 * 1000; // 1 hour
+const SUPPRESS_KEY = "hangowl_suppress_until";
+const ONE_HOUR = 60 * 60 * 1000;
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+function isSuppressed() {
+  const until = localStorage.getItem(SUPPRESS_KEY);
+  return until ? Date.now() < parseInt(until, 10) : false;
+}
+
+function suppressFor(ms: number) {
+  localStorage.setItem(SUPPRESS_KEY, (Date.now() + ms).toString());
+}
 
 type Stage = "prompt" | "progress" | "done";
 
@@ -26,13 +37,7 @@ export function InstallPrompt() {
         (window.navigator as Navigator & { standalone: boolean }).standalone);
     if (isStandalone) return;
 
-    localStorage.removeItem("hangowl_installed");
-
-    const lastDismissed = localStorage.getItem("hangowl_install_dismissed");
-    if (lastDismissed) {
-      const elapsed = Date.now() - parseInt(lastDismissed, 10);
-      if (elapsed < DISMISS_COOLDOWN) return;
-    }
+    if (isSuppressed()) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -57,18 +62,16 @@ export function InstallPrompt() {
     setDeferredPrompt(null);
 
     if (outcome === "accepted") {
-      localStorage.setItem("hangowl_installed", "true");
+      suppressFor(THIRTY_DAYS); // don't show again for 30 days after install
       setStage("progress");
       setProgress(0);
 
-      // animate progress to ~90% quickly, then slow down waiting for "done"
       let p = 0;
       progressRef.current = setInterval(() => {
         p += p < 60 ? 8 : p < 85 ? 3 : 0.5;
         setProgress(Math.min(p, 92));
       }, 80);
 
-      // after 2s show done
       setTimeout(() => {
         if (progressRef.current) clearInterval(progressRef.current);
         setProgress(100);
@@ -79,8 +82,8 @@ export function InstallPrompt() {
     }
   };
 
-  const handleDismiss = () => {
-    localStorage.setItem("hangowl_install_dismissed", Date.now().toString());
+  const handleLater = () => {
+    suppressFor(ONE_HOUR); // try again in 1 hour
     setShow(false);
     setStage("prompt");
     setProgress(0);
@@ -101,9 +104,7 @@ export function InstallPrompt() {
                 <p className="font-bold text-base text-text-primary">
                   Adding to home screen…
                 </p>
-                <p className="text-xs text-text-muted mt-1">
-                  Just a moment
-                </p>
+                <p className="text-xs text-text-muted mt-1">Just a moment</p>
               </div>
             </div>
             <div className="mt-4 rounded-full bg-surface h-2 overflow-hidden">
@@ -112,7 +113,9 @@ export function InstallPrompt() {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-center text-xs text-text-muted mt-2">{Math.round(progress)}%</p>
+            <p className="text-center text-xs text-text-muted mt-2">
+              {Math.round(progress)}%
+            </p>
           </div>
         </div>
       </div>
@@ -177,7 +180,7 @@ export function InstallPrompt() {
 
           <div className="mt-4 flex gap-2">
             <button
-              onClick={handleDismiss}
+              onClick={handleLater}
               className="flex-1 rounded-xl border border-border py-2.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface"
             >
               Later
