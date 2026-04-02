@@ -41,14 +41,6 @@ function NotificationIcon({ type }: { type: Notification["type"] }) {
   );
 }
 
-function notificationText(n: Notification): string {
-  const actor = n.actor_persona || "Someone";
-  if (n.type === "like") return `${actor} liked your post`;
-  if (n.type === "reply") return `${actor} replied to your post`;
-  if (n.type === "plan_join") return `${actor} joined your hangout`;
-  return "New notification";
-}
-
 function NotificationItem({
   n,
   onTap,

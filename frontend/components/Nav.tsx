@@ -63,10 +63,7 @@ export function Nav() {
   // Fetch initial count once, then use Supabase real-time for subsequent updates.
   // This replaces a 30s polling loop (~2,880 req/user/day) with a single fetch + push.
   useEffect(() => {
-    if (!isAuthenticated || !userId) {
-      setUnreadCount(0);
-      return;
-    }
+    if (!isAuthenticated || !userId) return;
 
     api.getUnreadCount()
       .then((d) => setUnreadCount(d.count))
@@ -79,7 +76,6 @@ export function Nav() {
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => {
           setUnreadCount((c) => c + 1);
-          // Pulse the bell to draw attention
           setPulse(true);
           setTimeout(() => setPulse(false), 1000);
         }
@@ -89,20 +85,15 @@ export function Nav() {
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, userId]);
 
-  // Reset badge when user navigates to notifications page
-  useEffect(() => {
-    if (pathname === "/notifications") {
-      setUnreadCount(0);
-    }
-  }, [pathname]);
-
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
 
   const bellActive = pathname === "/notifications";
-  const badgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
+  // Derive display count: hide badge when not authenticated or currently viewing notifications
+  const displayCount = isAuthenticated && !bellActive ? unreadCount : 0;
+  const badgeLabel = displayCount > 99 ? "99+" : displayCount > 0 ? String(displayCount) : null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-navy/95 backdrop-blur-md safe-area-pb">
