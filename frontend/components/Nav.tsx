@@ -71,11 +71,6 @@ export function Nav() {
     return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, userId]);
 
-  // Reset badge when user opens the notifications page
-  useEffect(() => {
-    if (pathname === "/notifications") setUnreadCount(0);
-  }, [pathname]);
-
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
