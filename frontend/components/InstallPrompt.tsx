@@ -11,6 +11,7 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem("hangowl_installed") === "true") return;
@@ -37,9 +38,10 @@ export function InstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
       localStorage.setItem("hangowl_installed", "true");
+      setInstalled(true);
     }
     setDeferredPrompt(null);
-    setShow(false);
+    if (outcome !== "accepted") setShow(false);
   };
 
   const handleDismiss = () => {
@@ -48,6 +50,34 @@ export function InstallPrompt() {
   };
 
   if (!show) return null;
+
+  if (installed) {
+    return (
+      <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm animate-slide-up md:bottom-6">
+        <div className="rounded-2xl border border-amber/20 bg-navy-light p-4 shadow-xl shadow-black/40">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber/15 text-2xl">
+              🏠
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-text-primary">
+                App added to your home screen!
+              </p>
+              <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                Go to your home screen, tap the <span className="text-amber font-medium">HangOwl</span> icon, and continue from there.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleDismiss}
+            className="mt-3 w-full rounded-lg bg-amber py-2 text-xs font-semibold text-navy transition-colors hover:bg-amber-dark"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm animate-slide-up md:bottom-6">
