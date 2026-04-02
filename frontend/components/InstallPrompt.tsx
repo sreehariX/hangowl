@@ -98,15 +98,14 @@ export function InstallPrompt() {
               🦉
             </div>
             <p className="font-bold text-base text-text-primary">
-              Get the full experience
+              Add HangOwl to your home screen
             </p>
             <p className="text-xs text-text-muted leading-relaxed max-w-[220px]">
-              Add HangOwl to your home screen — faster, cleaner, no browser bar.
+              Open it like any other app — no browser needed.
             </p>
 
-            {/* social proof */}
             <div className="mt-2 flex items-center gap-1.5 rounded-full bg-amber/10 px-3 py-1">
-              <span className="text-xs text-amber font-medium">⚡ Opens instantly like a native app</span>
+              <span className="text-xs text-amber font-medium">⚡ One tap to open, anytime</span>
             </div>
           </div>
 
