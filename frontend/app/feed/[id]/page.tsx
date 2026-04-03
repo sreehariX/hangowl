@@ -142,6 +142,7 @@ export default function PostDetailPage() {
         liked={likedIds.has(post.id)}
         currentUserId={userId}
         isAdmin={isAdmin}
+        isDetail
         onDeleted={handlePostDeleted}
         onReply={() => setShowReply(true)}
       />

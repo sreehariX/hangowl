@@ -16,6 +16,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const lastTapRef = useRef(0);
@@ -45,10 +46,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       if (e.key === "Escape") {
         onClose();
       } else if (e.key === "+" || e.key === "=") {
-        setZoom((z) => {
-          const n = Math.min(MAX_ZOOM, z + ZOOM_STEP);
-          return n;
-        });
+        setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP));
       } else if (e.key === "-") {
         setZoom((z) => {
           const n = Math.max(MIN_ZOOM, z - ZOOM_STEP);
@@ -168,53 +166,57 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
     if (e.touches.length === 0) setIsDragging(false);
   }, []);
 
-  const zoomPct = Math.round(zoom * 100);
   const isZoomed = zoom > 1;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/92 animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex flex-col animate-lightbox-in" style={{ background: "#000" }}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 shrink-0">
-        {/* Zoom controls */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => applyZoom(zoom - ZOOM_STEP)}
-            disabled={zoom <= MIN_ZOOM}
-            aria-label="Zoom out"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white text-xl leading-none transition-colors hover:bg-white/20 disabled:opacity-30"
-          >
-            −
-          </button>
-          <span className="w-12 text-center text-xs font-medium text-white/60 tabular-nums">
-            {zoomPct}%
-          </span>
-          <button
-            onClick={() => applyZoom(zoom + ZOOM_STEP)}
-            disabled={zoom >= MAX_ZOOM}
-            aria-label="Zoom in"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white text-xl leading-none transition-colors hover:bg-white/20 disabled:opacity-30"
-          >
-            +
-          </button>
-        </div>
-
-        {/* Close */}
+      <div className="flex items-center justify-between px-3 py-2 shrink-0 absolute top-0 left-0 right-0 z-10">
+        {/* Close — top left like Twitter */}
         <button
           onClick={onClose}
           aria-label="Close"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-white/15 active:scale-90"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />
           </svg>
         </button>
+
+        {/* Zoom controls — top right */}
+        {isZoomed && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => applyZoom(zoom - ZOOM_STEP)}
+              disabled={zoom <= MIN_ZOOM}
+              aria-label="Zoom out"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg leading-none backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30"
+            >
+              −
+            </button>
+            <button
+              onClick={() => { applyZoom(1); setPan({ x: 0, y: 0 }); }}
+              className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-white/15"
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => applyZoom(zoom + ZOOM_STEP)}
+              disabled={zoom >= MAX_ZOOM}
+              aria-label="Zoom in"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg leading-none backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30"
+            >
+              +
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Image area */}
       <div
         ref={containerRef}
         className="flex flex-1 items-center justify-center overflow-hidden"
-        style={{ cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "zoom-in" }}
+        style={{ cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default" }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -230,7 +232,8 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
           src={src}
           alt=""
           draggable={false}
-          className="max-h-full max-w-full rounded-xl object-contain shadow-2xl select-none"
+          onLoad={() => setImgLoaded(true)}
+          className={`max-h-full max-w-full object-contain select-none ${imgLoaded ? "animate-lightbox-img-in" : "opacity-0"}`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "center center",
@@ -240,21 +243,14 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
         />
       </div>
 
-      {/* Bottom hint / reset */}
-      <div className="flex items-center justify-center py-3 shrink-0 min-h-[44px]">
-        {isZoomed ? (
-          <button
-            onClick={() => { applyZoom(1); setPan({ x: 0, y: 0 }); }}
-            className="rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/20"
-          >
-            Reset zoom
-          </button>
-        ) : (
-          <p className="text-[11px] text-white/30">
-            Scroll or pinch to zoom · Double-tap to zoom in
+      {/* Bottom hint */}
+      {!isZoomed && (
+        <div className="flex items-center justify-center py-4 shrink-0">
+          <p className="text-[11px] text-white/25 tracking-wide">
+            Pinch or scroll to zoom · Double-tap to zoom in
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
