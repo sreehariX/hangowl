@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -15,7 +15,7 @@ interface ReplyTarget {
   id: string;
   name: string;
   content: string;
-  isMainPost: boolean; // true = main post, false = a reply (so nav after posting)
+  isMainPost: boolean;
 }
 
 export default function PostDetailPage() {
@@ -27,17 +27,30 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [parentPost, setParentPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
+  const [subReplies, setSubReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+
+  // Group sub-replies by their parent_id
+  const subRepliesMap = useMemo(() => {
+    const map: Record<string, Post[]> = {};
+    for (const sr of subReplies) {
+      if (!sr.parent_id) continue;
+      if (!map[sr.parent_id]) map[sr.parent_id] = [];
+      map[sr.parent_id].push(sr);
+    }
+    return map;
+  }, [subReplies]);
 
   const fetchPost = useCallback(async () => {
     try {
       const data = await api.getPost(postId);
       setPost(data.post);
       setReplies(data.replies);
-      // Fetch parent if this post is a reply
+      setSubReplies(data.sub_replies ?? []);
+
       if (data.post.parent_id) {
         api.getPost(data.post.parent_id)
           .then((p) => setParentPost(p.post))
@@ -52,9 +65,7 @@ export default function PostDetailPage() {
     }
   }, [postId]);
 
-  useEffect(() => {
-    fetchPost();
-  }, [fetchPost]);
+  useEffect(() => { fetchPost(); }, [fetchPost]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -69,34 +80,25 @@ export default function PostDetailPage() {
           setLikedIds(new Set(likesData.post_ids));
           setIsAdmin(adminData.is_admin);
         }
-      } catch {
-        /* silent */
-      }
+      } catch { /* silent */ }
     }
     loadUserData();
     return () => { active = false; };
   }, [isAuthenticated]);
 
-  // Live replies for the main post
+  // Live new direct replies
   useEffect(() => {
     const channel = supabase
       .channel(`post-${postId}-replies`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
-        (payload) => {
-          const newReply = payload.new as Post;
-          setReplies((prev) => {
-            if (prev.some((r) => r.id === newReply.id)) return prev;
-            return [...prev, newReply];
-          });
-          setPost((prev) =>
-            prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev
-          );
-        }
-      )
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "posts",
+        filter: `parent_id=eq.${postId}`,
+      }, (payload) => {
+        const newReply = payload.new as Post;
+        setReplies((prev) => prev.some((r) => r.id === newReply.id) ? prev : [...prev, newReply]);
+        setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+      })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
@@ -113,7 +115,7 @@ export default function PostDetailPage() {
     const target = replyTarget;
     setReplyTarget(null);
     if (target && !target.isMainPost) {
-      // Replied to a reply → navigate to that reply's thread so the user can see their new post
+      // Navigate into the reply's thread so the new sub-reply is visible
       router.push(`/feed/${target.id}`);
     } else {
       fetchPost();
@@ -121,23 +123,22 @@ export default function PostDetailPage() {
   }
 
   function handlePostDeleted() {
-    if (parentPost) {
-      router.push(`/feed/${parentPost.id}`);
-    } else {
-      router.push("/");
-    }
+    router.push(parentPost ? `/feed/${parentPost.id}` : "/");
   }
 
   function handleReplyDeleted(replyId: string) {
     setReplies((prev) => prev.filter((r) => r.id !== replyId));
-    setPost((prev) =>
-      prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev
-    );
+    setSubReplies((prev) => prev.filter((s) => s.parent_id !== replyId)); // remove orphaned sub-replies
+    setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
+  }
+
+  function handleSubReplyDeleted(subReplyId: string) {
+    setSubReplies((prev) => prev.filter((s) => s.id !== subReplyId));
   }
 
   if (loading || authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center pt-4 pb-24">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
       </div>
     );
@@ -148,9 +149,7 @@ export default function PostDetailPage() {
       <div className="mx-auto max-w-lg px-4 pt-16 pb-24 md:pt-6">
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <p className="text-text-secondary mb-4">Post not found</p>
-          <Link href="/" className="text-amber hover:text-amber-dark text-sm">
-            Back to Feed
-          </Link>
+          <Link href="/" className="text-amber hover:text-amber-dark text-sm">Back to Feed</Link>
         </div>
       </div>
     );
@@ -161,18 +160,17 @@ export default function PostDetailPage() {
       {/* Sticky header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border sticky top-0 bg-navy/95 backdrop-blur-md z-10">
         <button
-          onClick={() => parentPost ? router.push(`/feed/${parentPost.id}`) : router.push("/")}
+          onClick={() => router.push(parentPost ? `/feed/${parentPost.id}` : "/")}
           className="text-text-muted transition-colors hover:text-text-primary"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 19-7-7 7-7" />
-            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
           </svg>
         </button>
         <span className="text-[15px] font-bold text-text-primary">Post</span>
       </div>
 
-      {/* Parent post (thread context) with connector line */}
+      {/* Parent post with thread connector to main post */}
       {parentPost && (
         <PostCard
           post={parentPost}
@@ -183,7 +181,7 @@ export default function PostDetailPage() {
         />
       )}
 
-      {/* Main post — detail view */}
+      {/* Main post — full detail view */}
       <PostCard
         post={post}
         liked={likedIds.has(post.id)}
@@ -194,38 +192,60 @@ export default function PostDetailPage() {
         onReply={isAuthenticated ? () => openReply(post, true) : undefined}
       />
 
-      {/* Replies section */}
-      <div className="px-4 py-3 border-b border-border">
-        <span className="text-[13px] font-semibold text-text-secondary">
-          Replies ({post.replies_count})
-        </span>
-      </div>
-
-      {replies.length === 0 ? (
-        <div className="px-4 py-8 text-center">
-          <p className="text-sm text-text-muted">No replies yet</p>
-        </div>
-      ) : (
-        <div>
-          {replies.map((reply) => (
-            <PostCard
-              key={reply.id}
-              post={reply}
-              liked={likedIds.has(reply.id)}
-              currentUserId={userId}
-              isAdmin={isAdmin}
-              onDeleted={() => handleReplyDeleted(reply.id)}
-              onReply={isAuthenticated ? () => openReply(reply, false) : undefined}
-            />
-          ))}
+      {/* Replies + threaded sub-replies */}
+      {replies.length > 0 && (
+        <div className="border-b border-border px-4 py-2.5">
+          <span className="text-[13px] font-semibold text-text-secondary">
+            Replies ({post.replies_count})
+          </span>
         </div>
       )}
 
-      {/* FAB */}
+      {replies.length === 0 ? (
+        <div className="px-4 py-10 text-center">
+          <p className="text-sm text-text-muted">No replies yet. Be the first.</p>
+        </div>
+      ) : (
+        <div>
+          {replies.map((reply) => {
+            const subs = subRepliesMap[reply.id] ?? [];
+            const hasSubs = subs.length > 0;
+            return (
+              <div key={reply.id}>
+                {/* Reply — thread line below avatar if it has sub-replies */}
+                <PostCard
+                  post={reply}
+                  liked={likedIds.has(reply.id)}
+                  currentUserId={userId}
+                  isAdmin={isAdmin}
+                  showThreadLine={hasSubs}
+                  onDeleted={() => handleReplyDeleted(reply.id)}
+                  onReply={isAuthenticated ? () => openReply(reply, false) : undefined}
+                />
+                {/* Sub-replies (replies to this reply) — shown as thread */}
+                {subs.map((sub, idx) => (
+                  <PostCard
+                    key={sub.id}
+                    post={sub}
+                    liked={likedIds.has(sub.id)}
+                    currentUserId={userId}
+                    isAdmin={isAdmin}
+                    showThreadLine={idx < subs.length - 1}
+                    onDeleted={() => handleSubReplyDeleted(sub.id)}
+                    onReply={isAuthenticated ? () => openReply(sub, false) : undefined}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Reply FAB */}
       {isAuthenticated && !replyTarget && (
         <button
           onClick={() => openReply(post, true)}
-          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark active:scale-90 md:right-[calc(50%-256px+16px)]"
           aria-label="Reply"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -238,10 +258,7 @@ export default function PostDetailPage() {
       {replyTarget && (
         <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <button
-              onClick={() => setReplyTarget(null)}
-              className="text-text-muted hover:text-text-primary transition-colors"
-            >
+            <button onClick={() => setReplyTarget(null)} className="text-text-muted hover:text-text-primary transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" /><path d="m6 6 12 12" />
               </svg>
@@ -252,7 +269,7 @@ export default function PostDetailPage() {
           <div className="px-4 py-3 border-b border-border/50 flex gap-3">
             <div className="flex flex-col items-center gap-1">
               <Avatar name={replyTarget.name} size={32} />
-              <div className="w-0.5 flex-1 bg-border/50" />
+              <div className="w-0.5 flex-1 bg-border/50 min-h-[16px]" />
             </div>
             <div className="flex-1 min-w-0 pb-3">
               <p className="text-[13px] font-bold text-text-primary">{replyTarget.name}</p>

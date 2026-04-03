@@ -204,7 +204,24 @@ async def get_post(post_id: str):
         .execute()
     )
 
-    return {"post": post_result.data[0], "replies": replies_result.data}
+    replies = replies_result.data
+
+    # Fetch sub-replies (replies to replies) for threaded display
+    sub_replies = []
+    reply_ids = [r["id"] for r in replies]
+    if reply_ids:
+        sub_result = (
+            db.table("posts")
+            .select(COLS)
+            .in_("parent_id", reply_ids)
+            .eq("is_hidden", False)
+            .order("created_at", desc=False)
+            .limit(200)
+            .execute()
+        )
+        sub_replies = sub_result.data
+
+    return {"post": post_result.data[0], "replies": replies, "sub_replies": sub_replies}
 
 
 @router.delete("/{post_id}")

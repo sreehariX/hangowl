@@ -77,6 +77,31 @@ function formatFullDate(iso: string): string {
   return `${time} · ${date}`;
 }
 
+// Image with skeleton placeholder while loading
+function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <button
+      type="button"
+      className="mt-3 block w-full rounded-2xl overflow-hidden focus:outline-none cursor-zoom-in"
+      onClick={(e) => { e.stopPropagation(); onOpen(); }}
+    >
+      {!loaded && <div className="skeleton w-full h-[220px]" />}
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className={`block w-full max-h-[400px] object-cover transition-opacity duration-300 ${
+          loaded ? "opacity-100" : "opacity-0 h-0"
+        }`}
+      />
+    </button>
+  );
+}
+
 const BAN_OPTIONS = [
   { type: "1_week", label: "1 week" },
   { type: "1_month", label: "1 month" },
@@ -282,20 +307,7 @@ const PostCard = memo(function PostCard({
             </p>
 
             {post.image_url && (
-              <button
-                type="button"
-                className="mt-3 block w-full rounded-2xl overflow-hidden focus:outline-none"
-                onClick={(e) => { e.stopPropagation(); setLightboxSrc(post.image_url!); }}
-              >
-                <img
-                  src={post.image_url}
-                  alt=""
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                  className="block w-full max-h-[400px] object-cover"
-                />
-              </button>
+              <PostImage src={post.image_url} onOpen={() => setLightboxSrc(post.image_url!)} />
             )}
 
             {doubleTapHeart && (
