@@ -69,7 +69,9 @@ body {
 }
 
 .skeleton {
-  background: #22223A;
+  background: linear-gradient(90deg, #1E1E34 25%, #2A2A46 50%, #1E1E34 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
   border-radius: 8px;
 }
 

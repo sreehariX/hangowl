@@ -40,10 +40,11 @@ function formatViewCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
+// Twitter-style: "just now", "3m", "2h", "3d", "Apr 1", "Apr 1, 2024"
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return "now";
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
@@ -58,6 +59,7 @@ function formatRelativeTime(iso: string): string {
   });
 }
 
+// Full date for detail view: "4:30 PM · Apr 1, 2026"
 function formatFullDate(iso: string): string {
   const d = new Date(iso);
   const time = d.toLocaleTimeString("en-US", {
@@ -88,12 +90,14 @@ interface PostCardProps {
   isAdmin?: boolean;
   isReply?: boolean;
   isDetail?: boolean;
+  showThreadLine?: boolean; // draws a vertical line below avatar (for thread view)
   onDeleted?: () => void;
   onReply?: () => void;
 }
 
 const PostCard = memo(function PostCard({
-  post, liked: initialLiked, currentUserId, isAdmin, isReply, isDetail, onDeleted, onReply,
+  post, liked: initialLiked, currentUserId, isAdmin, isReply, isDetail,
+  showThreadLine, onDeleted, onReply,
 }: PostCardProps) {
   const router = useRouter();
   const [likesCount, setLikesCount] = useState(post.likes_count);
@@ -142,17 +146,17 @@ const PostCard = memo(function PostCard({
   const personaName = post.users?.persona_name ?? "Anonymous";
   const isAuthor = currentUserId === post.user_id;
   const canDelete = isAuthor || isAdmin;
-  const isNavigable = !isReply && !isDetail;
+  // All cards navigate unless we're already in the detail view of THIS post
+  const isNavigable = !isDetail;
 
   async function handleLike() {
     if (liking || !currentUserId) return;
     setLiking(true);
     const prevLiked = liked;
     const prevCount = likesCount;
-    const nowLiked = !liked;
-    setLiked(nowLiked);
+    setLiked(!liked);
     setLikesCount(liked ? Math.max(0, likesCount - 1) : likesCount + 1);
-    if (nowLiked) {
+    if (!liked) {
       setLikeAnim(true);
       setTimeout(() => setLikeAnim(false), 400);
     }
@@ -217,31 +221,44 @@ const PostCard = memo(function PostCard({
     }
   }
 
-  function handleCardClick() {
-    if (isNavigable) router.push(`/feed/${post.id}`);
-  }
-
   return (
     <div
       ref={cardRef}
       className={`border-b border-border px-4 py-3 transition-colors ${
         isNavigable ? "hover:bg-surface-hover/50 cursor-pointer" : ""
       }`}
-      onClick={handleCardClick}
+      onClick={isNavigable ? () => router.push(`/feed/${post.id}`) : undefined}
     >
       <div className="flex gap-3">
-        <Avatar name={personaName} size={40} className="shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
+        {/* Avatar column — thread line sits here */}
+        <div className="flex flex-col items-center shrink-0">
+          <Avatar name={personaName} size={40} className="mt-0.5" />
+          {showThreadLine && (
+            <div className="w-0.5 flex-1 bg-border/40 mt-2 rounded-full min-h-[20px]" />
+          )}
+        </div>
 
-          {/* Name row */}
-          <div className="flex items-baseline gap-2">
+        <div className="flex-1 min-w-0">
+          {/* Name · time */}
+          <div className="flex items-center min-w-0 gap-0">
             <span className="text-[15px] font-bold text-text-primary truncate">
               {personaName}
             </span>
+            {!isDetail && (
+              <>
+                <span className="mx-1.5 text-text-muted text-[13px] shrink-0">·</span>
+                <span
+                  className="text-[13px] text-text-muted shrink-0"
+                  title={formatFullDate(post.created_at)}
+                >
+                  {formatRelativeTime(post.created_at)}
+                </span>
+              </>
+            )}
             {canDelete && !confirmDelete && (
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                className="ml-auto text-text-muted transition-colors hover:text-error shrink-0"
+                className="ml-auto text-text-muted transition-colors hover:text-error shrink-0 pl-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
@@ -260,7 +277,7 @@ const PostCard = memo(function PostCard({
 
           {/* Content + image */}
           <div className="relative" onClick={handleDoubleTap}>
-            <p className="text-[15px] text-text-primary leading-snug whitespace-pre-wrap break-words mt-0.5">
+            <p className={`text-text-primary leading-snug whitespace-pre-wrap break-words ${isDetail ? "text-[17px] mt-1" : "text-[15px] mt-0.5"}`}>
               {post.content}
             </p>
 
@@ -290,14 +307,10 @@ const PostCard = memo(function PostCard({
             )}
           </div>
 
-          {/* Timestamp below content */}
-          {isDetail ? (
+          {/* Full date — only on detail view */}
+          {isDetail && (
             <p className="mt-3 text-[14px] text-text-muted">
               {formatFullDate(post.created_at)}
-            </p>
-          ) : (
-            <p className="mt-2 text-xs text-text-muted" title={formatFullDate(post.created_at)}>
-              {formatRelativeTime(post.created_at)}
             </p>
           )}
 
@@ -317,7 +330,7 @@ const PostCard = memo(function PostCard({
               <span className="tabular-nums">{likesCount}</span>
             </button>
 
-            {/* Reply — shown for all posts and replies */}
+            {/* Reply — always show, compose if onReply provided else link */}
             {onReply ? (
               <button
                 onClick={(e) => { e.stopPropagation(); onReply(); }}
@@ -328,7 +341,7 @@ const PostCard = memo(function PostCard({
                 </svg>
                 <span className="tabular-nums">{post.replies_count}</span>
               </button>
-            ) : !isReply ? (
+            ) : (
               <Link
                 href={`/feed/${post.id}`}
                 onClick={(e) => e.stopPropagation()}
@@ -339,7 +352,7 @@ const PostCard = memo(function PostCard({
                 </svg>
                 <span className="tabular-nums">{post.replies_count}</span>
               </Link>
-            ) : null}
+            )}
 
             {/* Share */}
             <button
@@ -366,7 +379,6 @@ const PostCard = memo(function PostCard({
         </div>
       </div>
 
-      {/* Lightbox — rendered inside card but stopPropagation prevents nav */}
       {lightboxSrc && (
         <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}

@@ -15,6 +15,7 @@ interface ReplyTarget {
   id: string;
   name: string;
   content: string;
+  isMainPost: boolean; // true = main post, false = a reply (so nav after posting)
 }
 
 export default function PostDetailPage() {
@@ -24,6 +25,7 @@ export default function PostDetailPage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
 
   const [post, setPost] = useState<Post | null>(null);
+  const [parentPost, setParentPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
@@ -35,6 +37,14 @@ export default function PostDetailPage() {
       const data = await api.getPost(postId);
       setPost(data.post);
       setReplies(data.replies);
+      // Fetch parent if this post is a reply
+      if (data.post.parent_id) {
+        api.getPost(data.post.parent_id)
+          .then((p) => setParentPost(p.post))
+          .catch(() => {});
+      } else {
+        setParentPost(null);
+      }
     } catch {
       /* silent */
     } finally {
@@ -67,6 +77,7 @@ export default function PostDetailPage() {
     return () => { active = false; };
   }, [isAuthenticated]);
 
+  // Live replies for the main post
   useEffect(() => {
     const channel = supabase
       .channel(`post-${postId}-replies`)
@@ -89,21 +100,32 @@ export default function PostDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
-  function openReply(target: Post) {
+  function openReply(target: Post, isMainPost: boolean) {
     setReplyTarget({
       id: target.id,
       name: target.users?.persona_name ?? "Anonymous",
       content: target.content,
+      isMainPost,
     });
   }
 
   function handleReplied() {
+    const target = replyTarget;
     setReplyTarget(null);
-    fetchPost();
+    if (target && !target.isMainPost) {
+      // Replied to a reply → navigate to that reply's thread so the user can see their new post
+      router.push(`/feed/${target.id}`);
+    } else {
+      fetchPost();
+    }
   }
 
   function handlePostDeleted() {
-    router.push("/");
+    if (parentPost) {
+      router.push(`/feed/${parentPost.id}`);
+    } else {
+      router.push("/");
+    }
   }
 
   function handleReplyDeleted(replyId: string) {
@@ -136,19 +158,32 @@ export default function PostDetailPage() {
 
   return (
     <div className="mx-auto max-w-lg pb-24">
+      {/* Sticky header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border sticky top-0 bg-navy/95 backdrop-blur-md z-10">
-        <Link
-          href="/"
+        <button
+          onClick={() => parentPost ? router.push(`/feed/${parentPost.id}`) : router.push("/")}
           className="text-text-muted transition-colors hover:text-text-primary"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </svg>
-        </Link>
+        </button>
         <span className="text-[15px] font-bold text-text-primary">Post</span>
       </div>
 
+      {/* Parent post (thread context) with connector line */}
+      {parentPost && (
+        <PostCard
+          post={parentPost}
+          liked={likedIds.has(parentPost.id)}
+          currentUserId={userId}
+          isAdmin={isAdmin}
+          showThreadLine
+        />
+      )}
+
+      {/* Main post — detail view */}
       <PostCard
         post={post}
         liked={likedIds.has(post.id)}
@@ -156,9 +191,10 @@ export default function PostDetailPage() {
         isAdmin={isAdmin}
         isDetail
         onDeleted={handlePostDeleted}
-        onReply={() => openReply(post)}
+        onReply={isAuthenticated ? () => openReply(post, true) : undefined}
       />
 
+      {/* Replies section */}
       <div className="px-4 py-3 border-b border-border">
         <span className="text-[13px] font-semibold text-text-secondary">
           Replies ({post.replies_count})
@@ -178,18 +214,17 @@ export default function PostDetailPage() {
               liked={likedIds.has(reply.id)}
               currentUserId={userId}
               isAdmin={isAdmin}
-              isReply
               onDeleted={() => handleReplyDeleted(reply.id)}
-              onReply={isAuthenticated ? () => openReply(reply) : undefined}
+              onReply={isAuthenticated ? () => openReply(reply, false) : undefined}
             />
           ))}
         </div>
       )}
 
-      {/* FAB — only when no reply modal open */}
+      {/* FAB */}
       {isAuthenticated && !replyTarget && (
         <button
-          onClick={() => openReply(post)}
+          onClick={() => openReply(post, true)}
           className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
           aria-label="Reply"
         >
