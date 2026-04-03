@@ -1,7 +1,7 @@
 import time as _time
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -51,10 +51,11 @@ async def root():
 
 
 @app.get("/leaderboard")
-async def leaderboard():
+async def leaderboard(response: Response):
     global _leaderboard_cache
     now = _time.monotonic()
     if _leaderboard_cache is not None and now < _leaderboard_cache[1]:
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
         return _leaderboard_cache[0]
 
     db = get_supabase()
@@ -73,14 +74,16 @@ async def leaderboard():
         ]
     }
     _leaderboard_cache = (data, now + 300)  # 5-minute cache
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
     return data
 
 
 @app.get("/stats")
-async def stats():
+async def stats(response: Response):
     global _stats_cache
     now = _time.monotonic()
     if _stats_cache is not None and now < _stats_cache[1]:
+        response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=10"
         return _stats_cache[0]
 
     db = get_supabase()
@@ -103,6 +106,7 @@ async def stats():
         "total_users": total_users.count or 0,
     }
     _stats_cache = (data, now + 30)  # 30-second cache
+    response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=10"
     return data
 
 
