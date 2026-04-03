@@ -12,18 +12,30 @@ import type { Post, Stats } from "@/lib/types";
 
 export default function FeedHomePage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const FEED_CACHE_KEY = "ho_feed_cache_v1";
+
+  // Initialize from cache synchronously so first render shows content immediately
+  const [posts, setPosts] = useState<Post[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = localStorage.getItem("ho_feed_cache_v1");
+      if (cached) return JSON.parse(cached) as Post[];
+    } catch {}
+    return [];
+  });
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try { return !localStorage.getItem("ho_feed_cache_v1"); } catch {}
+    return true;
+  });
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [queuedPosts, setQueuedPosts] = useState<Post[]>([]);
   const observerRef = useRef<HTMLDivElement>(null);
-
-  const FEED_CACHE_KEY = "ho_feed_cache_v1";
 
   const fetchFeed = useCallback(async (cursor?: string) => {
     try {
@@ -43,24 +55,15 @@ export default function FeedHomePage() {
     } catch {
       /* silent */
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let active = true;
-    // Show cached posts immediately (feels instant)
-    try {
-      const cached = localStorage.getItem(FEED_CACHE_KEY);
-      if (cached) {
-        const posts = JSON.parse(cached) as Post[];
-        if (posts.length > 0) {
-          setPosts(posts);
-          setLoading(false);
-        }
-      }
-    } catch {}
-
-    // Fetch fresh in background
-    fetchFeed().finally(() => { if (active) setLoading(false); });
+    async function load() {
+      await fetchFeed();
+      if (active) setLoading(false);
+    }
+    load();
     return () => { active = false; };
   }, [fetchFeed]);
 
