@@ -23,6 +23,8 @@ export default function FeedHomePage() {
   const [queuedPosts, setQueuedPosts] = useState<Post[]>([]);
   const observerRef = useRef<HTMLDivElement>(null);
 
+  const FEED_CACHE_KEY = "ho_feed_cache_v1";
+
   const fetchFeed = useCallback(async (cursor?: string) => {
     try {
       const data = await api.getFeed(cursor);
@@ -34,21 +36,31 @@ export default function FeedHomePage() {
         });
       } else {
         setPosts(data.posts);
+        // Cache fresh feed for instant display next visit
+        try { localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts)); } catch {}
       }
       setHasMore(data.posts.length >= 20);
     } catch {
       /* silent */
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let active = true;
-    async function load() {
-      setLoading(true);
-      await fetchFeed();
-      if (active) setLoading(false);
-    }
-    load();
+    // Show cached posts immediately (feels instant)
+    try {
+      const cached = localStorage.getItem(FEED_CACHE_KEY);
+      if (cached) {
+        const posts = JSON.parse(cached) as Post[];
+        if (posts.length > 0) {
+          setPosts(posts);
+          setLoading(false);
+        }
+      }
+    } catch {}
+
+    // Fetch fresh in background
+    fetchFeed().finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [fetchFeed]);
 

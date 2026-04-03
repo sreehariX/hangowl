@@ -250,19 +250,21 @@ const PostCard = memo(function PostCard({
   return (
     <div
       ref={cardRef}
-      className={`px-4 transition-colors ${
-        showThreadLine ? "pb-0" : "border-b border-border pb-3"
-      } ${seamless ? "pt-0" : "pt-3"} ${
+      className={`px-4 transition-colors border-b border-border ${
+        seamless ? "pt-0" : "pt-3"
+      } ${
+        showThreadLine ? "pb-0" : "pb-3"
+      } ${
         isNavigable ? "hover:bg-surface-hover/50 cursor-pointer" : ""
       }`}
       onClick={isNavigable ? () => router.push(`/feed/${post.id}`) : undefined}
     >
       <div className="flex gap-3">
         {/* Avatar column — thread line sits here */}
-        <div className="relative flex flex-col items-center shrink-0">
-          <Avatar name={personaName} size={40} className={seamless ? "mt-3" : "mt-0.5"} />
+        <div className="flex flex-col items-center shrink-0">
+          <Avatar name={personaName} size={40} className="mt-0.5" />
           {showThreadLine && (
-            <div className="w-0.5 bg-border/50 mt-2 rounded-full" style={{ flex: 1, marginBottom: "-8px", minHeight: 20 }} />
+            <div className="w-0.5 flex-1 bg-border/50 mt-1 min-h-[12px]" />
           )}
         </div>
 
