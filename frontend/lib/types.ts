@@ -40,6 +40,7 @@ export interface PlanDetail {
   ends_at: string;
   created_at: string;
   is_hidden?: boolean;
+  image_url?: string | null;
   views_count?: number;
   plan_members?: {
     user_id: string;
