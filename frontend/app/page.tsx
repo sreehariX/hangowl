@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { ComposeBox } from "@/components/ComposeBox";
+import { FeedSkeleton } from "@/components/Skeleton";
 import { PostCard } from "@/components/PostCard";
 import type { Post, Stats } from "@/lib/types";
 
@@ -240,10 +241,7 @@ export default function FeedHomePage() {
 
       {/* Feed */}
       {loading ? (
-        <div className="flex flex-col items-center gap-2 py-16">
-          <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
-          <p className="text-sm text-text-muted">Loading...</p>
-        </div>
+        <FeedSkeleton />
       ) : posts.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-10 text-center">
           <p className="text-text-secondary text-sm">No posts yet. Be the first to share something!</p>

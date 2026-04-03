@@ -1,5 +1,36 @@
 "use client";
 
+export function PostCardSkeleton() {
+  return (
+    <div className="border-b border-border px-4 py-3">
+      <div className="flex gap-3">
+        <div className="skeleton h-10 w-10 rounded-full shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="skeleton h-3.5 w-28" />
+          <div className="skeleton h-3.5 w-full" />
+          <div className="skeleton h-3.5 w-4/5" />
+          <div className="flex gap-6 mt-3">
+            <div className="skeleton h-3 w-8" />
+            <div className="skeleton h-3 w-8" />
+            <div className="skeleton h-3 w-8" />
+            <div className="skeleton ml-auto h-3 w-10" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FeedSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden">
+      {Array.from({ length: count }).map((_, i) => (
+        <PostCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
 export function PlanCardSkeleton() {
   return (
     <div className="rounded-2xl bg-surface p-4 space-y-3">

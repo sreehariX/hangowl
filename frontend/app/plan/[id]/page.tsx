@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { PlanChat } from "@/components/PlanChat";
 
 function formatTimeIST(iso: string) {
@@ -36,6 +37,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
@@ -107,7 +109,28 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
 
   return (
     <div className="mx-auto max-w-sm px-4 pt-8 pb-24 space-y-4">
-      <div className="rounded-2xl border border-border bg-surface p-6">
+      {lightboxOpen && plan.image_url && (
+        <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
+      )}
+
+      <div className="rounded-2xl border border-border bg-surface overflow-hidden">
+        {plan.image_url && (
+          <button
+            type="button"
+            className="block w-full cursor-zoom-in"
+            onClick={() => setLightboxOpen(true)}
+          >
+            <img
+              src={plan.image_url}
+              alt={plan.activity}
+              className="w-full h-44 object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </button>
+        )}
+
+      <div className="p-6">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">{emoji}</div>
           <h1 className="text-2xl font-bold text-text-primary">
@@ -275,6 +298,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             <p className="text-sm font-medium text-error">This plan has ended</p>
           </div>
         )}
+      </div>
       </div>
 
       <PlanChat planId={plan.id} />

@@ -45,6 +45,24 @@ function formatViewCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "Asia/Kolkata",
+    ...(d > 365 ? { year: "numeric" } : {}),
+  });
+}
+
 function formatFullDate(iso: string): string {
   const d = new Date(iso);
   const time = d.toLocaleTimeString("en-US", {
@@ -258,8 +276,8 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
             )}
           </div>
 
-          <p className="mt-2 text-xs text-text-muted">
-            {formatFullDate(post.created_at)}
+          <p className="mt-2 text-xs text-text-muted" title={formatFullDate(post.created_at)}>
+            {formatRelativeTime(post.created_at)}
           </p>
 
           <div className="mt-2 flex items-center gap-6">
