@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ImageLightboxProps {
   src: string;
@@ -15,40 +15,135 @@ const DOUBLE_TAP_ZOOM = 2.5;
 export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Refs that native touch handlers can read without stale closures
-  const zoomRef = useRef(1);
-  const panRef = useRef({ x: 0, y: 0 });
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
+  // All mutable gesture state in refs to avoid stale closures
+  const stateRef = useRef({
+    zoom: 1,
+    pan: { x: 0, y: 0 },
+    pointers: new Map<number, { x: number; y: number }>(),
+    pinchStartDist: 0,
+    pinchStartZoom: 1,
+    dragStartPan: { x: 0, y: 0 },
+    dragStartPos: { x: 0, y: 0 },
+    lastTapTime: 0,
+    isDragging: false,
+  });
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
-  function clampPan(newPan: { x: number; y: number }, z: number) {
+  function commit(newZoom: number, newPan: { x: number; y: number }) {
     const el = containerRef.current;
-    if (!el || z <= 1) return { x: 0, y: 0 };
-    const maxX = (el.clientWidth * (z - 1)) / 2;
-    const maxY = (el.clientHeight * (z - 1)) / 2;
-    return {
-      x: Math.max(-maxX, Math.min(maxX, newPan.x)),
-      y: Math.max(-maxY, Math.min(maxY, newPan.y)),
+    const clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    let { x, y } = newPan;
+    if (el && clampedZoom > 1) {
+      const maxX = (el.clientWidth * (clampedZoom - 1)) / 2;
+      const maxY = (el.clientHeight * (clampedZoom - 1)) / 2;
+      x = Math.max(-maxX, Math.min(maxX, x));
+      y = Math.max(-maxY, Math.min(maxY, y));
+    } else {
+      x = 0;
+      y = 0;
+    }
+    stateRef.current.zoom = clampedZoom;
+    stateRef.current.pan = { x, y };
+    setZoom(clampedZoom);
+    setPan({ x, y });
+  }
+
+  // Pointer Events — reliable cross-browser pinch zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const captureEl = el;
+    const s = stateRef.current;
+
+    function getPinchDist() {
+      const pts = Array.from(s.pointers.values());
+      if (pts.length < 2) return 0;
+      const dx = pts[0].x - pts[1].x;
+      const dy = pts[0].y - pts[1].y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function onPointerDown(e: PointerEvent) {
+      e.preventDefault();
+      captureEl.setPointerCapture(e.pointerId);
+      s.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (s.pointers.size === 2) {
+        // Starting pinch — snapshot current state
+        s.pinchStartDist = getPinchDist();
+        s.pinchStartZoom = s.zoom;
+        s.isDragging = false;
+      } else if (s.pointers.size === 1) {
+        // Single pointer — check for double-tap
+        const now = Date.now();
+        if (now - s.lastTapTime < 280) {
+          // Double tap: toggle zoom
+          s.lastTapTime = 0;
+          if (s.zoom > 1) {
+            commit(MIN_ZOOM, { x: 0, y: 0 });
+          } else {
+            commit(DOUBLE_TAP_ZOOM, { x: 0, y: 0 });
+          }
+          return;
+        }
+        s.lastTapTime = now;
+        s.isDragging = true;
+        s.dragStartPos = { x: e.clientX, y: e.clientY };
+        s.dragStartPan = { ...s.pan };
+      }
+    }
+
+    function onPointerMove(e: PointerEvent) {
+      e.preventDefault();
+      if (!s.pointers.has(e.pointerId)) return;
+      s.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (s.pointers.size === 2) {
+        // Pinch zoom
+        const dist = getPinchDist();
+        if (s.pinchStartDist > 0) {
+          const newZoom = s.pinchStartZoom * (dist / s.pinchStartDist);
+          commit(newZoom, s.pan);
+        }
+      } else if (s.pointers.size === 1 && s.isDragging && s.zoom > 1) {
+        // Pan (only when zoomed)
+        const dx = e.clientX - s.dragStartPos.x;
+        const dy = e.clientY - s.dragStartPos.y;
+        commit(s.zoom, { x: s.dragStartPan.x + dx, y: s.dragStartPan.y + dy });
+      }
+    }
+
+    function onPointerUp(e: PointerEvent) {
+      s.pointers.delete(e.pointerId);
+      if (s.pointers.size < 2) {
+        s.pinchStartDist = 0;
+      }
+      if (s.pointers.size === 0) {
+        s.isDragging = false;
+      }
+    }
+
+    el.addEventListener("pointerdown", onPointerDown, { passive: false });
+    el.addEventListener("pointermove", onPointerMove, { passive: false });
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
+
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
     };
-  }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function applyZoom(newZ: number) {
-    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZ));
-    setZoom(clamped);
-    if (clamped <= 1) setPan({ x: 0, y: 0 });
-  }
-
-  // ─── Keyboard ────────────────────────────────────────────────────────────────
+  // Keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "+" || e.key === "=") applyZoom(zoomRef.current + ZOOM_STEP);
-      else if (e.key === "-") applyZoom(zoomRef.current - ZOOM_STEP);
+      else if (e.key === "+" || e.key === "=") commit(stateRef.current.zoom + ZOOM_STEP, stateRef.current.pan);
+      else if (e.key === "-") commit(stateRef.current.zoom - ZOOM_STEP, stateRef.current.pan);
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -58,141 +153,12 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
     };
   }, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Native touch events (reliable pinch zoom on mobile) ─────────────────────
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    // Local mutable state for touch tracking (avoids stale closures)
-    let lastPinchDist: number | null = null;
-    let dragging = false;
-    let dragStart = { x: 0, y: 0, panX: 0, panY: 0 };
-    let lastTapTime = 0;
-
-    function onTouchStart(e: TouchEvent) {
-      e.preventDefault();
-
-      if (e.touches.length === 2) {
-        // Pinch starting — record initial distance
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        lastPinchDist = Math.sqrt(dx * dx + dy * dy);
-        dragging = false;
-        setIsDragging(false);
-      } else if (e.touches.length === 1) {
-        const now = Date.now();
-        if (now - lastTapTime < 300) {
-          // Double tap: toggle zoom
-          const curZoom = zoomRef.current;
-          const newZ = curZoom > 1 ? MIN_ZOOM : DOUBLE_TAP_ZOOM;
-          setZoom(newZ);
-          setPan({ x: 0, y: 0 });
-          lastTapTime = 0; // reset so triple-tap doesn't re-trigger
-          return;
-        }
-        lastTapTime = now;
-        dragging = true;
-        dragStart = {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY,
-          panX: panRef.current.x,
-          panY: panRef.current.y,
-        };
-        setIsDragging(true);
-      }
-    }
-
-    function onTouchMove(e: TouchEvent) {
-      e.preventDefault();
-
-      if (e.touches.length === 2) {
-        // Pinch zoom
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (lastPinchDist !== null && lastPinchDist > 0) {
-          const ratio = dist / lastPinchDist;
-          const curZoom = zoomRef.current;
-          const newZ = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, curZoom * ratio));
-          setZoom(newZ);
-          if (newZ <= 1) setPan({ x: 0, y: 0 });
-        }
-        lastPinchDist = dist;
-      } else if (e.touches.length === 1 && dragging) {
-        // Single-finger pan (only when zoomed)
-        const curZoom = zoomRef.current;
-        if (curZoom <= 1) return;
-        const dx = e.touches[0].clientX - dragStart.x;
-        const dy = e.touches[0].clientY - dragStart.y;
-        const el2 = containerRef.current;
-        if (!el2) return;
-        const maxX = (el2.clientWidth * (curZoom - 1)) / 2;
-        const maxY = (el2.clientHeight * (curZoom - 1)) / 2;
-        setPan({
-          x: Math.max(-maxX, Math.min(maxX, dragStart.panX + dx)),
-          y: Math.max(-maxY, Math.min(maxY, dragStart.panY + dy)),
-        });
-      }
-    }
-
-    function onTouchEnd(e: TouchEvent) {
-      if (e.touches.length < 2) lastPinchDist = null;
-      if (e.touches.length === 0) {
-        dragging = false;
-        setIsDragging(false);
-      }
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, []); // empty — reads state via refs
-
-  // ─── Mouse wheel zoom ─────────────────────────────────────────────────────────
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // Mouse wheel zoom (desktop)
+  function handleWheel(e: React.WheelEvent) {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.3 : 0.3;
-    const newZ = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomRef.current + delta));
-    setZoom(newZ);
-    if (newZ <= 1) setPan({ x: 0, y: 0 });
-  }, []);
-
-  // ─── Mouse drag ───────────────────────────────────────────────────────────────
-  const mouseDragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoomRef.current <= 1) return;
-    e.preventDefault();
-    setIsDragging(true);
-    mouseDragStart.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
-  }, []);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - mouseDragStart.current.x;
-    const dy = e.clientY - mouseDragStart.current.y;
-    setPan(clampPan(
-      { x: mouseDragStart.current.panX + dx, y: mouseDragStart.current.panY + dy },
-      zoomRef.current
-    ));
-  }, [isDragging]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleMouseUp = useCallback(() => setIsDragging(false), []);
-
-  // ─── Double click (desktop) ───────────────────────────────────────────────────
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newZ = zoomRef.current > 1 ? MIN_ZOOM : DOUBLE_TAP_ZOOM;
-    setZoom(newZ);
-    setPan({ x: 0, y: 0 });
-  }, []);
+    commit(stateRef.current.zoom + delta, stateRef.current.pan);
+  }
 
   const isZoomed = zoom > 1;
 
@@ -202,7 +168,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       style={{ background: "#000" }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Close button — top left */}
+      {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 z-10 pointer-events-none">
         <button
           onClick={onClose}
@@ -213,16 +179,24 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />
           </svg>
         </button>
-
-        {/* Zoom controls — only when zoomed */}
         {isZoomed && (
           <div className="pointer-events-auto flex items-center gap-1">
-            <button onClick={() => applyZoom(zoom - ZOOM_STEP)} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30">−</button>
-            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-              className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-white/15">Reset</button>
-            <button onClick={() => applyZoom(zoom + ZOOM_STEP)} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30">+</button>
+            <button
+              onClick={() => commit(zoom - ZOOM_STEP, stateRef.current.pan)}
+              disabled={zoom <= MIN_ZOOM}
+              aria-label="Zoom out"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30"
+            >−</button>
+            <button
+              onClick={() => commit(MIN_ZOOM, { x: 0, y: 0 })}
+              className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-white/15"
+            >Reset</button>
+            <button
+              onClick={() => commit(zoom + ZOOM_STEP, stateRef.current.pan)}
+              disabled={zoom >= MAX_ZOOM}
+              aria-label="Zoom in"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm transition-colors hover:bg-white/15 disabled:opacity-30"
+            >+</button>
           </div>
         )}
       </div>
@@ -231,16 +205,8 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       <div
         ref={containerRef}
         className="flex flex-1 items-center justify-center overflow-hidden"
-        style={{
-          cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default",
-          touchAction: "none",
-        }}
+        style={{ touchAction: "none", cursor: isZoomed ? "grab" : "default" }}
         onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onDoubleClick={handleDoubleClick}
         onClick={(e) => { if (!isZoomed && e.target === e.currentTarget) onClose(); }}
       >
         <img
@@ -252,13 +218,12 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "center center",
-            transition: isDragging ? "none" : "transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+            transition: "none",
+            pointerEvents: "none", // let container handle all pointer events
           }}
-          onClick={(e) => e.stopPropagation()}
         />
       </div>
 
-      {/* Bottom hint */}
       {!isZoomed && (
         <div className="flex items-center justify-center py-4 shrink-0 pointer-events-none">
           <p className="text-[11px] text-white/25 tracking-wide">

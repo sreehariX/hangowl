@@ -188,6 +188,7 @@ export default function PostDetailPage() {
         currentUserId={userId}
         isAdmin={isAdmin}
         isDetail
+        seamless={!!parentPost}
         onDeleted={handlePostDeleted}
         onReply={isAuthenticated ? () => openReply(post, true) : undefined}
       />
@@ -230,6 +231,7 @@ export default function PostDetailPage() {
                     liked={likedIds.has(sub.id)}
                     currentUserId={userId}
                     isAdmin={isAdmin}
+                    seamless={idx === 0}
                     showThreadLine={idx < subs.length - 1}
                     onDeleted={() => handleSubReplyDeleted(sub.id)}
                     onReply={isAuthenticated ? () => openReply(sub, false) : undefined}

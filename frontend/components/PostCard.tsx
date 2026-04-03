@@ -115,14 +115,15 @@ interface PostCardProps {
   isAdmin?: boolean;
   isReply?: boolean;
   isDetail?: boolean;
-  showThreadLine?: boolean; // draws a vertical line below avatar (for thread view)
+  showThreadLine?: boolean; // draws a vertical line below avatar connecting to next card
+  seamless?: boolean;       // removes top padding — used when previous card has showThreadLine
   onDeleted?: () => void;
   onReply?: () => void;
 }
 
 const PostCard = memo(function PostCard({
   post, liked: initialLiked, currentUserId, isAdmin, isReply, isDetail,
-  showThreadLine, onDeleted, onReply,
+  showThreadLine, seamless, onDeleted, onReply,
 }: PostCardProps) {
   const router = useRouter();
   const [likesCount, setLikesCount] = useState(post.likes_count);
@@ -249,17 +250,19 @@ const PostCard = memo(function PostCard({
   return (
     <div
       ref={cardRef}
-      className={`border-b border-border px-4 py-3 transition-colors ${
+      className={`px-4 transition-colors ${
+        showThreadLine ? "pb-0" : "border-b border-border pb-3"
+      } ${seamless ? "pt-0" : "pt-3"} ${
         isNavigable ? "hover:bg-surface-hover/50 cursor-pointer" : ""
       }`}
       onClick={isNavigable ? () => router.push(`/feed/${post.id}`) : undefined}
     >
       <div className="flex gap-3">
         {/* Avatar column — thread line sits here */}
-        <div className="flex flex-col items-center shrink-0">
-          <Avatar name={personaName} size={40} className="mt-0.5" />
+        <div className="relative flex flex-col items-center shrink-0">
+          <Avatar name={personaName} size={40} className={seamless ? "mt-3" : "mt-0.5"} />
           {showThreadLine && (
-            <div className="w-0.5 flex-1 bg-border/40 mt-2 rounded-full min-h-[20px]" />
+            <div className="w-0.5 bg-border/50 mt-2 rounded-full" style={{ flex: 1, marginBottom: "-8px", minHeight: 20 }} />
           )}
         </div>
 
