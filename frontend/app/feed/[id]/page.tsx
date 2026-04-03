@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -11,13 +11,6 @@ import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
 import type { Post } from "@/lib/types";
 
-interface ReplyTarget {
-  id: string;
-  name: string;
-  content: string;
-  isMainPost: boolean;
-}
-
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -25,15 +18,15 @@ export default function PostDetailPage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
 
   const [post, setPost] = useState<Post | null>(null);
-  const [parentPost, setParentPost] = useState<Post | null>(null);
+  const [ancestors, setAncestors] = useState<Post[]>([]); // full chain, oldest first
   const [replies, setReplies] = useState<Post[]>([]);
   const [subReplies, setSubReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  const mainPostRef = useRef<HTMLDivElement>(null);
 
-  // Group sub-replies by their parent_id
   const subRepliesMap = useMemo(() => {
     const map: Record<string, Post[]> = {};
     for (const sr of subReplies) {
@@ -51,13 +44,17 @@ export default function PostDetailPage() {
       setReplies(data.replies);
       setSubReplies(data.sub_replies ?? []);
 
-      if (data.post.parent_id) {
-        api.getPost(data.post.parent_id)
-          .then((p) => setParentPost(p.post))
-          .catch(() => {});
-      } else {
-        setParentPost(null);
+      // Build full ancestor chain (up to 4 levels deep)
+      const chain: Post[] = [];
+      let current = data.post;
+      while (current.parent_id && chain.length < 4) {
+        try {
+          const parent = await api.getPost(current.parent_id);
+          chain.unshift(parent.post); // prepend so chain is oldest→newest
+          current = parent.post;
+        } catch { break; }
       }
+      setAncestors(chain);
     } catch {
       /* silent */
     } finally {
@@ -66,6 +63,15 @@ export default function PostDetailPage() {
   }, [postId]);
 
   useEffect(() => { fetchPost(); }, [fetchPost]);
+
+  // Scroll the focused post into view once ancestors are loaded
+  useEffect(() => {
+    if (!loading && post && mainPostRef.current) {
+      const el = mainPostRef.current;
+      const top = el.getBoundingClientRect().top + window.scrollY - 52; // 52px sticky header
+      window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    }
+  }, [loading, post, ancestors.length]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -86,7 +92,6 @@ export default function PostDetailPage() {
     return () => { active = false; };
   }, [isAuthenticated]);
 
-  // Live new direct replies
   useEffect(() => {
     const channel = supabase
       .channel(`post-${postId}-replies`)
@@ -102,20 +107,10 @@ export default function PostDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
-  function openReply(target: Post, isMainPost: boolean) {
-    setReplyTarget({
-      id: target.id,
-      name: target.users?.persona_name ?? "Anonymous",
-      content: target.content,
-      isMainPost,
-    });
-  }
-
   function handleReplied() {
     const target = replyTarget;
     setReplyTarget(null);
-    if (target && !target.isMainPost) {
-      // Navigate into the reply's thread so the new sub-reply is visible
+    if (target && target.id !== postId) {
       router.push(`/feed/${target.id}`);
     } else {
       fetchPost();
@@ -123,12 +118,13 @@ export default function PostDetailPage() {
   }
 
   function handlePostDeleted() {
-    router.push(parentPost ? `/feed/${parentPost.id}` : "/");
+    const immediate = ancestors[ancestors.length - 1];
+    router.push(immediate ? `/feed/${immediate.id}` : "/");
   }
 
   function handleReplyDeleted(replyId: string) {
     setReplies((prev) => prev.filter((r) => r.id !== replyId));
-    setSubReplies((prev) => prev.filter((s) => s.parent_id !== replyId)); // remove orphaned sub-replies
+    setSubReplies((prev) => prev.filter((s) => s.parent_id !== replyId));
     setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
   }
 
@@ -155,12 +151,14 @@ export default function PostDetailPage() {
     );
   }
 
+  const immediateParent = ancestors[ancestors.length - 1] ?? null;
+
   return (
     <div className="mx-auto max-w-lg pb-24">
       {/* Sticky header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border sticky top-0 bg-navy/95 backdrop-blur-md z-10">
         <button
-          onClick={() => router.push(parentPost ? `/feed/${parentPost.id}` : "/")}
+          onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
           className="text-text-muted transition-colors hover:text-text-primary"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -170,38 +168,33 @@ export default function PostDetailPage() {
         <span className="text-[15px] font-bold text-text-primary">Post</span>
       </div>
 
-      {/* Parent post with thread connector to main post */}
-      {parentPost && (
+      {/* Full ancestor chain — each connected to next with thread line */}
+      {ancestors.map((ancestor) => (
         <PostCard
-          post={parentPost}
-          liked={likedIds.has(parentPost.id)}
+          key={ancestor.id}
+          post={ancestor}
+          liked={likedIds.has(ancestor.id)}
           currentUserId={userId}
           isAdmin={isAdmin}
           showThreadLine
         />
-      )}
+      ))}
 
-      {/* Main post — full detail view */}
-      <PostCard
-        post={post}
-        liked={likedIds.has(post.id)}
-        currentUserId={userId}
-        isAdmin={isAdmin}
-        isDetail
-        seamless={!!parentPost}
-        onDeleted={handlePostDeleted}
-        onReply={isAuthenticated ? () => openReply(post, true) : undefined}
-      />
+      {/* Main (focused) post */}
+      <div ref={mainPostRef}>
+        <PostCard
+          post={post}
+          liked={likedIds.has(post.id)}
+          currentUserId={userId}
+          isAdmin={isAdmin}
+          isDetail
+          seamless={ancestors.length > 0}
+          onDeleted={handlePostDeleted}
+          onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
+        />
+      </div>
 
-      {/* Replies + threaded sub-replies */}
-      {replies.length > 0 && (
-        <div className="border-b border-border px-4 py-2.5">
-          <span className="text-[13px] font-semibold text-text-secondary">
-            Replies ({post.replies_count})
-          </span>
-        </div>
-      )}
-
+      {/* Replies */}
       {replies.length === 0 ? (
         <div className="px-4 py-10 text-center">
           <p className="text-sm text-text-muted">No replies yet. Be the first.</p>
@@ -213,7 +206,6 @@ export default function PostDetailPage() {
             const hasSubs = subs.length > 0;
             return (
               <div key={reply.id}>
-                {/* Reply — thread line below avatar if it has sub-replies */}
                 <PostCard
                   post={reply}
                   liked={likedIds.has(reply.id)}
@@ -221,9 +213,8 @@ export default function PostDetailPage() {
                   isAdmin={isAdmin}
                   showThreadLine={hasSubs}
                   onDeleted={() => handleReplyDeleted(reply.id)}
-                  onReply={isAuthenticated ? () => openReply(reply, false) : undefined}
+                  onReply={isAuthenticated ? () => setReplyTarget(reply) : undefined}
                 />
-                {/* Sub-replies (replies to this reply) — shown as thread */}
                 {subs.map((sub, idx) => (
                   <PostCard
                     key={sub.id}
@@ -231,10 +222,10 @@ export default function PostDetailPage() {
                     liked={likedIds.has(sub.id)}
                     currentUserId={userId}
                     isAdmin={isAdmin}
-                    seamless={idx === 0}
+                    seamless
                     showThreadLine={idx < subs.length - 1}
                     onDeleted={() => handleSubReplyDeleted(sub.id)}
-                    onReply={isAuthenticated ? () => openReply(sub, false) : undefined}
+                    onReply={isAuthenticated ? () => setReplyTarget(sub) : undefined}
                   />
                 ))}
               </div>
@@ -246,7 +237,7 @@ export default function PostDetailPage() {
       {/* Reply FAB */}
       {isAuthenticated && !replyTarget && (
         <button
-          onClick={() => openReply(post, true)}
+          onClick={() => setReplyTarget(post)}
           className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark active:scale-90 md:right-[calc(50%-256px+16px)]"
           aria-label="Reply"
         >
@@ -256,7 +247,7 @@ export default function PostDetailPage() {
         </button>
       )}
 
-      {/* Reply modal */}
+      {/* Reply sheet */}
       {replyTarget && (
         <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -270,15 +261,12 @@ export default function PostDetailPage() {
           </div>
           <div className="px-4 py-3 border-b border-border/50 flex gap-3">
             <div className="flex flex-col items-center gap-1">
-              <Avatar name={replyTarget.name} size={32} />
+              <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={32} />
               <div className="w-0.5 flex-1 bg-border/50 min-h-[16px]" />
             </div>
             <div className="flex-1 min-w-0 pb-3">
-              <p className="text-[13px] font-bold text-text-primary">{replyTarget.name}</p>
+              <p className="text-[13px] font-bold text-text-primary">{replyTarget.users?.persona_name ?? "Anonymous"}</p>
               <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-wrap break-words">{replyTarget.content}</p>
-              <p className="text-xs text-text-muted mt-2">
-                Replying to <span className="text-amber">{replyTarget.name}</span>
-              </p>
             </div>
           </div>
           <div className="mx-auto max-w-lg px-4 pt-3">

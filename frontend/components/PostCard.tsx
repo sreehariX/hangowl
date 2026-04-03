@@ -250,10 +250,11 @@ const PostCard = memo(function PostCard({
   return (
     <div
       ref={cardRef}
-      className={`px-4 transition-colors border-b border-border ${
-        seamless ? "pt-0" : "pt-3"
+      className={`px-4 transition-colors ${
+        // Only show bottom border when NOT flowing into a thread below
+        showThreadLine ? "pb-0" : "border-b border-border pb-3"
       } ${
-        showThreadLine ? "pb-0" : "pb-3"
+        seamless ? "pt-0" : "pt-3"
       } ${
         isNavigable ? "hover:bg-surface-hover/50 cursor-pointer" : ""
       }`}
@@ -264,7 +265,8 @@ const PostCard = memo(function PostCard({
         <div className="flex flex-col items-center shrink-0">
           <Avatar name={personaName} size={40} className="mt-0.5" />
           {showThreadLine && (
-            <div className="w-0.5 flex-1 bg-border/50 mt-1 min-h-[12px]" />
+            // 2px wide, full opacity — clearly visible thread connector
+            <div className="w-[2px] flex-1 bg-border mt-1 rounded-full min-h-[16px]" />
           )}
         </div>
 
