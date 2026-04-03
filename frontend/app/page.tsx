@@ -93,7 +93,7 @@ export default function FeedHomePage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     api.heartbeat().catch(() => {});
-    const hb = setInterval(() => api.heartbeat().catch(() => {}), 60000);
+    const hb = setInterval(() => api.heartbeat().catch(() => {}), 120000); // 2min — stats use 5min window
     return () => clearInterval(hb);
   }, [isAuthenticated]);
 

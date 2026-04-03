@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { memo, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
@@ -89,6 +90,7 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
   const [banDone, setBanDone] = useState<string | null>(null);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [viewsCount, setViewsCount] = useState(post.views_count ?? 0);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const lastTapRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -234,11 +236,17 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
             </p>
 
             {post.image_url && (
-              <ProgressiveImage
-                src={post.image_url}
-                className="mt-3 max-h-[350px] w-full rounded-2xl border border-border object-cover"
-                skeletonClassName="mt-3 w-full h-[200px] rounded-2xl"
-              />
+              <button
+                type="button"
+                className="mt-3 block w-full cursor-zoom-in"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxSrc(post.image_url!); }}
+              >
+                <ProgressiveImage
+                  src={post.image_url}
+                  className="max-h-[350px] w-full rounded-2xl border border-border object-cover"
+                  skeletonClassName="w-full h-[200px] rounded-2xl"
+                />
+              </button>
             )}
 
             {doubleTapHeart && (
@@ -315,6 +323,10 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
           </div>
         </div>
       </div>
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
 
       {isAdmin && !isAuthor && (
         <div className="mt-2 pl-[52px]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>

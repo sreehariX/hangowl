@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from database import get_supabase
@@ -232,13 +232,17 @@ async def hide_plan(plan_id: str, user: dict = Depends(verify_token)):
     return {"message": "Plan hidden"}
 
 
-@router.post("/{plan_id}/view")
-async def record_plan_view(plan_id: str):
+def _do_record_plan_view(plan_id: str) -> None:
     db = get_supabase()
     plan = db.table("plans").select("views_count").eq("id", plan_id).execute()
     if plan.data:
         current = plan.data[0].get("views_count") or 0
         db.table("plans").update({"views_count": current + 1}).eq("id", plan_id).execute()
+
+
+@router.post("/{plan_id}/view")
+async def record_plan_view(plan_id: str, bg: BackgroundTasks):
+    bg.add_task(_do_record_plan_view, plan_id)
     return {"ok": True}
 
 
@@ -280,8 +284,21 @@ async def leave_plan(plan_id: str, user: dict = Depends(verify_token)):
     return {"message": "Left plan successfully"}
 
 
+def _notify_plan_join(plan_id: str, actor_id: str, creator_id: str) -> None:
+    db = get_supabase()
+    actor_user = db.table("users").select("persona_name").eq("id", actor_id).execute()
+    actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+    db.table("notifications").insert({
+        "user_id": creator_id,
+        "type": "plan_join",
+        "actor_id": actor_id,
+        "actor_persona": actor_persona,
+        "plan_id": plan_id,
+    }).execute()
+
+
 @router.post("/{plan_id}/join")
-async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
+async def join_plan(plan_id: str, bg: BackgroundTasks, user: dict = Depends(verify_token)):
     db = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
 
@@ -323,17 +340,8 @@ async def join_plan(plan_id: str, user: dict = Depends(verify_token)):
     current_count = user_data.data[0]["hangout_count"] if user_data.data else 0
     db.table("users").update({"hangout_count": current_count + 1}).eq("id", user["sub"]).execute()
 
-    # Notify plan creator (skip if creator is the joiner)
     creator_id = plan.get("creator_id")
     if creator_id and creator_id != user["sub"]:
-        actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
-        actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
-        db.table("notifications").insert({
-            "user_id": creator_id,
-            "type": "plan_join",
-            "actor_id": user["sub"],
-            "actor_persona": actor_persona,
-            "plan_id": plan_id,
-        }).execute()
+        bg.add_task(_notify_plan_join, plan_id, user["sub"], creator_id)
 
     return {"message": "Joined plan successfully"}

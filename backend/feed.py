@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from config import get_settings
@@ -43,8 +43,21 @@ async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] =
     return {"posts": result.data}
 
 
+def _notify_reply(parent_post_id: str, actor_id: str, parent_owner_id: str) -> None:
+    db = get_supabase()
+    actor_user = db.table("users").select("persona_name").eq("id", actor_id).execute()
+    actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+    db.table("notifications").insert({
+        "user_id": parent_owner_id,
+        "type": "reply",
+        "actor_id": actor_id,
+        "actor_persona": actor_persona,
+        "post_id": parent_post_id,
+    }).execute()
+
+
 @router.post("")
-async def create_post(body: CreatePostRequest, user: dict = Depends(verify_token)):
+async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict = Depends(verify_token)):
     db = get_supabase()
 
     content = body.content.strip()
@@ -86,18 +99,9 @@ async def create_post(body: CreatePostRequest, user: dict = Depends(verify_token
             new_count = (parent_post.data[0].get("replies_count") or 0) + 1
             db.table("posts").update({"replies_count": new_count}).eq("id", body.parent_id).execute()
 
-            # Notify parent post owner (skip if same user)
             parent_owner_id = parent_post.data[0].get("user_id")
             if parent_owner_id and parent_owner_id != user["sub"]:
-                actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
-                actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
-                db.table("notifications").insert({
-                    "user_id": parent_owner_id,
-                    "type": "reply",
-                    "actor_id": user["sub"],
-                    "actor_persona": actor_persona,
-                    "post_id": body.parent_id,
-                }).execute()
+                bg.add_task(_notify_reply, body.parent_id, user["sub"], parent_owner_id)
 
     return {"post": post}
 
@@ -159,13 +163,17 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify
     return {"url": public_url}
 
 
-@router.post("/{post_id}/view")
-async def record_view(post_id: str):
+def _do_record_view(post_id: str) -> None:
     db = get_supabase()
     post = db.table("posts").select("views_count").eq("id", post_id).eq("is_hidden", False).execute()
     if post.data:
         current = post.data[0].get("views_count") or 0
         db.table("posts").update({"views_count": current + 1}).eq("id", post_id).execute()
+
+
+@router.post("/{post_id}/view")
+async def record_view(post_id: str, bg: BackgroundTasks):
+    bg.add_task(_do_record_view, post_id)
     return {"ok": True}
 
 
@@ -220,8 +228,21 @@ async def hide_post(post_id: str, user: dict = Depends(verify_token)):
     return {"message": "Post deleted"}
 
 
+def _notify_like(post_id: str, actor_id: str, post_owner_id: str) -> None:
+    db = get_supabase()
+    actor_user = db.table("users").select("persona_name").eq("id", actor_id).execute()
+    actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
+    db.table("notifications").insert({
+        "user_id": post_owner_id,
+        "type": "like",
+        "actor_id": actor_id,
+        "actor_persona": actor_persona,
+        "post_id": post_id,
+    }).execute()
+
+
 @router.post("/{post_id}/like")
-async def toggle_like(post_id: str, user: dict = Depends(verify_token)):
+async def toggle_like(post_id: str, bg: BackgroundTasks, user: dict = Depends(verify_token)):
     db = get_supabase()
 
     post_result = (
@@ -258,18 +279,9 @@ async def toggle_like(post_id: str, user: dict = Depends(verify_token)):
         new_count = current_count + 1
         db.table("posts").update({"likes_count": new_count}).eq("id", post_id).execute()
 
-        # Notify post owner (skip if liker == owner)
         post_owner_id = post_result.data[0].get("user_id") if post_result.data else None
         if post_owner_id and post_owner_id != user["sub"]:
-            actor_user = db.table("users").select("persona_name").eq("id", user["sub"]).execute()
-            actor_persona = actor_user.data[0]["persona_name"] if actor_user.data else "Someone"
-            db.table("notifications").insert({
-                "user_id": post_owner_id,
-                "type": "like",
-                "actor_id": user["sub"],
-                "actor_persona": actor_persona,
-                "post_id": post_id,
-            }).execute()
+            bg.add_task(_notify_like, post_id, user["sub"], post_owner_id)
 
         return {"liked": True, "likes_count": new_count}
 
