@@ -11,6 +11,12 @@ import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
 import type { Post } from "@/lib/types";
 
+interface ReplyTarget {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -22,7 +28,7 @@ export default function PostDetailPage() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showReply, setShowReply] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
 
   const fetchPost = useCallback(async () => {
     try {
@@ -80,13 +86,19 @@ export default function PostDetailPage() {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
+  function openReply(target: Post) {
+    setReplyTarget({
+      id: target.id,
+      name: target.users?.persona_name ?? "Anonymous",
+      content: target.content,
+    });
+  }
+
   function handleReplied() {
-    setShowReply(false);
+    setReplyTarget(null);
     fetchPost();
   }
 
@@ -144,7 +156,7 @@ export default function PostDetailPage() {
         isAdmin={isAdmin}
         isDetail
         onDeleted={handlePostDeleted}
-        onReply={() => setShowReply(true)}
+        onReply={() => openReply(post)}
       />
 
       <div className="px-4 py-3 border-b border-border">
@@ -168,15 +180,16 @@ export default function PostDetailPage() {
               isAdmin={isAdmin}
               isReply
               onDeleted={() => handleReplyDeleted(reply.id)}
+              onReply={isAuthenticated ? () => openReply(reply) : undefined}
             />
           ))}
         </div>
       )}
 
-      {/* Reply FAB */}
-      {isAuthenticated && !showReply && (
+      {/* FAB — only when no reply modal open */}
+      {isAuthenticated && !replyTarget && (
         <button
-          onClick={() => setShowReply(true)}
+          onClick={() => openReply(post)}
           className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
           aria-label="Reply"
         >
@@ -186,12 +199,12 @@ export default function PostDetailPage() {
         </button>
       )}
 
-      {/* Reply modal (full-screen like Twitter) */}
-      {showReply && (
+      {/* Reply modal */}
+      {replyTarget && (
         <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <button
-              onClick={() => setShowReply(false)}
+              onClick={() => setReplyTarget(null)}
               className="text-text-muted hover:text-text-primary transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -203,20 +216,20 @@ export default function PostDetailPage() {
           </div>
           <div className="px-4 py-3 border-b border-border/50 flex gap-3">
             <div className="flex flex-col items-center gap-1">
-              <Avatar name={post.users?.persona_name ?? "Anonymous"} size={32} />
+              <Avatar name={replyTarget.name} size={32} />
               <div className="w-0.5 flex-1 bg-border/50" />
             </div>
             <div className="flex-1 min-w-0 pb-3">
-              <p className="text-[13px] font-bold text-text-primary">{post.users?.persona_name ?? "Anonymous"}</p>
-              <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-wrap break-words">{post.content}</p>
+              <p className="text-[13px] font-bold text-text-primary">{replyTarget.name}</p>
+              <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-wrap break-words">{replyTarget.content}</p>
               <p className="text-xs text-text-muted mt-2">
-                Replying to <span className="text-amber">{post.users?.persona_name ?? "Anonymous"}</span>
+                Replying to <span className="text-amber">{replyTarget.name}</span>
               </p>
             </div>
           </div>
           <div className="mx-auto max-w-lg px-4 pt-3">
             <ComposeBox
-              parentId={postId}
+              parentId={replyTarget.id}
               placeholder="Post your reply"
               onPosted={handleReplied}
               autoFocus

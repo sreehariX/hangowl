@@ -169,7 +169,11 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
   const isZoomed = zoom > 1;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col animate-lightbox-in" style={{ background: "#000" }}>
+    <div
+      className="fixed inset-0 z-[100] flex flex-col animate-lightbox-in"
+      style={{ background: "#000" }}
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Top bar */}
       <div className="flex items-center justify-between px-3 py-2 shrink-0 absolute top-0 left-0 right-0 z-10">
         {/* Close — top left like Twitter */}
@@ -216,7 +220,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       <div
         ref={containerRef}
         className="flex flex-1 items-center justify-center overflow-hidden"
-        style={{ cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default" }}
+        style={{ cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default", touchAction: "none" }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
