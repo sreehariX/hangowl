@@ -18,59 +18,75 @@ export default function PostDetailPage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
 
   const [post, setPost] = useState<Post | null>(null);
-  const [ancestors, setAncestors] = useState<Post[]>([]); // full chain, oldest first
+  const [ancestors, setAncestors] = useState<Post[]>([]); // oldest → newest
   const [replies, setReplies] = useState<Post[]>([]);
   const [subReplies, setSubReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+
   const mainPostRef = useRef<HTMLDivElement>(null);
+  const scrolledRef = useRef(false); // only scroll on first load
 
   const subRepliesMap = useMemo(() => {
     const map: Record<string, Post[]> = {};
     for (const sr of subReplies) {
       if (!sr.parent_id) continue;
-      if (!map[sr.parent_id]) map[sr.parent_id] = [];
-      map[sr.parent_id].push(sr);
+      (map[sr.parent_id] ??= []).push(sr);
     }
     return map;
   }, [subReplies]);
 
-  const fetchPost = useCallback(async () => {
+  // Full fetch: post + replies + ancestors (initial load only)
+  const fetchAll = useCallback(async () => {
     try {
       const data = await api.getPost(postId);
       setPost(data.post);
       setReplies(data.replies);
       setSubReplies(data.sub_replies ?? []);
 
-      // Build full ancestor chain (up to 4 levels deep)
+      // Walk up ancestor chain (up to 5 deep)
       const chain: Post[] = [];
-      let current = data.post;
-      while (current.parent_id && chain.length < 4) {
+      let cur = data.post;
+      while (cur.parent_id && chain.length < 5) {
         try {
-          const parent = await api.getPost(current.parent_id);
-          chain.unshift(parent.post); // prepend so chain is oldest→newest
-          current = parent.post;
+          const p = await api.getPost(cur.parent_id);
+          chain.unshift(p.post);
+          cur = p.post;
         } catch { break; }
       }
       setAncestors(chain);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   }, [postId]);
 
-  useEffect(() => { fetchPost(); }, [fetchPost]);
+  // Light refresh: only post + replies, no ancestor re-fetch (used after posting a reply)
+  const refreshReplies = useCallback(async () => {
+    try {
+      const data = await api.getPost(postId);
+      setPost(data.post);
+      setReplies(data.replies);
+      setSubReplies(data.sub_replies ?? []);
+    } catch { /* silent */ }
+  }, [postId]);
 
-  // Scroll the focused post into view once ancestors are loaded
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Scroll focused post to top (below sticky header) — only on first load
   useEffect(() => {
-    if (!loading && post && mainPostRef.current) {
-      const el = mainPostRef.current;
-      const top = el.getBoundingClientRect().top + window.scrollY - 52; // 52px sticky header
-      window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
-    }
+    if (loading || !post || scrolledRef.current) return;
+    scrolledRef.current = true;
+    // Use rAF to ensure DOM is painted before measuring
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = mainPostRef.current;
+        if (!el) return;
+        const HEADER_H = 52;
+        const top = el.getBoundingClientRect().top + window.scrollY - HEADER_H;
+        window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+      });
+    });
   }, [loading, post, ancestors.length]);
 
   useEffect(() => {
@@ -92,17 +108,15 @@ export default function PostDetailPage() {
     return () => { active = false; };
   }, [isAuthenticated]);
 
+  // Realtime: new direct replies
   useEffect(() => {
-    const channel = supabase
-      .channel(`post-${postId}-replies`)
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "posts",
-        filter: `parent_id=eq.${postId}`,
-      }, (payload) => {
-        const newReply = payload.new as Post;
-        setReplies((prev) => prev.some((r) => r.id === newReply.id) ? prev : [...prev, newReply]);
-        setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
-      })
+    const channel = supabase.channel(`post-${postId}-replies`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
+        (payload) => {
+          const r = payload.new as Post;
+          setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
+          setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+        })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [postId]);
@@ -110,16 +124,19 @@ export default function PostDetailPage() {
   function handleReplied() {
     const target = replyTarget;
     setReplyTarget(null);
-    if (target && target.id !== postId) {
-      router.push(`/feed/${target.id}`);
+    if (!target) return;
+    if (target.id === postId) {
+      // Replied to the main post — refresh replies only (no ancestor re-fetch)
+      refreshReplies();
     } else {
-      fetchPost();
+      // Replied to a reply/sub-reply — navigate into that reply's thread
+      router.push(`/feed/${target.id}`);
     }
   }
 
   function handlePostDeleted() {
-    const immediate = ancestors[ancestors.length - 1];
-    router.push(immediate ? `/feed/${immediate.id}` : "/");
+    const parent = ancestors[ancestors.length - 1];
+    router.push(parent ? `/feed/${parent.id}` : "/");
   }
 
   function handleReplyDeleted(replyId: string) {
@@ -156,19 +173,17 @@ export default function PostDetailPage() {
   return (
     <div className="mx-auto max-w-lg pb-24">
       {/* Sticky header */}
-      <div className="flex items-center gap-4 px-4 py-3 border-b border-border sticky top-0 bg-navy/95 backdrop-blur-md z-10">
-        <button
-          onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
-          className="text-text-muted transition-colors hover:text-text-primary"
-        >
+      <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+        <button onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
+          className="text-text-muted hover:text-text-primary transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
           </svg>
         </button>
         <span className="text-[15px] font-bold text-text-primary">Post</span>
       </div>
 
-      {/* Full ancestor chain — each connected to next with thread line */}
+      {/* Ancestor chain — each connected to next with thread line */}
       {ancestors.map((ancestor) => (
         <PostCard
           key={ancestor.id}
@@ -180,7 +195,7 @@ export default function PostDetailPage() {
         />
       ))}
 
-      {/* Main (focused) post */}
+      {/* Main (focused) post — seamless connects to ancestors above */}
       <div ref={mainPostRef}>
         <PostCard
           post={post}
@@ -203,7 +218,6 @@ export default function PostDetailPage() {
         <div>
           {replies.map((reply) => {
             const subs = subRepliesMap[reply.id] ?? [];
-            const hasSubs = subs.length > 0;
             return (
               <div key={reply.id}>
                 <PostCard
@@ -211,7 +225,7 @@ export default function PostDetailPage() {
                   liked={likedIds.has(reply.id)}
                   currentUserId={userId}
                   isAdmin={isAdmin}
-                  showThreadLine={hasSubs}
+                  showThreadLine={subs.length > 0}
                   onDeleted={() => handleReplyDeleted(reply.id)}
                   onReply={isAuthenticated ? () => setReplyTarget(reply) : undefined}
                 />
@@ -242,7 +256,7 @@ export default function PostDetailPage() {
           aria-label="Reply"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
           </svg>
         </button>
       )}
@@ -253,16 +267,16 @@ export default function PostDetailPage() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <button onClick={() => setReplyTarget(null)} className="text-text-muted hover:text-text-primary transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
               </svg>
             </button>
             <span className="text-sm font-semibold text-text-primary">Reply</span>
-            <div className="w-5" />
+            <div className="w-5"/>
           </div>
           <div className="px-4 py-3 border-b border-border/50 flex gap-3">
             <div className="flex flex-col items-center gap-1">
-              <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={32} />
-              <div className="w-0.5 flex-1 bg-border/50 min-h-[16px]" />
+              <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={32}/>
+              <div className="w-0.5 flex-1 bg-border/50 min-h-[16px]"/>
             </div>
             <div className="flex-1 min-w-0 pb-3">
               <p className="text-[13px] font-bold text-text-primary">{replyTarget.users?.persona_name ?? "Anonymous"}</p>
