@@ -48,18 +48,19 @@ function formatViewCount(n: number): string {
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d`;
+  // Same year → "Apr 3", different year → "Apr 3, 2024"
+  const postYear = new Date(iso).getFullYear();
+  const nowYear = new Date().getFullYear();
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     timeZone: "Asia/Kolkata",
-    ...(d > 365 ? { year: "numeric" } : {}),
+    ...(postYear !== nowYear ? { year: "numeric" } : {}),
   });
 }
 
@@ -77,7 +78,7 @@ function formatFullDate(iso: string): string {
     year: "numeric",
     timeZone: "Asia/Kolkata",
   });
-  return `${time} . ${date}`;
+  return `${time} · ${date}`;
 }
 
 const BAN_OPTIONS = [
@@ -226,10 +227,17 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
       <div className="flex gap-3">
         <Avatar name={personaName} size={40} className="shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-1 min-w-0">
             <span className="text-[15px] font-bold text-text-primary truncate">
               {personaName}
             </span>
+            <span className="text-text-muted shrink-0 select-none">·</span>
+            <time
+              className="text-[13px] text-text-muted shrink-0 hover:underline cursor-default"
+              title={formatFullDate(post.created_at)}
+            >
+              {formatRelativeTime(post.created_at)}
+            </time>
             {canDelete && !confirmDelete && (
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(true); }}
@@ -256,13 +264,13 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
             {post.image_url && (
               <button
                 type="button"
-                className="mt-3 block w-full cursor-zoom-in"
+                className="mt-2.5 block w-full cursor-zoom-in rounded-2xl overflow-hidden transition-opacity hover:opacity-95 active:opacity-80"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxSrc(post.image_url!); }}
               >
                 <ProgressiveImage
                   src={post.image_url}
-                  className="max-h-[350px] w-full rounded-2xl border border-border object-cover"
-                  skeletonClassName="w-full h-[200px] rounded-2xl"
+                  className="max-h-[360px] w-full object-cover"
+                  skeletonClassName="w-full h-[220px]"
                 />
               </button>
             )}
@@ -276,11 +284,7 @@ const PostCard = memo(function PostCard({ post, liked: initialLiked, currentUser
             )}
           </div>
 
-          <p className="mt-2 text-xs text-text-muted" title={formatFullDate(post.created_at)}>
-            {formatRelativeTime(post.created_at)}
-          </p>
-
-          <div className="mt-2 flex items-center gap-6">
+          <div className="mt-2.5 flex items-center gap-6">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
               disabled={!currentUserId}
