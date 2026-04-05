@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -44,6 +44,7 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  const focusedPostRef = useRef<HTMLDivElement>(null);
 
   const subRepliesMap = useMemo(() => {
     const map: Record<string, Post[]> = {};
@@ -94,10 +95,22 @@ export default function PostDetailPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Always start at the top so the ancestor thread is visible first.
+  // After full data loads: if there are ancestors, scroll the focused post into view
+  // so it sits just below the sticky header. Ancestors are accessible by scrolling up,
+  // replies by scrolling down — Twitter-style thread navigation.
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
+    if (loading) return;
+    if (ancestors.length === 0) {
+      // No ancestors: post is already at top, just ensure we're scrolled there
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+    const el = focusedPostRef.current;
+    if (!el) return;
+    const stickyHeaderHeight = 52;
+    const top = el.getBoundingClientRect().top + window.scrollY - stickyHeaderHeight;
+    window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+  }, [loading, ancestors.length]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -220,8 +233,8 @@ export default function PostDetailPage() {
         />
       ))}
 
-      {/* Main (focused) post — seamless connects to ancestors above */}
-      <div>
+      {/* Main (focused) post — seamless connects to ancestors above, showThreadLine connects to replies below */}
+      <div ref={focusedPostRef}>
         <PostCard
           post={post}
           liked={likedIds.has(post.id)}
@@ -229,6 +242,7 @@ export default function PostDetailPage() {
           isAdmin={isAdmin}
           isDetail
           seamless={ancestors.length > 0}
+          showThreadLine={sortedReplies.length > 0}
           onDeleted={handlePostDeleted}
           onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
         />
@@ -247,7 +261,7 @@ export default function PostDetailPage() {
         </div>
       ) : (
         <div>
-          {sortedReplies.map((reply) => {
+          {sortedReplies.map((reply, replyIdx) => {
             const subs = subRepliesMap[reply.id] ?? [];
             return (
               <div key={reply.id}>
@@ -256,6 +270,7 @@ export default function PostDetailPage() {
                   liked={likedIds.has(reply.id)}
                   currentUserId={userId}
                   isAdmin={isAdmin}
+                  seamless={replyIdx === 0}
                   showThreadLine={subs.length > 0}
                   onDeleted={() => handleReplyDeleted(reply.id)}
                   onReply={isAuthenticated ? () => setReplyTarget(reply) : undefined}
