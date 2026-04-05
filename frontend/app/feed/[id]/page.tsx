@@ -44,6 +44,7 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   // Two-phase render: ancestors stay hidden until scroll is positioned to prevent
   // the flash where parent post/image briefly appears before scrolling to focused post.
   const [showAncestors, setShowAncestors] = useState(false);
@@ -97,6 +98,23 @@ export default function PostDetailPage() {
   }, [postId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Track virtual keyboard height via Visual Viewport API so the reply sheet
+  // stays above the keyboard on mobile.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardHeight(kb);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // Reset ancestor visibility when navigating between posts
   useEffect(() => { setShowAncestors(false); }, [postId]);
@@ -322,7 +340,7 @@ export default function PostDetailPage() {
             onClick={() => setReplyTarget(null)}
           />
           {/* Sheet */}
-          <div className="fixed bottom-0 inset-x-0 z-50 animate-sheet-up">
+          <div className="fixed inset-x-0 z-50 animate-sheet-up" style={{ bottom: keyboardHeight }}>
             <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
@@ -353,7 +371,7 @@ export default function PostDetailPage() {
                 </div>
               </div>
               {/* Compose */}
-              <div className="px-4 pb-8">
+              <div className="px-4 pb-4">
                 <ComposeBox
                   parentId={replyTarget.id}
                   placeholder="Post your reply"
