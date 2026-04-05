@@ -191,7 +191,10 @@ const PostCard = memo(function PostCard({
     <div
       ref={cardRef}
       className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "hover:bg-surface-hover/50 cursor-pointer" : ""}`}
-      onClick={isNavigable ? () => router.push(`/feed/${post.id}`) : undefined}
+      onClick={isNavigable ? (e) => {
+        if (window.getSelection()?.toString()) return;
+        router.push(`/feed/${post.id}`);
+      } : undefined}
     >
       <div className="flex gap-3">
 
