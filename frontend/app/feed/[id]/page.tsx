@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -44,9 +44,6 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
-
-  const mainPostRef = useRef<HTMLDivElement>(null);
-  const scrolledRef = useRef(false); // only scroll on first load
 
   const subRepliesMap = useMemo(() => {
     const map: Record<string, Post[]> = {};
@@ -97,21 +94,10 @@ export default function PostDetailPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Scroll focused post to top (below sticky header) — only on first load
+  // Always start at the top so the ancestor thread is visible first.
   useEffect(() => {
-    if (loading || !post || scrolledRef.current) return;
-    scrolledRef.current = true;
-    // Use rAF to ensure DOM is painted before measuring
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const el = mainPostRef.current;
-        if (!el) return;
-        const HEADER_H = 52;
-        const top = el.getBoundingClientRect().top + window.scrollY - HEADER_H;
-        window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
-      });
-    });
-  }, [loading, post, ancestors.length]);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -202,6 +188,13 @@ export default function PostDetailPage() {
 
   const immediateParent = ancestors[ancestors.length - 1] ?? null;
 
+  const sortedReplies = [...replies].sort((a, b) => {
+    const aIsAuthor = a.user_id === post.user_id ? 1 : 0;
+    const bIsAuthor = b.user_id === post.user_id ? 1 : 0;
+    if (aIsAuthor !== bIsAuthor) return bIsAuthor - aIsAuthor;
+    return b.likes_count - a.likes_count;
+  });
+
   return (
     <div className="mx-auto max-w-lg pb-24">
       {/* Sticky header */}
@@ -228,7 +221,7 @@ export default function PostDetailPage() {
       ))}
 
       {/* Main (focused) post — seamless connects to ancestors above */}
-      <div ref={mainPostRef}>
+      <div>
         <PostCard
           post={post}
           liked={likedIds.has(post.id)}
@@ -254,7 +247,7 @@ export default function PostDetailPage() {
         </div>
       ) : (
         <div>
-          {replies.map((reply) => {
+          {sortedReplies.map((reply) => {
             const subs = subRepliesMap[reply.id] ?? [];
             return (
               <div key={reply.id}>

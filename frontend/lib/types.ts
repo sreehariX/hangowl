@@ -78,6 +78,7 @@ export interface Post {
   created_at: string;
   users?: { persona_name: string };
   user_liked?: boolean;
+  top_reply?: Post | null;
 }
 
 export interface LeaderboardEntry {

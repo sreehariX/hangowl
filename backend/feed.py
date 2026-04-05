@@ -40,7 +40,61 @@ async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] =
         query = query.eq("user_id", user_id_filter)
 
     result = query.execute()
-    return {"posts": result.data}
+    posts = result.data
+
+    # Batch-fetch top reply for posts that have replies.
+    # Algorithm: author's own reply (self-thread) > most-liked reply (≥1 like).
+    posts_with_replies = [p for p in posts if (p.get("replies_count") or 0) > 0]
+
+    if posts_with_replies:
+        post_ids = [p["id"] for p in posts_with_replies]
+        post_author_map = {p["id"]: p["user_id"] for p in posts_with_replies}
+
+        # Query A: most-liked replies (any author, ≥1 like)
+        liked_res = (
+            db.table("posts")
+            .select(COLS)
+            .in_("parent_id", post_ids)
+            .eq("is_hidden", False)
+            .gt("likes_count", 0)
+            .order("likes_count", desc=True)
+            .limit(min(len(post_ids) * 3, 60))
+            .execute()
+        )
+
+        # Query B: potential self-replies (author replies to own post)
+        author_ids = list(set(post_author_map.values()))
+        self_res = (
+            db.table("posts")
+            .select(COLS)
+            .in_("parent_id", post_ids)
+            .in_("user_id", author_ids)
+            .eq("is_hidden", False)
+            .order("created_at", desc=False)
+            .limit(len(post_ids) * 2)
+            .execute()
+        )
+
+        # Build top_reply map: author reply > liked reply
+        top_replies: dict = {}
+
+        # Seed with most-liked replies first
+        for reply in liked_res.data:
+            pid = reply["parent_id"]
+            if pid not in top_replies:
+                top_replies[pid] = reply
+
+        # Override with author's own reply (takes priority)
+        for reply in self_res.data:
+            pid = reply["parent_id"]
+            if reply["user_id"] == post_author_map.get(pid):
+                top_replies[pid] = reply
+
+        # Attach to posts
+        for post in posts:
+            post["top_reply"] = top_replies.get(post["id"])
+
+    return {"posts": posts}
 
 
 def _notify_reply(parent_post_id: str, actor_id: str, parent_owner_id: str) -> None:
