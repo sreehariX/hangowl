@@ -44,6 +44,9 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  // Two-phase render: ancestors stay hidden until scroll is positioned to prevent
+  // the flash where parent post/image briefly appears before scrolling to focused post.
+  const [showAncestors, setShowAncestors] = useState(false);
   const focusedPostRef = useRef<HTMLDivElement>(null);
 
   const subRepliesMap = useMemo(() => {
@@ -95,21 +98,36 @@ export default function PostDetailPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // After full data loads: scroll the focused post just below the sticky header
-  // BEFORE the browser paints (useLayoutEffect) so users never see ancestor content
-  // flash on screen. Ancestors are above the viewport — scroll up to see them.
-  // This mirrors Twitter's thread navigation: focused tweet at top, context above.
+  // Reset ancestor visibility when navigating between posts
+  useEffect(() => { setShowAncestors(false); }, [postId]);
+
+  // Two-phase scroll positioning — prevents ancestor content from flashing on screen.
+  //
+  // Phase 1: Data loads, ancestors exist but showAncestors=false → ancestors NOT in DOM.
+  //          Scroll stays at 0 (focused post is at top). Then we flip showAncestors=true,
+  //          which triggers a synchronous re-render inside useLayoutEffect.
+  //
+  // Phase 2: showAncestors=true → ancestors ARE in DOM (pushing focused post down).
+  //          We immediately scroll to the focused post before the browser paints.
+  //          User never sees the ancestor flash — they scroll UP to reveal context.
   useLayoutEffect(() => {
     if (loading) return;
     if (ancestors.length === 0) {
-      window.scrollTo({ top: 0, behavior: "instant" });
+      window.scrollTo(0, 0);
       return;
     }
+    if (!showAncestors) {
+      // Phase 1: keep scroll at top, then inject ancestors into DOM
+      window.scrollTo(0, 0);
+      setShowAncestors(true);
+      return;
+    }
+    // Phase 2: ancestors now in DOM — scroll focused post to just below sticky header
     const el = focusedPostRef.current;
     if (!el) return;
-    // scrollIntoView with CSS scroll-margin-top handles the sticky header offset
-    el.scrollIntoView({ block: "start", behavior: "instant" });
-  }, [loading, ancestors.length]);
+    const top = el.getBoundingClientRect().top + window.pageYOffset - 52;
+    window.scrollTo(0, Math.max(0, top));
+  }, [loading, ancestors.length, showAncestors]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -220,8 +238,9 @@ export default function PostDetailPage() {
         <span className="text-[15px] font-bold text-text-primary">Post</span>
       </div>
 
-      {/* Ancestor chain — each connected to next with thread line */}
-      {ancestors.map((ancestor) => (
+      {/* Ancestor chain — only rendered after scroll is positioned (Phase 2).
+           This prevents parent post images/content from flashing on screen. */}
+      {showAncestors && ancestors.map((ancestor) => (
         <PostCard
           key={ancestor.id}
           post={ancestor}
@@ -233,14 +252,14 @@ export default function PostDetailPage() {
       ))}
 
       {/* Main (focused) post — seamless connects to ancestors above, showThreadLine connects to replies below */}
-      <div ref={focusedPostRef} style={{ scrollMarginTop: 52 }}>
+      <div ref={focusedPostRef}>
         <PostCard
           post={post}
           liked={likedIds.has(post.id)}
           currentUserId={userId}
           isAdmin={isAdmin}
           isDetail
-          seamless={ancestors.length > 0}
+          seamless={showAncestors && ancestors.length > 0}
           showThreadLine={sortedReplies.length > 0}
           onDeleted={handlePostDeleted}
           onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
