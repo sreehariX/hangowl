@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { postCache } from "@/lib/post-cache";
@@ -279,15 +279,25 @@ export default function FeedHomePage() {
         <>
           <div className="rounded-2xl border border-border overflow-hidden">
             {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                liked={likedIds.has(post.id)}
-                currentUserId={userId}
-                isAdmin={isAdmin}
-                onDeleted={() => handlePostDeleted(post.id)}
-                topReply={post.top_reply ?? undefined}
-              />
+              <Fragment key={post.id}>
+                <PostCard
+                  post={post}
+                  liked={likedIds.has(post.id)}
+                  currentUserId={userId}
+                  isAdmin={isAdmin}
+                  onDeleted={() => handlePostDeleted(post.id)}
+                  showThreadLine={!!post.top_reply}
+                />
+                {post.top_reply && (
+                  <PostCard
+                    post={post.top_reply}
+                    liked={likedIds.has(post.top_reply.id)}
+                    currentUserId={userId}
+                    isAdmin={isAdmin}
+                    seamless
+                  />
+                )}
+              </Fragment>
             ))}
           </div>
           <div ref={observerRef} className="h-4" />
