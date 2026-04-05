@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { postCache } from "@/lib/post-cache";
 import { supabase } from "@/lib/supabase";
 import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/PostCard";
@@ -33,7 +34,9 @@ export default function PostDetailPage() {
   const postId = params.id as string;
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
 
-  const [post, setPost] = useState<Post | null>(null);
+  // Seed from cache for instant display — avoids skeleton when navigating
+  // to a reply that was already visible on screen.
+  const [post, setPost] = useState<Post | null>(() => postCache.get(postId) ?? null);
   const [ancestors, setAncestors] = useState<Post[]>([]); // oldest → newest
   const [replies, setReplies] = useState<Post[]>([]);
   const [subReplies, setSubReplies] = useState<Post[]>([]);
@@ -58,6 +61,10 @@ export default function PostDetailPage() {
   const fetchAll = useCallback(async () => {
     try {
       const data = await api.getPost(postId);
+      // Seed cache so any reply visible here can be opened instantly next tap
+      postCache.set(data.post.id, data.post);
+      data.replies.forEach((r) => postCache.set(r.id, r));
+      (data.sub_replies ?? []).forEach((r) => postCache.set(r.id, r));
       setPost(data.post);
       setReplies(data.replies);
       setSubReplies(data.sub_replies ?? []);
@@ -68,6 +75,7 @@ export default function PostDetailPage() {
       while (cur.parent_id && chain.length < 5) {
         try {
           const p = await api.getPost(cur.parent_id);
+          postCache.set(p.post.id, p.post);
           chain.unshift(p.post);
           cur = p.post;
         } catch { break; }
@@ -157,7 +165,10 @@ export default function PostDetailPage() {
     setSubReplies((prev) => prev.filter((s) => s.id !== subReplyId));
   }
 
-  if (loading || authLoading) {
+  // Only show full skeleton when we have no post data at all (cold load / direct URL).
+  // When navigating from a thread we already have the post in cache, so skip straight
+  // to rendering the post and show reply skeletons in-place instead.
+  if (!post && (loading || authLoading)) {
     return (
       <div className="mx-auto max-w-lg pb-24">
         <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
@@ -231,7 +242,13 @@ export default function PostDetailPage() {
       </div>
 
       {/* Replies */}
-      {replies.length === 0 ? (
+      {loading && replies.length === 0 ? (
+        <div>
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </div>
+      ) : replies.length === 0 ? (
         <div className="px-4 py-10 text-center">
           <p className="text-sm text-text-muted">No replies yet. Be the first.</p>
         </div>

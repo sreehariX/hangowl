@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { postCache } from "@/lib/post-cache";
 import { supabase } from "@/lib/supabase";
 import { ComposeBox } from "@/components/ComposeBox";
 import { FeedSkeleton } from "@/components/Skeleton";
@@ -19,7 +20,12 @@ export default function FeedHomePage() {
     if (typeof window === "undefined") return [];
     try {
       const cached = localStorage.getItem("ho_feed_cache_v1");
-      if (cached) return JSON.parse(cached) as Post[];
+      if (cached) {
+        const parsed = JSON.parse(cached) as Post[];
+        // Seed post cache so cached feed posts also open instantly
+        parsed.forEach((p) => postCache.set(p.id, p));
+        return parsed;
+      }
     } catch {}
     return [];
   });
@@ -40,6 +46,8 @@ export default function FeedHomePage() {
   const fetchFeed = useCallback(async (cursor?: string) => {
     try {
       const data = await api.getFeed(cursor);
+      // Seed post cache so tapping any card opens it instantly (no skeleton)
+      data.posts.forEach((p) => postCache.set(p.id, p));
       if (cursor) {
         setPosts((prev) => {
           const ids = new Set(prev.map((p) => p.id));
