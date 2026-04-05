@@ -61,11 +61,13 @@ function formatFullDate(iso: string) {
 function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <button type="button" className="mt-3 block w-full rounded-2xl overflow-hidden focus:outline-none cursor-zoom-in"
+    // Fixed aspect ratio so the space is always reserved before the image loads —
+    // prevents replies/content below from jumping when the image paints.
+    <button type="button" className="mt-3 block w-full rounded-2xl overflow-hidden focus:outline-none cursor-zoom-in aspect-[2/1]"
       onClick={(e) => { e.stopPropagation(); onOpen(); }}>
-      {!loaded && <div className="skeleton w-full h-[220px]" />}
+      {!loaded && <div className="skeleton w-full h-full" />}
       <img src={src} alt="" draggable={false} loading="lazy" decoding="async" onLoad={() => setLoaded(true)}
-        className={`block w-full max-h-[400px] object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0 h-0"}`} />
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`} />
     </button>
   );
 }
@@ -85,8 +87,8 @@ interface PostCardProps {
   currentUserId?: string | null;
   isAdmin?: boolean;
   isDetail?: boolean;
-  // Thread display: showThreadLine draws a line below this card's avatar,
-  // seamless removes top padding so the line connects continuously to this card's avatar
+  // Thread display: showThreadLine draws a line below this card's avatar extending to the card below.
+  // seamless draws an incoming line that bridges from the previous card's thread line to this avatar.
   showThreadLine?: boolean;
   seamless?: boolean;
   onDeleted?: () => void;
@@ -185,8 +187,11 @@ const PostCard = memo(function PostCard({
     else navigator.clipboard.writeText(url).catch(() => {});
   }
 
-  // Padding: seamless removes top (connects to thread above), showThreadLine removes bottom+border (thread IS the separator)
-  const pt = seamless ? "pt-0" : "pt-3";
+  // showThreadLine removes bottom padding + border so the thread line is the only separator.
+  // seamless no longer removes top padding — pt-3 stays on all cards so replies breathe.
+  // The incoming thread line on a seamless card starts 12px above the flex row (top: -12)
+  // so it bridges through the padding gap and reaches the avatar center.
+  const pt = "pt-3";
   const pbBorder = showThreadLine ? "pb-0" : "border-b border-border pb-3";
 
   return (
@@ -199,11 +204,12 @@ const PostCard = memo(function PostCard({
 
         {/* Avatar column with thread line */}
         <div className="relative flex flex-col items-center shrink-0">
-          {/* Incoming thread line (from card above) — fills gap between parent card bottom and this avatar */}
+          {/* Incoming thread line — starts 12px above the flex row (bridging the pt-3 gap)
+               and reaches the avatar center (12 + 20 = 32px), connecting to parent's outgoing line */}
           {seamless && (
             <div
               className="absolute left-1/2 -translate-x-1/2 w-[2px]"
-              style={{ background: THREAD_COLOR, top: 0, height: seamless ? 22 : 0 }}
+              style={{ background: THREAD_COLOR, top: -12, height: 32 }}
             />
           )}
 
@@ -218,9 +224,9 @@ const PostCard = memo(function PostCard({
           )}
         </div>
 
-        <div className={`flex-1 min-w-0 ${seamless ? "pt-0" : ""}`}>
+        <div className="flex-1 min-w-0">
           {/* Name · time */}
-          <div className={`flex items-center min-w-0 ${seamless ? "mt-0" : ""}`}>
+          <div className="flex items-center min-w-0">
             <span className="text-[15px] font-bold text-text-primary truncate">{personaName}</span>
             {!isDetail && (
               <>
