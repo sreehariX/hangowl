@@ -23,7 +23,10 @@ export default function FeedHomePage() {
       if (cached) {
         const parsed = JSON.parse(cached) as Post[];
         // Seed post cache so cached feed posts also open instantly
-        parsed.forEach((p) => postCache.set(p.id, p));
+        parsed.forEach((p) => {
+          postCache.set(p.id, p);
+          if (p.top_reply) postCache.set(p.top_reply.id, p.top_reply);
+        });
         return parsed;
       }
     } catch {}
@@ -47,7 +50,10 @@ export default function FeedHomePage() {
     try {
       const data = await api.getFeed(cursor);
       // Seed post cache so tapping any card opens it instantly (no skeleton)
-      data.posts.forEach((p) => postCache.set(p.id, p));
+      data.posts.forEach((p) => {
+        postCache.set(p.id, p);
+        if (p.top_reply) postCache.set(p.top_reply.id, p.top_reply);
+      });
       if (cursor) {
         setPosts((prev) => {
           const ids = new Set(prev.map((p) => p.id));
@@ -280,6 +286,7 @@ export default function FeedHomePage() {
                 currentUserId={userId}
                 isAdmin={isAdmin}
                 onDeleted={() => handlePostDeleted(post.id)}
+                topReply={post.top_reply ?? undefined}
               />
             ))}
           </div>

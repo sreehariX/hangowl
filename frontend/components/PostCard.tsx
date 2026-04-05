@@ -91,11 +91,12 @@ interface PostCardProps {
   seamless?: boolean;
   onDeleted?: () => void;
   onReply?: () => void;
+  topReply?: Post | null;
 }
 
 const PostCard = memo(function PostCard({
   post, liked: initialLiked, currentUserId, isAdmin, isDetail,
-  showThreadLine, seamless, onDeleted, onReply,
+  showThreadLine, seamless, onDeleted, onReply, topReply,
 }: PostCardProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -187,7 +188,7 @@ const PostCard = memo(function PostCard({
 
   // Padding: seamless removes top (connects to thread above), showThreadLine removes bottom+border (thread IS the separator)
   const pt = seamless ? "pt-0" : "pt-3";
-  const pbBorder = showThreadLine ? "pb-0" : "border-b border-border pb-3";
+  const pbBorder = showThreadLine ? "pb-0" : `border-b border-border${topReply ? "" : " pb-3"}`;
 
   return (
     <div
@@ -210,7 +211,7 @@ const PostCard = memo(function PostCard({
           <Avatar name={personaName} size={40} className={seamless ? "mt-0 z-10 relative" : "mt-0.5 z-10 relative"} />
 
           {/* Outgoing thread line (to card below) */}
-          {showThreadLine && (
+          {(showThreadLine || !!topReply) && (
             <div
               className="absolute left-1/2 -translate-x-1/2 w-[2px]"
               style={{ background: THREAD_COLOR, top: seamless ? 43 : 44, bottom: -1 }}
@@ -315,6 +316,23 @@ const PostCard = memo(function PostCard({
           </div>
         </div>
       </div>
+
+        {/* Inline top-reply preview (feed view only) */}
+        {topReply && isNavigable && (
+          <div className="flex gap-3 pb-3 -mt-1">
+            <div className="shrink-0 flex justify-center" style={{ width: 40 }}>
+              <Avatar name={topReply.users?.persona_name ?? "Anonymous"} size={24} />
+            </div>
+            <div className="flex-1 min-w-0 pt-0.5">
+              <span className="text-[12px] font-semibold text-text-primary">
+                {topReply.users?.persona_name ?? "Anonymous"}
+              </span>
+              <span className="text-[12px] text-text-muted ml-1 line-clamp-2 break-words">
+                {topReply.content}
+              </span>
+            </div>
+          </div>
+        )}
 
       {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
