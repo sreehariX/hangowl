@@ -202,7 +202,7 @@ const PostCard = memo(function PostCard({
           {seamless && (
             <div
               className="absolute left-1/2 -translate-x-1/2 w-[2px]"
-              style={{ background: THREAD_COLOR, top: 0, height: seamless ? 3 : 0 }}
+              style={{ background: THREAD_COLOR, top: 0, height: seamless ? 22 : 0 }}
             />
           )}
 
