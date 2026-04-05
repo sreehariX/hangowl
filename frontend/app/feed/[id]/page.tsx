@@ -251,7 +251,8 @@ export default function PostDetailPage() {
         />
       ))}
 
-      {/* Main (focused) post — seamless connects to ancestors above, showThreadLine connects to replies below */}
+      {/* Main (focused) post — seamless connects to ancestors above.
+           NO showThreadLine: Twitter-style clean break between post and replies. */}
       <div ref={focusedPostRef}>
         <PostCard
           post={post}
@@ -260,13 +261,14 @@ export default function PostDetailPage() {
           isAdmin={isAdmin}
           isDetail
           seamless={showAncestors && ancestors.length > 0}
-          showThreadLine={sortedReplies.length > 0}
           onDeleted={handlePostDeleted}
           onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
         />
       </div>
 
-      {/* Replies */}
+      {/* Replies — Twitter-style: each reply is an independent card with clean borders.
+           No thread lines connecting replies to the focused post.
+           Sub-replies (conversation chains) keep thread lines to their parent reply. */}
       {loading && replies.length === 0 ? (
         <div>
           <PostSkeleton />
@@ -279,7 +281,7 @@ export default function PostDetailPage() {
         </div>
       ) : (
         <div>
-          {sortedReplies.map((reply, replyIdx) => {
+          {sortedReplies.map((reply) => {
             const subs = subRepliesMap[reply.id] ?? [];
             return (
               <div key={reply.id}>
@@ -288,7 +290,6 @@ export default function PostDetailPage() {
                   liked={likedIds.has(reply.id)}
                   currentUserId={userId}
                   isAdmin={isAdmin}
-                  seamless={replyIdx === 0}
                   showThreadLine={subs.length > 0}
                   onDeleted={() => handleReplyDeleted(reply.id)}
                   onReply={isAuthenticated ? () => setReplyTarget(reply) : undefined}
