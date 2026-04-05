@@ -213,7 +213,7 @@ const PostCard = memo(function PostCard({
             />
           )}
 
-          <Avatar name={personaName} size={40} className={seamless ? "mt-0 z-10 relative" : "mt-0.5 z-10 relative"} />
+          <Avatar name={personaName} size={40} className={seamless ? "mt-0 z-[1] relative" : "mt-0.5 z-[1] relative"} />
 
           {/* Outgoing thread line (to card below) */}
           {showThreadLine && (

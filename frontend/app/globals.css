@@ -4,6 +4,9 @@
 
 html {
   -webkit-overflow-scrolling: touch;
+  /* Prevent browser scroll anchoring from fighting manual scroll positioning
+     in thread views — we handle scroll position ourselves via useLayoutEffect */
+  overflow-anchor: none;
 }
 
 body {
