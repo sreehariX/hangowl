@@ -11,6 +11,22 @@ import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
 import type { Post } from "@/lib/types";
 
+function PostSkeleton({ isDetail = false }: { isDetail?: boolean }) {
+  return (
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex gap-3">
+        <div className="skeleton w-10 h-10 rounded-full shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="skeleton h-2.5 w-20 rounded-full" />
+          <div className="skeleton h-2.5 w-full rounded-full" />
+          <div className={`skeleton h-2.5 rounded-full ${isDetail ? "w-2/3" : "w-4/5"}`} />
+          {isDetail && <div className="skeleton h-2.5 w-1/2 rounded-full" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -122,16 +138,8 @@ export default function PostDetailPage() {
   }, [postId]);
 
   function handleReplied() {
-    const target = replyTarget;
     setReplyTarget(null);
-    if (!target) return;
-    if (target.id === postId) {
-      // Replied to the main post — refresh replies only (no ancestor re-fetch)
-      refreshReplies();
-    } else {
-      // Replied to a reply/sub-reply — navigate into that reply's thread
-      router.push(`/feed/${target.id}`);
-    }
+    refreshReplies();
   }
 
   function handlePostDeleted() {
@@ -151,8 +159,21 @@ export default function PostDetailPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+      <div className="mx-auto max-w-lg pb-24">
+        <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+          <button onClick={() => router.back()} className="text-text-muted hover:text-text-primary transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+            </svg>
+          </button>
+          <span className="text-[15px] font-bold text-text-primary">Post</span>
+        </div>
+        <PostSkeleton />
+        <PostSkeleton isDetail />
+        <div className="border-b border-border" />
+        <PostSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
       </div>
     );
   }
@@ -248,50 +269,57 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {/* Reply FAB */}
-      {isAuthenticated && !replyTarget && (
-        <button
-          onClick={() => setReplyTarget(post)}
-          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark active:scale-90 md:right-[calc(50%-256px+16px)]"
-          aria-label="Reply"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
-          </svg>
-        </button>
-      )}
-
-      {/* Reply sheet */}
+      {/* Reply bottom sheet */}
       {replyTarget && (
-        <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <button onClick={() => setReplyTarget(null)} className="text-text-muted hover:text-text-primary transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-              </svg>
-            </button>
-            <span className="text-sm font-semibold text-text-primary">Reply</span>
-            <div className="w-5"/>
-          </div>
-          <div className="px-4 py-3 border-b border-border/50 flex gap-3">
-            <div className="flex flex-col items-center gap-1">
-              <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={32}/>
-              <div className="w-0.5 flex-1 bg-border/50 min-h-[16px]"/>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 animate-fade-in"
+            onClick={() => setReplyTarget(null)}
+          />
+          {/* Sheet */}
+          <div className="fixed bottom-0 inset-x-0 z-50 animate-sheet-up">
+            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-9 h-1 rounded-full bg-border" />
+              </div>
+              {/* Cancel */}
+              <div className="flex items-center px-4 py-2">
+                <button
+                  onClick={() => setReplyTarget(null)}
+                  className="text-sm text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              {/* Original post context */}
+              <div className="px-4 pb-2 flex gap-3">
+                <div className="flex flex-col items-center">
+                  <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
+                  <div className="w-0.5 flex-1 mt-1.5 min-h-[24px] rounded-full bg-border/60" />
+                </div>
+                <div className="flex-1 min-w-0 pb-3">
+                  <p className="text-[13px] font-bold text-text-primary">
+                    {replyTarget.users?.persona_name ?? "Anonymous"}
+                  </p>
+                  <p className="text-[14px] text-text-secondary mt-0.5 line-clamp-4 whitespace-pre-wrap break-words">
+                    {replyTarget.content}
+                  </p>
+                </div>
+              </div>
+              {/* Compose */}
+              <div className="px-4 pb-8">
+                <ComposeBox
+                  parentId={replyTarget.id}
+                  placeholder="Post your reply"
+                  onPosted={handleReplied}
+                  autoFocus
+                />
+              </div>
             </div>
-            <div className="flex-1 min-w-0 pb-3">
-              <p className="text-[13px] font-bold text-text-primary">{replyTarget.users?.persona_name ?? "Anonymous"}</p>
-              <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-wrap break-words">{replyTarget.content}</p>
-            </div>
           </div>
-          <div className="mx-auto max-w-lg px-4 pt-3">
-            <ComposeBox
-              parentId={replyTarget.id}
-              placeholder="Post your reply"
-              onPosted={handleReplied}
-              autoFocus
-            />
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

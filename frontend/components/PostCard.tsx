@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -97,6 +97,7 @@ const PostCard = memo(function PostCard({
   showThreadLine, seamless, onDeleted, onReply,
 }: PostCardProps) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [liked, setLiked] = useState(initialLiked ?? false);
   const [liking, setLiking] = useState(false);
@@ -191,7 +192,7 @@ const PostCard = memo(function PostCard({
     <div
       ref={cardRef}
       className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "hover:bg-surface-hover/50 cursor-pointer select-none" : ""}`}
-      onClick={isNavigable ? () => router.push(`/feed/${post.id}`) : undefined}
+      onClick={isNavigable ? () => startTransition(() => router.push(`/feed/${post.id}`)) : undefined}
     >
       <div className="flex gap-3">
 
@@ -201,7 +202,7 @@ const PostCard = memo(function PostCard({
           {seamless && (
             <div
               className="absolute left-1/2 -translate-x-1/2 w-[2px]"
-              style={{ background: THREAD_COLOR, top: 0, height: seamless ? 3 : 0 }}
+              style={{ background: THREAD_COLOR, top: 0, height: seamless ? 22 : 0 }}
             />
           )}
 
