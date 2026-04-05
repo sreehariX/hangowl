@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { api } from "@/lib/api";
+import { postCache } from "@/lib/post-cache";
 import type { Post } from "@/lib/types";
 
 const VIEWS_KEY = "ho_viewed_v2";
@@ -192,7 +193,7 @@ const PostCard = memo(function PostCard({
     <div
       ref={cardRef}
       className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "hover:bg-surface-hover/50 cursor-pointer select-none" : ""}`}
-      onClick={isNavigable ? () => startTransition(() => router.push(`/feed/${post.id}`)) : undefined}
+      onClick={isNavigable ? () => { postCache.set(post.id, post); startTransition(() => router.push(`/feed/${post.id}`)); } : undefined}
     >
       <div className="flex gap-3">
 
