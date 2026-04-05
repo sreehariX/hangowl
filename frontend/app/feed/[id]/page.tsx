@@ -11,6 +11,22 @@ import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
 import type { Post } from "@/lib/types";
 
+function PostSkeleton({ isDetail = false }: { isDetail?: boolean }) {
+  return (
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex gap-3">
+        <div className="skeleton w-10 h-10 rounded-full shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="skeleton h-2.5 w-20 rounded-full" />
+          <div className="skeleton h-2.5 w-full rounded-full" />
+          <div className={`skeleton h-2.5 rounded-full ${isDetail ? "w-2/3" : "w-4/5"}`} />
+          {isDetail && <div className="skeleton h-2.5 w-1/2 rounded-full" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -122,16 +138,8 @@ export default function PostDetailPage() {
   }, [postId]);
 
   function handleReplied() {
-    const target = replyTarget;
     setReplyTarget(null);
-    if (!target) return;
-    if (target.id === postId) {
-      // Replied to the main post — refresh replies only (no ancestor re-fetch)
-      refreshReplies();
-    } else {
-      // Replied to a reply/sub-reply — navigate into that reply's thread
-      router.push(`/feed/${target.id}`);
-    }
+    refreshReplies();
   }
 
   function handlePostDeleted() {
@@ -151,8 +159,21 @@ export default function PostDetailPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+      <div className="mx-auto max-w-lg pb-24">
+        <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+          <button onClick={() => router.back()} className="text-text-muted hover:text-text-primary transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+            </svg>
+          </button>
+          <span className="text-[15px] font-bold text-text-primary">Post</span>
+        </div>
+        <PostSkeleton />
+        <PostSkeleton isDetail />
+        <div className="border-b border-border" />
+        <PostSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
       </div>
     );
   }
