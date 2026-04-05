@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -95,21 +95,20 @@ export default function PostDetailPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // After full data loads: if there are ancestors, scroll the focused post into view
-  // so it sits just below the sticky header. Ancestors are accessible by scrolling up,
-  // replies by scrolling down — Twitter-style thread navigation.
-  useEffect(() => {
+  // After full data loads: scroll the focused post just below the sticky header
+  // BEFORE the browser paints (useLayoutEffect) so users never see ancestor content
+  // flash on screen. Ancestors are above the viewport — scroll up to see them.
+  // This mirrors Twitter's thread navigation: focused tweet at top, context above.
+  useLayoutEffect(() => {
     if (loading) return;
     if (ancestors.length === 0) {
-      // No ancestors: post is already at top, just ensure we're scrolled there
       window.scrollTo({ top: 0, behavior: "instant" });
       return;
     }
     const el = focusedPostRef.current;
     if (!el) return;
-    const stickyHeaderHeight = 52;
-    const top = el.getBoundingClientRect().top + window.scrollY - stickyHeaderHeight;
-    window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    // scrollIntoView with CSS scroll-margin-top handles the sticky header offset
+    el.scrollIntoView({ block: "start", behavior: "instant" });
   }, [loading, ancestors.length]);
 
   useEffect(() => {
@@ -170,7 +169,7 @@ export default function PostDetailPage() {
   if (!post && (loading || authLoading)) {
     return (
       <div className="mx-auto max-w-lg pb-24">
-        <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+        <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
           <button onClick={() => router.back()} className="text-text-muted hover:text-text-primary transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
@@ -211,7 +210,7 @@ export default function PostDetailPage() {
   return (
     <div className="mx-auto max-w-lg pb-24">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+      <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
         <button onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
           className="text-text-muted hover:text-text-primary transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -234,7 +233,7 @@ export default function PostDetailPage() {
       ))}
 
       {/* Main (focused) post — seamless connects to ancestors above, showThreadLine connects to replies below */}
-      <div ref={focusedPostRef}>
+      <div ref={focusedPostRef} style={{ scrollMarginTop: 52 }}>
         <PostCard
           post={post}
           liked={likedIds.has(post.id)}
