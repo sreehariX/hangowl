@@ -180,6 +180,9 @@ export default function PostDetailPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
         (payload) => {
           const r = payload.new as Post;
+          // Skip our own post's realtime event while optimistic is pending —
+          // handleReplied confirms it via the API response, preventing a duplicate
+          if (optimisticReplyIdRef.current && r.user_id === userIdRef.current) return;
           setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
           // Only update count for others' replies — ours was already incremented optimistically
           if (r.user_id !== userIdRef.current) {
@@ -241,7 +244,11 @@ export default function PostDetailPage() {
     const stableKey = replyKeysRef.current.get(optId ?? "") ?? post.id;
     replyKeysRef.current.delete(optId ?? "");
     replyKeysRef.current.set(post.id, stableKey);
-    setReplies((prev) => prev.map((r) => r.id === optId ? post : r));
+    setReplies((prev) => prev.map((r) => {
+      if (r.id !== optId) return r;
+      // API response has no users join — preserve persona_name from the optimistic entry
+      return { ...post, users: r.users };
+    }));
   }
 
   function handlePostDeleted() {
