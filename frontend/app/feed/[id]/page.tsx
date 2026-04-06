@@ -369,13 +369,13 @@ export default function PostDetailPage() {
             }}
             onAnimationEnd={handleSheetAnimationEnd}
           >
-            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
+            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden flex flex-col" style={{ maxHeight: `calc(100svh - ${keyboardHeight}px - 16px)` }}>
               {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
                 <div className="w-9 h-1 rounded-full bg-border" />
               </div>
               {/* Cancel */}
-              <div className="flex items-center px-4 py-2">
+              <div className="flex items-center px-4 py-2 flex-shrink-0">
                 <button
                   onClick={() => closeReplySheet()}
                   className="text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -384,7 +384,7 @@ export default function PostDetailPage() {
                 </button>
               </div>
               {/* Original post context */}
-              <div className="px-4 pb-2 flex gap-3">
+              <div className="px-4 pb-2 flex gap-3 overflow-y-auto flex-shrink-0">
                 <div className="flex flex-col items-center">
                   <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
                   <div className="w-0.5 flex-1 mt-1.5 min-h-[24px] rounded-full bg-border/60" />
@@ -399,7 +399,7 @@ export default function PostDetailPage() {
                 </div>
               </div>
               {/* Compose */}
-              <div className="px-4 pb-4">
+              <div className="px-4 pb-4 flex-shrink-0">
                 <ComposeBox
                   parentId={replyTarget.id}
                   placeholder="Post your reply"
