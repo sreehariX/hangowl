@@ -116,6 +116,11 @@ const PostCard = memo(function PostCard({
   const lastTapRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Sync liked state when the parent's likedIds set loads asynchronously after first render
+  useEffect(() => {
+    if (initialLiked !== undefined) setLiked(initialLiked);
+  }, [initialLiked]);
+
   useEffect(() => {
     if (hasViewed(post.id)) return;
     const el = cardRef.current;
