@@ -44,7 +44,9 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
-  const [optimisticReplyId, setOptimisticReplyId] = useState<string | null>(null);
+  const optimisticReplyIdRef = useRef<string | null>(null);
+  // Maps post.id → stable render key so the optimistic→real swap doesn't remount the component
+  const replyKeysRef = useRef<Map<string, string>>(new Map());
   const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
   const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -169,6 +171,9 @@ export default function PostDetailPage() {
     return () => { active = false; };
   }, [isAuthenticated]);
 
+  const userIdRef = useRef(userId);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+
   // Realtime: new direct replies
   useEffect(() => {
     const channel = supabase.channel(`post-${postId}-replies`)
@@ -176,7 +181,10 @@ export default function PostDetailPage() {
         (payload) => {
           const r = payload.new as Post;
           setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
-          setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+          // Only update count for others' replies — ours was already incremented optimistically
+          if (r.user_id !== userIdRef.current) {
+            setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+          }
         })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -199,7 +207,8 @@ export default function PostDetailPage() {
 
   function handleOptimisticReply(content: string, imageUrl: string | null) {
     const tempId = `optimistic-${Date.now()}`;
-    setOptimisticReplyId(tempId);
+    optimisticReplyIdRef.current = tempId;
+    replyKeysRef.current.set(tempId, tempId);
     const optimistic: Post = {
       id: tempId,
       user_id: userId ?? "",
@@ -217,14 +226,22 @@ export default function PostDetailPage() {
   }
 
   function handleReplyFailed() {
-    setReplies((prev) => prev.filter((r) => r.id !== optimisticReplyId));
+    const optId = optimisticReplyIdRef.current;
+    optimisticReplyIdRef.current = null;
+    replyKeysRef.current.delete(optId ?? "");
+    setReplies((prev) => prev.filter((r) => r.id !== optId));
     setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
-    setOptimisticReplyId(null);
   }
 
-  function handleReplied() {
-    setOptimisticReplyId(null);
-    refreshReplies();
+  function handleReplied(post: Post) {
+    const optId = optimisticReplyIdRef.current;
+    optimisticReplyIdRef.current = null;
+    // Transfer the stable render key from the optimistic ID to the real post ID
+    // so the key={...} in the list doesn't change → no unmount/remount flash
+    const stableKey = replyKeysRef.current.get(optId ?? "") ?? post.id;
+    replyKeysRef.current.delete(optId ?? "");
+    replyKeysRef.current.set(post.id, stableKey);
+    setReplies((prev) => prev.map((r) => r.id === optId ? post : r));
   }
 
   function handlePostDeleted() {
@@ -349,8 +366,9 @@ export default function PostDetailPage() {
         <div>
           {sortedReplies.map((reply) => {
             const subs = subRepliesMap[reply.id] ?? [];
+            const replyKey = replyKeysRef.current.get(reply.id) ?? reply.id;
             return (
-              <div key={reply.id}>
+              <div key={replyKey}>
                 <PostCard
                   post={reply}
                   liked={likedIds.has(reply.id)}

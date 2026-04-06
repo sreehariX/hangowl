@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { compressImage } from "@/lib/compress-image";
 import { ImagePreview } from "@/components/ImagePreview";
+import type { Post } from "@/lib/types";
 
 interface ComposeBoxProps {
   parentId?: string;
   placeholder?: string;
-  onPosted?: () => void;
+  onPosted?: (post: Post) => void;
   onPostStart?: () => void;
   onOptimisticPost?: (content: string, imageUrl: string | null) => void;
   onPostFailed?: () => void;
@@ -75,14 +76,14 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, onOpt
     onPostStart?.();
     onOptimisticPost?.(trimmed, imageUrl);
     try {
-      await api.createPost({
+      const { post } = await api.createPost({
         content: trimmed,
         image_url: imageUrl,
         parent_id: parentId || null,
       });
       setContent("");
       setImageUrl(null);
-      onPosted?.();
+      onPosted?.(post);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to post");
       onPostFailed?.();
