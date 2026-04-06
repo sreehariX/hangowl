@@ -58,11 +58,20 @@ async def unban_user(user_id: str, admin: dict = Depends(verify_admin)):
 async def admin_delete_post(post_id: str, admin: dict = Depends(verify_admin)):
     db = get_supabase()
 
-    post = db.table("posts").select("id").eq("id", post_id).execute()
+    post = db.table("posts").select("id, parent_id").eq("id", post_id).execute()
     if not post.data:
         raise HTTPException(status_code=404, detail="Post not found")
 
     db.table("posts").update({"is_hidden": True}).eq("id", post_id).execute()
+
+    parent_id = post.data[0].get("parent_id")
+    if parent_id:
+        parent_result = db.table("posts").select("replies_count").eq("id", parent_id).execute()
+        if parent_result.data:
+            current_count = parent_result.data[0].get("replies_count") or 0
+            new_count = max(0, current_count - 1)
+            db.table("posts").update({"replies_count": new_count}).eq("id", parent_id).execute()
+
     return {"message": "Post removed by admin"}
 
 
