@@ -25,7 +25,10 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
 
-    api.getUnreadCount().then((d) => setUnreadCount(d.count)).catch(() => {});
+    const fetchCount = () =>
+      api.getUnreadCount().then((d) => setUnreadCount(d.count)).catch(() => {});
+
+    fetchCount();
 
     const channel = supabase
       .channel(`nav-notif-${userId}`)
@@ -38,9 +41,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
           setTimeout(() => setPulse(false), 1000);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Re-fetch on reconnect in case we missed events while disconnected
+        if (status === "SUBSCRIBED") fetchCount();
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    // Re-sync when the user returns to the app (mobile background → foreground)
+    const onVisible = () => { if (document.visibilityState === "visible") fetchCount(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [isAuthenticated, userId]);
 
   const clearUnread = useCallback(() => setUnreadCount(0), []);

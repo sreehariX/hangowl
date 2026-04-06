@@ -150,6 +150,27 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
     };
   }, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Mobile back button ────────────────────────────────────────────────────
+  const closedByBackRef = useRef(false);
+  useEffect(() => {
+    closedByBackRef.current = false;
+    history.pushState({ lightbox: true }, "");
+
+    const onPopState = () => {
+      closedByBackRef.current = true;
+      onClose();
+    };
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // If closed by X (not back button), pop the history entry we pushed
+      if (!closedByBackRef.current && history.state?.lightbox) {
+        history.back();
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Mouse wheel (desktop) ────────────────────────────────────────────────
   function handleWheel(e: React.WheelEvent) {
     e.preventDefault();
@@ -185,8 +206,20 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       style={{ background: "#000" }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Close button */}
+      {/* Close button + zoom controls */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 z-10 pointer-events-none">
+        {isZoomed ? (
+          <div className="pointer-events-auto flex items-center gap-1">
+            <button onClick={() => commit(zoom - ZOOM_STEP, g.current.pan.x, g.current.pan.y)} disabled={zoom <= MIN_ZOOM}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm hover:bg-white/15 disabled:opacity-30">−</button>
+            <button onClick={() => commit(MIN_ZOOM, 0, 0)}
+              className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm hover:bg-white/15">Reset</button>
+            <button onClick={() => commit(zoom + ZOOM_STEP, g.current.pan.x, g.current.pan.y)} disabled={zoom >= MAX_ZOOM}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm hover:bg-white/15 disabled:opacity-30">+</button>
+          </div>
+        ) : (
+          <div />
+        )}
         <button
           onClick={onClose}
           aria-label="Close"
@@ -196,16 +229,6 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />
           </svg>
         </button>
-        {isZoomed && (
-          <div className="pointer-events-auto flex items-center gap-1">
-            <button onClick={() => commit(zoom - ZOOM_STEP, g.current.pan.x, g.current.pan.y)} disabled={zoom <= MIN_ZOOM}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm hover:bg-white/15 disabled:opacity-30">−</button>
-            <button onClick={() => commit(MIN_ZOOM, 0, 0)}
-              className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm hover:bg-white/15">Reset</button>
-            <button onClick={() => commit(zoom + ZOOM_STEP, g.current.pan.x, g.current.pan.y)} disabled={zoom >= MAX_ZOOM}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-lg backdrop-blur-sm hover:bg-white/15 disabled:opacity-30">+</button>
-          </div>
-        )}
       </div>
 
       {/* Image area */}
