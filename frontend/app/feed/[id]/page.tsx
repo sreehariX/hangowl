@@ -169,26 +169,20 @@ export default function PostDetailPage() {
     return () => { active = false; };
   }, [isAuthenticated]);
 
+  const userIdRef = useRef(userId);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+
   // Realtime: new direct replies
   useEffect(() => {
     const channel = supabase.channel(`post-${postId}-replies`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
         (payload) => {
           const r = payload.new as Post;
-          const optId = optimisticReplyIdRef.current;
-          setReplies((prev) => {
-            // If we have an optimistic placeholder, swap it out for the real reply
-            if (optId) {
-              const filtered = prev.filter((p) => p.id !== optId);
-              return filtered.some((p) => p.id === r.id) ? filtered : [...filtered, r];
-            }
-            return prev.some((p) => p.id === r.id) ? prev : [...prev, r];
-          });
+          setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
           // Only update count for others' replies — ours was already incremented optimistically
-          if (!optId) {
+          if (r.user_id !== userIdRef.current) {
             setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
           }
-          if (optId) optimisticReplyIdRef.current = null;
         })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -235,9 +229,11 @@ export default function PostDetailPage() {
     setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
   }
 
-  function handleReplied() {
+  function handleReplied(post: Post) {
+    const optId = optimisticReplyIdRef.current;
     optimisticReplyIdRef.current = null;
-    // Realtime subscription swaps the optimistic entry for the real reply — no extra fetch needed
+    // Replace optimistic entry with the real post from the API response — instant, no extra fetch
+    setReplies((prev) => prev.map((r) => r.id === optId ? post : r));
   }
 
   function handlePostDeleted() {
