@@ -44,6 +44,8 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
+  const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   // Two-phase render: ancestors stay hidden until scroll is positioned to prevent
   // the flash where parent post/image briefly appears before scrolling to focused post.
@@ -179,9 +181,23 @@ export default function PostDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [postId]);
 
+  function closeReplySheet(afterClose?: () => void) {
+    replySheetAfterClose.current = afterClose ?? null;
+    setIsClosingReplySheet(true);
+  }
+
+  function handleSheetAnimationEnd(e: React.AnimationEvent<HTMLDivElement>) {
+    if (e.target !== e.currentTarget) return;
+    if (isClosingReplySheet) {
+      setReplyTarget(null);
+      setIsClosingReplySheet(false);
+      replySheetAfterClose.current?.();
+      replySheetAfterClose.current = null;
+    }
+  }
+
   function handleReplied() {
-    setReplyTarget(null);
-    refreshReplies();
+    closeReplySheet(() => refreshReplies());
   }
 
   function handlePostDeleted() {
@@ -336,11 +352,15 @@ export default function PostDetailPage() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/60 animate-fade-in"
-            onClick={() => setReplyTarget(null)}
+            className={`fixed inset-0 z-40 bg-black/60 ${isClosingReplySheet ? "animate-fade-out" : "animate-fade-in"}`}
+            onClick={() => closeReplySheet()}
           />
           {/* Sheet */}
-          <div className="fixed inset-x-0 z-50 animate-sheet-up" style={{ bottom: keyboardHeight }}>
+          <div
+            className={`fixed inset-x-0 z-50 ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
+            style={{ bottom: keyboardHeight }}
+            onAnimationEnd={handleSheetAnimationEnd}
+          >
             <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
@@ -349,7 +369,7 @@ export default function PostDetailPage() {
               {/* Cancel */}
               <div className="flex items-center px-4 py-2">
                 <button
-                  onClick={() => setReplyTarget(null)}
+                  onClick={() => closeReplySheet()}
                   className="text-sm text-text-muted hover:text-text-primary transition-colors"
                 >
                   Cancel
