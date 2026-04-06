@@ -197,7 +197,7 @@ export default function PostDetailPage() {
   }
 
   function handleReplied() {
-    closeReplySheet(() => refreshReplies());
+    refreshReplies();
   }
 
   function handlePostDeleted() {
@@ -211,8 +211,13 @@ export default function PostDetailPage() {
     setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
   }
 
-  function handleSubReplyDeleted(subReplyId: string) {
+  function handleSubReplyDeleted(subReplyId: string, parentReplyId: string) {
     setSubReplies((prev) => prev.filter((s) => s.id !== subReplyId));
+    setReplies((prev) => prev.map((r) =>
+      r.id === parentReplyId
+        ? { ...r, replies_count: Math.max(0, r.replies_count - 1) }
+        : r
+    ));
   }
 
   // Only show full skeleton when we have no post data at all (cold load / direct URL).
@@ -337,7 +342,7 @@ export default function PostDetailPage() {
                     isAdmin={isAdmin}
                     seamless
                     showThreadLine={idx < subs.length - 1}
-                    onDeleted={() => handleSubReplyDeleted(sub.id)}
+                    onDeleted={() => handleSubReplyDeleted(sub.id, reply.id)}
                     onReply={isAuthenticated ? () => setReplyTarget(sub) : undefined}
                   />
                 ))}
@@ -358,7 +363,10 @@ export default function PostDetailPage() {
           {/* Sheet */}
           <div
             className={`fixed inset-x-0 z-50 ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
-            style={{ bottom: keyboardHeight }}
+            style={{
+              bottom: isClosingReplySheet ? 0 : keyboardHeight,
+              transition: isClosingReplySheet ? "none" : "bottom 0.15s ease-out",
+            }}
             onAnimationEnd={handleSheetAnimationEnd}
           >
             <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
@@ -395,6 +403,7 @@ export default function PostDetailPage() {
                 <ComposeBox
                   parentId={replyTarget.id}
                   placeholder="Post your reply"
+                  onPostStart={() => closeReplySheet()}
                   onPosted={handleReplied}
                   autoFocus
                 />

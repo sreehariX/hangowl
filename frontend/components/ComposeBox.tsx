@@ -9,13 +9,14 @@ interface ComposeBoxProps {
   parentId?: string;
   placeholder?: string;
   onPosted?: () => void;
+  onPostStart?: () => void;
   autoFocus?: boolean;
 }
 
 const MAX_CHARS = 500;
 const MAX_INPUT_MB = 20; // Accept up to 20MB — compressed before upload
 
-export function ComposeBox({ parentId, placeholder, onPosted, autoFocus }: ComposeBoxProps) {
+export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, autoFocus }: ComposeBoxProps) {
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -69,6 +70,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, autoFocus }: Compo
     if (!canPost) return;
     setPosting(true);
     setError(null);
+    onPostStart?.();
     try {
       await api.createPost({
         content: trimmed,
