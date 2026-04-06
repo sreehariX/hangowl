@@ -237,7 +237,7 @@ export default function PostDetailPage() {
 
   function handleReplied() {
     optimisticReplyIdRef.current = null;
-    refreshReplies();
+    // Realtime subscription swaps the optimistic entry for the real reply — no extra fetch needed
   }
 
   function handlePostDeleted() {
