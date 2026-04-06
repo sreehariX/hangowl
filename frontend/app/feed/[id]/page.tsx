@@ -32,7 +32,7 @@ export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const postId = params.id as string;
-  const { isAuthenticated, userId, loading: authLoading } = useAuth();
+  const { isAuthenticated, userId, personaName, loading: authLoading } = useAuth();
 
   // Seed from cache for instant display — avoids skeleton when navigating
   // to a reply that was already visible on screen.
@@ -44,6 +44,7 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  const [optimisticReplyId, setOptimisticReplyId] = useState<string | null>(null);
   const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
   const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -196,7 +197,33 @@ export default function PostDetailPage() {
     }
   }
 
+  function handleOptimisticReply(content: string, imageUrl: string | null) {
+    const tempId = `optimistic-${Date.now()}`;
+    setOptimisticReplyId(tempId);
+    const optimistic: Post = {
+      id: tempId,
+      user_id: userId ?? "",
+      content,
+      image_url: imageUrl,
+      parent_id: postId,
+      likes_count: 0,
+      replies_count: 0,
+      views_count: 0,
+      created_at: new Date().toISOString(),
+      users: { persona_name: personaName ?? "You" },
+    };
+    setReplies((prev) => [...prev, optimistic]);
+    setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+  }
+
+  function handleReplyFailed() {
+    setReplies((prev) => prev.filter((r) => r.id !== optimisticReplyId));
+    setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
+    setOptimisticReplyId(null);
+  }
+
   function handleReplied() {
+    setOptimisticReplyId(null);
     refreshReplies();
   }
 
@@ -404,7 +431,9 @@ export default function PostDetailPage() {
                   parentId={replyTarget.id}
                   placeholder="Post your reply"
                   onPostStart={() => closeReplySheet()}
+                  onOptimisticPost={handleOptimisticReply}
                   onPosted={handleReplied}
+                  onPostFailed={handleReplyFailed}
                   autoFocus
                 />
               </div>

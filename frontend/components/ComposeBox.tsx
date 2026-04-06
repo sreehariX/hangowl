@@ -10,13 +10,15 @@ interface ComposeBoxProps {
   placeholder?: string;
   onPosted?: () => void;
   onPostStart?: () => void;
+  onOptimisticPost?: (content: string, imageUrl: string | null) => void;
+  onPostFailed?: () => void;
   autoFocus?: boolean;
 }
 
 const MAX_CHARS = 500;
 const MAX_INPUT_MB = 20; // Accept up to 20MB — compressed before upload
 
-export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, autoFocus }: ComposeBoxProps) {
+export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, onOptimisticPost, onPostFailed, autoFocus }: ComposeBoxProps) {
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -71,6 +73,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, autoF
     setPosting(true);
     setError(null);
     onPostStart?.();
+    onOptimisticPost?.(trimmed, imageUrl);
     try {
       await api.createPost({
         content: trimmed,
@@ -82,6 +85,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, autoF
       onPosted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to post");
+      onPostFailed?.();
     } finally {
       setPosting(false);
     }
