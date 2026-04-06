@@ -355,27 +355,27 @@ export default function PostDetailPage() {
       {/* Reply bottom sheet */}
       {replyTarget && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — must be above nav (z-50) */}
           <div
-            className={`fixed inset-0 z-40 bg-black/60 ${isClosingReplySheet ? "animate-fade-out" : "animate-fade-in"}`}
+            className={`fixed inset-0 z-[55] bg-black/60 ${isClosingReplySheet ? "animate-fade-out" : "animate-fade-in"}`}
             onClick={() => closeReplySheet()}
           />
-          {/* Sheet */}
+          {/* Sheet — must be above nav (z-50) */}
           <div
-            className={`fixed inset-x-0 z-50 ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
+            className={`fixed inset-x-0 z-[60] ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
             style={{
               bottom: isClosingReplySheet ? 0 : keyboardHeight,
               transition: isClosingReplySheet ? "none" : "bottom 0.15s ease-out",
             }}
             onAnimationEnd={handleSheetAnimationEnd}
           >
-            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden flex flex-col" style={{ maxHeight: `calc(100svh - ${keyboardHeight}px - 16px)` }}>
+            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
               {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="flex justify-center pt-3 pb-1">
                 <div className="w-9 h-1 rounded-full bg-border" />
               </div>
               {/* Cancel */}
-              <div className="flex items-center px-4 py-2 flex-shrink-0">
+              <div className="flex items-center px-4 py-2">
                 <button
                   onClick={() => closeReplySheet()}
                   className="text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -384,7 +384,7 @@ export default function PostDetailPage() {
                 </button>
               </div>
               {/* Original post context */}
-              <div className="px-4 pb-2 flex gap-3 overflow-y-auto flex-shrink-0">
+              <div className="px-4 pb-2 flex gap-3">
                 <div className="flex flex-col items-center">
                   <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
                   <div className="w-0.5 flex-1 mt-1.5 min-h-[24px] rounded-full bg-border/60" />
@@ -399,7 +399,7 @@ export default function PostDetailPage() {
                 </div>
               </div>
               {/* Compose */}
-              <div className="px-4 pb-4 flex-shrink-0">
+              <div className="px-4 pb-4">
                 <ComposeBox
                   parentId={replyTarget.id}
                   placeholder="Post your reply"
