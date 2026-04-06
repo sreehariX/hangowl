@@ -44,7 +44,7 @@ export default function PostDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
-  const [optimisticReplyId, setOptimisticReplyId] = useState<string | null>(null);
+  const optimisticReplyIdRef = useRef<string | null>(null);
   const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
   const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -175,8 +175,20 @@ export default function PostDetailPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
         (payload) => {
           const r = payload.new as Post;
-          setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
-          setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+          const optId = optimisticReplyIdRef.current;
+          setReplies((prev) => {
+            // If we have an optimistic placeholder, swap it out for the real reply
+            if (optId) {
+              const filtered = prev.filter((p) => p.id !== optId);
+              return filtered.some((p) => p.id === r.id) ? filtered : [...filtered, r];
+            }
+            return prev.some((p) => p.id === r.id) ? prev : [...prev, r];
+          });
+          // Only update count for others' replies — ours was already incremented optimistically
+          if (!optId) {
+            setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
+          }
+          if (optId) optimisticReplyIdRef.current = null;
         })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -199,7 +211,7 @@ export default function PostDetailPage() {
 
   function handleOptimisticReply(content: string, imageUrl: string | null) {
     const tempId = `optimistic-${Date.now()}`;
-    setOptimisticReplyId(tempId);
+    optimisticReplyIdRef.current = tempId;
     const optimistic: Post = {
       id: tempId,
       user_id: userId ?? "",
@@ -217,13 +229,14 @@ export default function PostDetailPage() {
   }
 
   function handleReplyFailed() {
-    setReplies((prev) => prev.filter((r) => r.id !== optimisticReplyId));
+    const optId = optimisticReplyIdRef.current;
+    optimisticReplyIdRef.current = null;
+    setReplies((prev) => prev.filter((r) => r.id !== optId));
     setPost((prev) => prev ? { ...prev, replies_count: Math.max(0, prev.replies_count - 1) } : prev);
-    setOptimisticReplyId(null);
   }
 
   function handleReplied() {
-    setOptimisticReplyId(null);
+    optimisticReplyIdRef.current = null;
     refreshReplies();
   }
 
