@@ -284,7 +284,7 @@ async def hide_post(post_id: str, user: dict = Depends(verify_token)):
 
     post_result = (
         db.table("posts")
-        .select("user_id")
+        .select("user_id, parent_id")
         .eq("id", post_id)
         .execute()
     )
@@ -296,6 +296,15 @@ async def hide_post(post_id: str, user: dict = Depends(verify_token)):
         raise HTTPException(status_code=403, detail="Only the author can delete this post")
 
     db.table("posts").update({"is_hidden": True}).eq("id", post_id).execute()
+
+    parent_id = post_result.data[0].get("parent_id")
+    if parent_id:
+        parent_result = db.table("posts").select("replies_count").eq("id", parent_id).execute()
+        if parent_result.data:
+            current_count = parent_result.data[0].get("replies_count") or 0
+            new_count = max(0, current_count - 1)
+            db.table("posts").update({"replies_count": new_count}).eq("id", parent_id).execute()
+
     return {"message": "Post deleted"}
 
 
