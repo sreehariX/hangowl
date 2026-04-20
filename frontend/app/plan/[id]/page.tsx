@@ -8,6 +8,17 @@ import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { PlanChat } from "@/components/PlanChat";
+import { Spinner } from "@/components/primitives";
+import {
+  ArrowLeftIcon,
+  BarChartIcon,
+  CalendarIcon,
+  CheckIcon,
+  ClockIcon,
+  MapPinIcon,
+  ShareIcon,
+  UsersIcon,
+} from "@/components/icons";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -26,6 +37,39 @@ function formatDateIST(dateStr: string) {
     day: "numeric",
     timeZone: "Asia/Kolkata",
   });
+}
+
+function formatViews(n: number | null | undefined) {
+  const v = n ?? 0;
+  if (v < 1000) return String(v);
+  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 10_000 ? 1 : 0)}K`;
+  return `${(v / 1_000_000).toFixed(1)}M`;
+}
+
+function Stat({
+  icon,
+  value,
+  label,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  highlight?: "amber" | "brand" | "default";
+}) {
+  const tint =
+    highlight === "amber"
+      ? "text-amber"
+      : highlight === "brand"
+        ? "text-brand-400"
+        : "text-text-primary";
+  return (
+    <div className="flex flex-1 flex-col items-center gap-1 px-2">
+      <span className="text-text-tertiary">{icon}</span>
+      <span className={`text-body font-bold ${tint}`}>{value}</span>
+      <span className="text-[11px] text-text-tertiary">{label}</span>
+    </div>
+  );
 }
 
 function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => void }) {
@@ -93,216 +137,263 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const handleShare = async () => {
-    const time = `${formatTimeIST(plan.starts_at)} - ${formatTimeIST(plan.ends_at)}`;
-    const text = `${plan.activity} at ${plan.location} (${time} IST)${plan.description ? ` - "${plan.description}"` : ""}. Join on HangOwl:`;
+    const time = `${formatTimeIST(plan.starts_at)} – ${formatTimeIST(plan.ends_at)}`;
+    const text = `${plan.activity} at ${plan.location} (${time} IST)${
+      plan.description ? ` — "${plan.description}"` : ""
+    }. Join on HangOwl:`;
 
-    if (navigator.share) {
-      await navigator.share({
-        title: `${plan.activity} at ${plan.location} - HangOwl`,
-        text,
-        url: shareUrl,
-      });
-    } else {
-      await navigator.clipboard.writeText(`${text} ${shareUrl}`);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${plan.activity} at ${plan.location} · HangOwl`,
+          text,
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(`${text} ${shareUrl}`);
+      }
+    } catch {
+      /* user cancelled */
     }
   };
 
   return (
-    <div className="app-shell pt-6">
-      <div className="mx-auto w-full max-w-[620px] space-y-4 pb-24">
-      {lightboxOpen && plan.image_url && (
-        <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
-      )}
+    <div className="app-shell pt-4">
+      <div className="app-content space-y-4 pb-28">
+        {lightboxOpen && plan.image_url && (
+          <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
+        )}
 
-      <div className="hero-surface overflow-hidden">
-        {plan.image_url && (
+        <div className="sticky-bar -mx-4 md:-mx-5">
           <button
-            type="button"
-            className="block w-full cursor-zoom-in"
-            onClick={() => setLightboxOpen(true)}
+            onClick={() => router.back()}
+            className="icon-btn"
+            aria-label="Back"
           >
-            <img
-              src={plan.image_url}
-              alt={plan.activity}
-              className="w-full h-44 object-cover"
-              loading="lazy"
-              decoding="async"
-            />
+            <ArrowLeftIcon size={20} />
           </button>
-        )}
-
-      <div className="p-6 md:p-7">
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-3">{emoji}</div>
-          <h1 className="text-2xl font-bold text-text-primary">
+          <span className="flex-1 text-center text-[15px] font-semibold text-text-primary">
             {plan.activity}
-          </h1>
-          <p className="text-text-secondary mt-1">{plan.location}</p>
+          </span>
+          <button
+            onClick={handleShare}
+            className="icon-btn"
+            aria-label="Share"
+          >
+            <ShareIcon size={18} />
+          </button>
         </div>
 
-        {plan.description && (
-          <p className="text-sm text-text-secondary text-center mb-6">
-            {plan.description}
-          </p>
-        )}
+        <div className="surface-hero overflow-hidden">
+          {plan.image_url && (
+            <button
+              type="button"
+              className="relative block w-full cursor-zoom-in"
+              onClick={() => setLightboxOpen(true)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={plan.image_url}
+                alt={plan.activity}
+                className="h-48 w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-ink-950/80 to-transparent" />
+            </button>
+          )}
 
-        <div className="mb-6 flex items-center justify-around rounded-xl border border-border/70 bg-navy-lighter/80 p-3">
-          <div className="text-center">
-            <div className="text-sm font-bold text-amber">
-              {plan.plan_date ? formatDateIST(plan.plan_date) : ""}
+          <div className="p-6 md:p-7">
+            <div className="mb-6 flex flex-col items-center text-center">
+              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-surface-raised to-surface-hover text-4xl shadow-soft ring-1 ring-border/60">
+                {emoji}
+              </div>
+              <h1 className="text-title font-semibold tracking-tight text-text-primary">
+                {plan.activity}
+              </h1>
+              <p className="mt-1 flex items-center gap-1.5 text-body text-text-secondary">
+                <MapPinIcon size={14} className="text-text-tertiary" />
+                {plan.location}
+              </p>
             </div>
-            <div className="text-xs text-text-muted">
-              {formatTimeIST(plan.starts_at)} - {formatTimeIST(plan.ends_at)} IST
-            </div>
-          </div>
-          <div className="h-8 w-px bg-border" />
-          <div className="text-center">
-            <div className="text-lg font-bold text-mid-blue-light">
-              {members.length}/{plan.max_people}
-            </div>
-            <div className="text-xs text-text-muted">joined</div>
-          </div>
-          <div className="h-8 w-px bg-border" />
-          <div className="text-center">
-            <div className="text-lg font-bold text-text-secondary">
-              {(plan.views_count ?? 0) >= 1000
-                ? `${((plan.views_count ?? 0) / 1000).toFixed((plan.views_count ?? 0) < 10000 ? 1 : 0)}K`
-                : (plan.views_count ?? 0)}
-            </div>
-            <div className="text-xs text-text-muted">views</div>
-          </div>
-        </div>
 
-        <div className="mb-6">
-          <p className="text-xs text-text-muted mb-2">Created by</p>
-          <div className="flex items-center gap-2">
-            <Avatar name={creatorName} size={28} />
-            <p className="text-sm font-medium text-text-primary">{creatorName}</p>
-          </div>
-        </div>
+            {plan.description && (
+              <p className="mb-6 text-center text-body text-text-secondary">
+                {plan.description}
+              </p>
+            )}
 
-        {members.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs text-text-muted mb-2">
-              People in ({members.length})
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {members.map((m, i) => (
-                <span
-                  key={i}
-                  className="flex items-center gap-1.5 rounded-full bg-navy-lighter px-2 py-1 text-xs text-text-secondary"
+            <div className="mb-6 flex items-stretch justify-between gap-2 rounded-2xl border border-border/60 bg-ink-850/60 p-3">
+              <Stat
+                icon={<CalendarIcon size={16} />}
+                value={plan.plan_date ? formatDateIST(plan.plan_date) : "—"}
+                label={`${formatTimeIST(plan.starts_at)} – ${formatTimeIST(plan.ends_at)}`}
+                highlight="amber"
+              />
+              <div className="w-px bg-border/60" />
+              <Stat
+                icon={<UsersIcon size={16} />}
+                value={`${members.length}/${plan.max_people}`}
+                label="joined"
+                highlight="brand"
+              />
+              <div className="w-px bg-border/60" />
+              <Stat
+                icon={<BarChartIcon size={16} />}
+                value={formatViews(plan.views_count)}
+                label="views"
+              />
+            </div>
+
+            <div className="mb-5">
+              <p className="section-eyebrow mb-2">Created by</p>
+              <div className="flex items-center gap-2.5">
+                <Avatar name={creatorName} size={30} />
+                <p className="text-body font-semibold text-text-primary">
+                  {creatorName}
+                </p>
+              </div>
+            </div>
+
+            {members.length > 0 && (
+              <div className="mb-6">
+                <p className="section-eyebrow mb-2">
+                  People in · {members.length}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {members.map((m, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface-hover/70 px-2.5 py-1 text-caption text-text-secondary"
+                    >
+                      <Avatar name={m.users?.persona_name ?? "?"} size={18} />
+                      {m.users?.persona_name ?? "?"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!ended && (
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleJoin}
+                  disabled={joining || alreadyJoined}
+                  className={
+                    alreadyJoined
+                      ? "btn-block flex h-12 items-center justify-center gap-2 rounded-xl border border-success/35 bg-success/12 text-body font-semibold text-success"
+                      : "btn-primary btn-lg btn-block"
+                  }
                 >
-                  <Avatar name={m.users?.persona_name ?? "?"} size={18} />
-                  {m.users?.persona_name ?? "?"}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+                  {joining ? (
+                    <Spinner size={16} tone="ink" />
+                  ) : alreadyJoined && isCreator ? (
+                    <>
+                      <CheckIcon size={16} />
+                      You created this plan
+                    </>
+                  ) : alreadyJoined ? (
+                    <>
+                      <CheckIcon size={16} />
+                      You&apos;re in this plan
+                    </>
+                  ) : isAuthenticated ? (
+                    "Join this plan"
+                  ) : (
+                    "Sign in to join"
+                  )}
+                </button>
 
-        {!ended && (
-          <div className="space-y-2">
-            <button
-              onClick={handleJoin}
-              disabled={joining || alreadyJoined}
-              className={`w-full rounded-xl py-3 font-semibold transition-all active:scale-[0.98] ${
-                alreadyJoined
-                  ? "bg-success/15 text-success border border-success/30 cursor-default"
-                  : "premium-button disabled:opacity-50"
-              }`}
-            >
-              {joining
-                ? "Joining..."
-                : alreadyJoined && isCreator
-                  ? "You created this plan"
-                  : alreadyJoined
-                    ? "You're in this plan"
-                    : isAuthenticated
-                      ? "Join This Plan"
-                      : "Login to Join"}
-            </button>
-            <button
-              onClick={handleShare}
-              className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:border-mid-blue/50 hover:bg-surface-hover"
-            >
-              Share with friends
-            </button>
-            {alreadyJoined && !isCreator && !confirmLeave && (
-              <button
-                onClick={() => setConfirmLeave(true)}
-                className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover"
-              >
-                Leave this plan
-              </button>
-            )}
-            {alreadyJoined && !isCreator && confirmLeave && (
-              <div className="rounded-xl border border-border p-3 space-y-2">
-                <p className="text-xs text-text-secondary text-center">
-                  Are you sure you want to leave this plan?
-                </p>
-                <div className="flex gap-2">
+                <button
+                  onClick={handleShare}
+                  className="btn-secondary btn-lg btn-block gap-2"
+                >
+                  <ShareIcon size={16} />
+                  Share with friends
+                </button>
+
+                {alreadyJoined && !isCreator && !confirmLeave && (
                   <button
-                    onClick={() => setConfirmLeave(false)}
-                    className="flex-1 rounded-lg border border-border py-2 text-sm text-text-secondary transition-colors hover:bg-surface-hover"
+                    onClick={() => setConfirmLeave(true)}
+                    className="btn-ghost btn-sm btn-block"
                   >
-                    Cancel
+                    Leave this plan
                   </button>
+                )}
+                {alreadyJoined && !isCreator && confirmLeave && (
+                  <div className="space-y-2.5 rounded-xl border border-border/60 bg-surface/60 p-3.5">
+                    <p className="text-center text-body text-text-secondary">
+                      Are you sure you want to leave this plan?
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmLeave(false)}
+                        className="btn-secondary flex-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleLeave}
+                        disabled={leaving}
+                        className="btn-danger flex-1"
+                      >
+                        {leaving ? <Spinner size={14} tone="white" /> : "Yes, leave"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isCreator && !confirmDelete && (
                   <button
-                    onClick={handleLeave}
-                    disabled={leaving}
-                    className="flex-1 rounded-lg bg-error py-2 text-sm font-medium text-white transition-colors hover:bg-error/80 disabled:opacity-50"
+                    onClick={() => setConfirmDelete(true)}
+                    className="btn-danger btn-block"
                   >
-                    {leaving ? "Leaving..." : "Yes, leave"}
+                    Delete this plan
                   </button>
-                </div>
+                )}
+                {isCreator && confirmDelete && (
+                  <div className="space-y-2.5 rounded-xl border border-danger/30 bg-danger/5 p-3.5">
+                    <p className="text-center text-body text-text-secondary">
+                      This will remove the plan from the board. Are you sure?
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="btn-secondary flex-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="btn-danger flex-1"
+                      >
+                        {deleting ? <Spinner size={14} tone="white" /> : "Yes, delete"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            {isCreator && !confirmDelete && (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="w-full rounded-xl border border-error/30 py-3 text-sm font-medium text-error transition-colors hover:bg-error/10"
-              >
-                Delete this plan
-              </button>
+
+            {error && (
+              <p className="mt-3 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-center text-caption text-danger">
+                {error}
+              </p>
             )}
-            {isCreator && confirmDelete && (
-              <div className="rounded-xl border border-error/30 p-3 space-y-2">
-                <p className="text-xs text-text-secondary text-center">
-                  This will remove the plan from the board. Are you sure?
+
+            {ended && (
+              <div className="rounded-xl border border-border/60 bg-surface-hover/50 px-3 py-2.5 text-center">
+                <p className="flex items-center justify-center gap-1.5 text-body font-medium text-text-tertiary">
+                  <ClockIcon size={14} />
+                  This plan has ended
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="flex-1 rounded-lg border border-border py-2 text-sm text-text-secondary transition-colors hover:bg-surface-hover"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="flex-1 rounded-lg bg-error py-2 text-sm font-medium text-white transition-colors hover:bg-error/80 disabled:opacity-50"
-                  >
-                    {deleting ? "Removing..." : "Yes, delete"}
-                  </button>
-                </div>
               </div>
             )}
           </div>
-        )}
+        </div>
 
-        {error && (
-          <p className="mt-3 text-center text-sm text-error">{error}</p>
-        )}
-
-        {ended && (
-          <div className="rounded-xl bg-error/10 p-3 text-center">
-            <p className="text-sm font-medium text-error">This plan has ended</p>
-          </div>
-        )}
-      </div>
-      </div>
-
-      <PlanChat planId={plan.id} />
+        <PlanChat planId={plan.id} />
       </div>
     </div>
   );
@@ -327,7 +418,6 @@ export default function PlanPage() {
 
   useEffect(() => {
     fetchPlan();
-    // Record view only once per session per plan (persists through same-tab refreshes)
     const planId = params.id as string;
     try {
       const raw = sessionStorage.getItem("ho_viewed_plans");
@@ -346,14 +436,14 @@ export default function PlanPage() {
   if (loading) {
     return (
       <div className="app-shell pt-6">
-        <div className="mx-auto w-full max-w-[620px]">
-        <div className="hero-surface p-6 space-y-4">
-          <div className="skeleton h-12 w-12 mx-auto rounded-xl" />
-          <div className="skeleton h-6 w-32 mx-auto" />
-          <div className="skeleton h-4 w-24 mx-auto" />
-          <div className="skeleton h-20 w-full rounded-xl" />
-          <div className="skeleton h-12 w-full rounded-xl" />
-        </div>
+        <div className="app-content">
+          <div className="surface-hero space-y-4 p-6">
+            <div className="skeleton mx-auto h-16 w-16 rounded-2xl" />
+            <div className="skeleton mx-auto h-6 w-40" />
+            <div className="skeleton mx-auto h-4 w-28" />
+            <div className="skeleton h-20 w-full rounded-2xl" />
+            <div className="skeleton h-12 w-full rounded-xl" />
+          </div>
         </div>
       </div>
     );
@@ -363,11 +453,11 @@ export default function PlanPage() {
     return (
       <div className="app-shell pt-16">
         <div className="mx-auto max-w-sm text-center">
-        <div className="text-4xl mb-4">🦉</div>
-        <h1 className="text-xl font-bold text-text-primary mb-2">
-          Plan not found
-        </h1>
-        <p className="text-sm text-text-secondary">{error}</p>
+          <div className="mb-4 text-4xl">🦉</div>
+          <h1 className="mb-2 text-title font-semibold text-text-primary">
+            Plan not found
+          </h1>
+          <p className="text-body text-text-secondary">{error}</p>
         </div>
       </div>
     );

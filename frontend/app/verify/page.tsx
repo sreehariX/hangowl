@@ -3,10 +3,14 @@
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/Avatar";
+import { Spinner } from "@/components/primitives";
+import { MailIcon, SparkleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 type Step = "email" | "otp" | "welcome";
+
+const IITB_DOMAIN = "@iitb.ac.in";
 
 export default function VerifyPage() {
   const [step, setStep] = useState<Step>("email");
@@ -22,14 +26,15 @@ export default function VerifyPage() {
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.endsWith("@iitb.ac.in")) {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized.endsWith(IITB_DOMAIN)) {
       setError("Only @iitb.ac.in emails are allowed");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      await api.sendOTP(email);
+      await api.sendOTP(normalized);
       setStep("otp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send OTP");
@@ -73,7 +78,7 @@ export default function VerifyPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await api.verifyOTP(email, code);
+      const data = await api.verifyOTP(email.trim().toLowerCase(), code);
       login(data.user_id, data.persona_name, data.token);
       setPersona(data.persona_name);
       setIsNew(data.is_new);
@@ -90,23 +95,35 @@ export default function VerifyPage() {
   if (step === "welcome") {
     return (
       <div className="app-shell pt-12">
-        <div className="mx-auto max-w-sm text-center">
-        <div className="flex justify-center mb-6">
-          <Avatar name={persona} size={80} />
-        </div>
-        <h1 className="mb-2 text-2xl font-semibold text-text-primary">
-          {isNew ? "Welcome to HangOwl!" : "Welcome back!"}
-        </h1>
-        <p className="mb-6 text-text-secondary">Your anonymous name is</p>
-        <div className="hero-surface mb-8 px-6 py-4">
-          <span className="text-xl font-bold text-amber">{persona}</span>
-        </div>
-        <button
-          onClick={() => router.push("/")}
-          className="premium-button w-full py-3.5"
-        >
-          Go to Feed
-        </button>
+        <div className="mx-auto flex max-w-sm flex-col items-center text-center">
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute inset-0 -z-10 rounded-full bg-amber/25 blur-2xl"
+            />
+            <Avatar name={persona} size={88} />
+          </div>
+          <h1 className="mt-6 text-title font-semibold tracking-tight text-text-primary">
+            {isNew ? "Welcome to HangOwl" : "Welcome back"}
+          </h1>
+          <p className="mt-1.5 text-body text-text-secondary">
+            Your anonymous name is
+          </p>
+          <div className="surface-hero mt-5 w-full px-6 py-5">
+            <span className="bg-gradient-gold bg-clip-text text-title font-bold tracking-tight text-transparent">
+              {persona}
+            </span>
+          </div>
+          <button
+            onClick={() => router.push("/")}
+            className="btn-primary btn-lg btn-block mt-8"
+          >
+            Enter the feed
+          </button>
+          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-text-tertiary">
+            <SparkleIcon size={11} className="text-amber" />
+            Keep this name — it&apos;s how people will know you.
+          </p>
         </div>
       </div>
     );
@@ -114,81 +131,92 @@ export default function VerifyPage() {
 
   return (
     <div className="app-shell pt-12">
-      <div className="mx-auto max-w-sm">
-      <div className="text-center mb-8">
-        <div className="text-4xl mb-4">🦉</div>
-        <h1 className="mb-1 text-2xl font-semibold text-text-primary">
-          {step === "email" ? "Verify your IIT-B email" : "Enter the 6-digit code"}
-        </h1>
-        <p className="text-sm text-text-secondary">
-          {step === "email"
-            ? "We send a code to your email to sign you in. Your email is only used for that. To everyone else on the app you're anonymous."
-            : `We sent a code to ${email}`}
-        </p>
-      </div>
-
-      {step === "email" && (
-        <form onSubmit={handleSendOTP} className="space-y-4">
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="rollnumber@iitb.ac.in"
-              className="premium-input py-3.5"
-              autoFocus
-              required
-            />
+      <div className="mx-auto flex max-w-sm flex-col">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-border/70 bg-surface-raised/60 text-4xl shadow-soft">
+            🦉
           </div>
-          <button
-            type="submit"
-            disabled={loading || !email}
-            className="premium-button w-full py-3.5"
-          >
-            {loading ? "Sending..." : "Send verification code"}
-          </button>
-        </form>
-      )}
-
-      {step === "otp" && (
-        <div className="space-y-6">
-          <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
-            {otp.map((digit, i) => (
-              <input
-                key={i}
-                ref={(el) => { otpRefs.current[i] = el; }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleOtpChange(i, e.target.value)}
-                onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                className="h-14 w-11 rounded-xl border border-border bg-navy-light/85 text-center text-xl font-bold text-text-primary transition-colors focus:border-mid-blue focus:outline-none"
-                autoFocus={i === 0}
-              />
-            ))}
-          </div>
-          {loading && (
-            <p className="text-center text-sm text-text-secondary">
-              Verifying...
-            </p>
-          )}
-          <button
-            onClick={() => {
-              setStep("email");
-              setOtp(["", "", "", "", "", ""]);
-              setError("");
-            }}
-            className="block w-full text-center text-sm text-text-muted hover:text-text-secondary transition-colors"
-          >
-            Use a different email
-          </button>
+          <h1 className="text-title font-semibold tracking-tight text-text-primary">
+            {step === "email" ? "Sign in with IIT-B" : "Enter the 6-digit code"}
+          </h1>
+          <p className="mx-auto mt-2 max-w-[320px] text-body text-text-secondary">
+            {step === "email"
+              ? "We send a code to your email to sign you in. To everyone else on HangOwl you remain anonymous."
+              : `We sent a code to ${email}`}
+          </p>
         </div>
-      )}
 
-      {error && (
-        <p className="mt-4 text-center text-sm text-error">{error}</p>
-      )}
+        {step === "email" && (
+          <form onSubmit={handleSendOTP} className="space-y-4">
+            <label className="relative block">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary">
+                <MailIcon size={18} />
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="rollnumber@iitb.ac.in"
+                className="input py-3.5 pl-11"
+                autoComplete="email"
+                spellCheck={false}
+                autoFocus
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={loading || !email}
+              className="btn-primary btn-lg btn-block"
+            >
+              {loading ? <Spinner size={18} tone="ink" /> : "Send verification code"}
+            </button>
+          </form>
+        )}
+
+        {step === "otp" && (
+          <div className="space-y-6">
+            <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+              {otp.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => {
+                    otpRefs.current[i] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(i, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                  className="h-14 w-11 rounded-xl border border-border/70 bg-ink-850/70 text-center text-xl font-bold tabular-nums text-text-primary transition-colors focus:border-amber focus:bg-ink-800 focus:outline-none"
+                  autoFocus={i === 0}
+                />
+              ))}
+            </div>
+            {loading && (
+              <p className="flex items-center justify-center gap-2 text-body text-text-secondary">
+                <Spinner size={14} /> Verifying…
+              </p>
+            )}
+            <button
+              onClick={() => {
+                setStep("email");
+                setOtp(["", "", "", "", "", ""]);
+                setError("");
+              }}
+              className="block w-full text-center text-body text-text-tertiary transition-colors hover:text-text-primary"
+            >
+              Use a different email
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <p className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-center text-caption text-danger">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );
