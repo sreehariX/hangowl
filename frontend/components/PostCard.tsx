@@ -5,26 +5,45 @@ import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import {
+  HeartIcon,
+  ReplyIcon,
+  ShareIcon,
+  BarChartIcon,
+  DotsIcon,
+} from "@/components/icons";
 import { api } from "@/lib/api";
 import { postCache } from "@/lib/post-cache";
 import type { Post } from "@/lib/types";
 
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
+
 const VIEWS_KEY = "ho_viewed_v2";
 const VIEWS_TTL = 24 * 60 * 60 * 1000;
+const THREAD_COLOR = "rgba(91, 131, 212, 0.24)";
 
 function getViewedStore(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 function hasViewed(id: string) {
-  const s = getViewedStore(); return !!s[id] && Date.now() < s[id];
+  const s = getViewedStore();
+  return !!s[id] && Date.now() < s[id];
 }
 function addViewed(id: string) {
   try {
     const s = getViewedStore();
     if (s[id] && Date.now() < s[id]) return;
     s[id] = Date.now() + VIEWS_TTL;
-    const pruned = Object.entries(s).filter(([, e]) => Date.now() < e).sort(([, a], [, b]) => b - a).slice(0, 500);
+    const pruned = Object.entries(s)
+      .filter(([, e]) => Date.now() < e)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 500);
     localStorage.setItem(VIEWS_KEY, JSON.stringify(Object.fromEntries(pruned)));
   } catch {}
 }
@@ -46,31 +65,66 @@ function formatRelativeTime(iso: string) {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d`;
   return new Date(iso).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", timeZone: "Asia/Kolkata",
+    month: "short",
+    day: "numeric",
+    timeZone: "Asia/Kolkata",
     ...(d > 365 ? { year: "numeric" } : {}),
   });
 }
 
 function formatFullDate(iso: string) {
   const d = new Date(iso);
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Kolkata" });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+  const date = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
   return `${time} · ${date}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Image                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    // Fixed aspect ratio so the space is always reserved before the image loads —
-    // prevents replies/content below from jumping when the image paints.
-    <button type="button" className="mt-3 block w-full rounded-2xl overflow-hidden focus:outline-none cursor-zoom-in aspect-[2/1]"
-      onClick={(e) => { e.stopPropagation(); onOpen(); }}>
-      {!loaded && <div className="skeleton w-full h-full" />}
-      <img src={src} alt="" draggable={false} loading="lazy" decoding="async" onLoad={() => setLoaded(true)}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`} />
+    <button
+      type="button"
+      className="group relative mt-3 block aspect-[2/1] w-full overflow-hidden rounded-2xl border border-border/60 bg-ink-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+      aria-label="Open image"
+    >
+      {!loaded && <div className="skeleton absolute inset-0 rounded-2xl" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className={`h-full w-full object-cover transition-all duration-500 ease-out ${
+          loaded ? "scale-100 opacity-100" : "scale-[1.02] opacity-0"
+        } group-hover:scale-[1.015]`}
+      />
     </button>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Main                                                                        */
+/* -------------------------------------------------------------------------- */
 
 const BAN_OPTIONS = [
   { type: "1_week", label: "1 week" },
@@ -78,17 +132,12 @@ const BAN_OPTIONS = [
   { type: "permanent", label: "Permanent" },
 ] as const;
 
-// Thread line color — visible on navy bg but subtle like Twitter
-const THREAD_COLOR = "#3E3E62";
-
 interface PostCardProps {
   post: Post;
   liked?: boolean;
   currentUserId?: string | null;
   isAdmin?: boolean;
   isDetail?: boolean;
-  // Thread display: showThreadLine draws a line below this card's avatar extending to the card below.
-  // seamless draws an incoming line that bridges from the previous card's thread line to this avatar.
   showThreadLine?: boolean;
   seamless?: boolean;
   onDeleted?: () => void;
@@ -96,8 +145,15 @@ interface PostCardProps {
 }
 
 const PostCard = memo(function PostCard({
-  post, liked: initialLiked, currentUserId, isAdmin, isDetail,
-  showThreadLine, seamless, onDeleted, onReply,
+  post,
+  liked: initialLiked,
+  currentUserId,
+  isAdmin,
+  isDetail,
+  showThreadLine,
+  seamless,
+  onDeleted,
+  onReply,
 }: PostCardProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -116,7 +172,6 @@ const PostCard = memo(function PostCard({
   const lastTapRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Sync liked state when the parent's likedIds set loads asynchronously after first render
   useEffect(() => {
     if (initialLiked !== undefined) setLiked(initialLiked);
   }, [initialLiked]);
@@ -126,21 +181,27 @@ const PostCard = memo(function PostCard({
     const el = cardRef.current;
     if (!el) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        timer = setTimeout(() => {
-          if (hasViewed(post.id)) return;
-          addViewed(post.id);
-          api.recordPostView(post.id).catch(() => {});
-          setViewsCount((c) => c + 1);
-          observer.disconnect();
-        }, 1000);
-      } else {
-        if (timer) clearTimeout(timer);
-      }
-    }, { threshold: 0.5 });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          timer = setTimeout(() => {
+            if (hasViewed(post.id)) return;
+            addViewed(post.id);
+            api.recordPostView(post.id).catch(() => {});
+            setViewsCount((c) => c + 1);
+            observer.disconnect();
+          }, 1000);
+        } else if (timer) {
+          clearTimeout(timer);
+        }
+      },
+      { threshold: 0.5 },
+    );
     observer.observe(el);
-    return () => { observer.disconnect(); if (timer) clearTimeout(timer); };
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
   }, [post.id]);
 
   const personaName = post.users?.persona_name ?? "Anonymous";
@@ -152,13 +213,22 @@ const PostCard = memo(function PostCard({
     if (liking || !currentUserId) return;
     setLiking(true);
     const prev = { liked, count: likesCount };
-    setLiked(!liked); setLikesCount(liked ? Math.max(0, likesCount - 1) : likesCount + 1);
-    if (!liked) { setLikeAnim(true); setTimeout(() => setLikeAnim(false), 400); }
+    setLiked(!liked);
+    setLikesCount(liked ? Math.max(0, likesCount - 1) : likesCount + 1);
+    if (!liked) {
+      setLikeAnim(true);
+      setTimeout(() => setLikeAnim(false), 400);
+    }
     try {
       const res = await api.toggleLike(post.id);
-      setLiked(res.liked); setLikesCount(res.likes_count);
-    } catch { setLiked(prev.liked); setLikesCount(prev.count); }
-    finally { setLiking(false); }
+      setLiked(res.liked);
+      setLikesCount(res.likes_count);
+    } catch {
+      setLiked(prev.liked);
+      setLikesCount(prev.count);
+    } finally {
+      setLiking(false);
+    }
   }
 
   async function handleDelete() {
@@ -167,93 +237,130 @@ const PostCard = memo(function PostCard({
       if (isAdmin && !isAuthor) await api.adminDeletePost(post.id);
       else await api.deletePost(post.id);
       onDeleted?.();
-    } catch { setDeleting(false); setConfirmDelete(false); }
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   }
 
   async function handleBan(banType: string) {
     setBanning(true);
-    try { await api.banUser(post.user_id, banType); setBanDone(banType); setShowBanMenu(false); }
-    catch { /* silent */ } finally { setBanning(false); }
+    try {
+      await api.banUser(post.user_id, banType);
+      setBanDone(banType);
+      setShowBanMenu(false);
+    } catch {
+      /* silent */
+    } finally {
+      setBanning(false);
+    }
   }
 
   function handleDoubleTap(e: React.MouseEvent | React.TouchEvent) {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       if (!liked && currentUserId) handleLike();
-      setDoubleTapHeart(true); setTimeout(() => setDoubleTapHeart(false), 600);
+      setDoubleTapHeart(true);
+      setTimeout(() => setDoubleTapHeart(false), 600);
     }
     lastTapRef.current = now;
   }
 
   function handleShare() {
     const url = `${window.location.origin}/feed/${post.id}`;
-    if (navigator.share) navigator.share({ text: post.content.slice(0, 100), url }).catch(() => {});
+    if (navigator.share)
+      navigator.share({ text: post.content.slice(0, 100), url }).catch(() => {});
     else navigator.clipboard.writeText(url).catch(() => {});
   }
 
-  // showThreadLine removes bottom padding + border so the thread line is the only separator.
-  // seamless no longer removes top padding — pt-3 stays on all cards so replies breathe.
-  // The incoming thread line on a seamless card starts 12px above the flex row (top: -12)
-  // so it bridges through the padding gap and reaches the avatar center.
-  const pt = "pt-3";
-  const pbBorder = showThreadLine ? "pb-0" : "border-b border-border pb-3";
+  const pt = "pt-4";
+  const pbBorder = showThreadLine ? "pb-0" : "border-b border-border/60 pb-4";
 
   return (
     <div
       ref={cardRef}
-      className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "cursor-pointer select-none hover:bg-surface-hover/45" : ""}`}
-      onClick={isNavigable ? () => { postCache.set(post.id, post); startTransition(() => router.push(`/feed/${post.id}`)); } : undefined}
+      className={`relative px-4 transition-colors duration-200 ${pt} ${pbBorder} ${
+        isNavigable ? "cursor-pointer select-none hover:bg-surface-hover/40" : ""
+      }`}
+      onClick={
+        isNavigable
+          ? () => {
+              postCache.set(post.id, post);
+              startTransition(() => router.push(`/feed/${post.id}`));
+            }
+          : undefined
+      }
     >
       <div className="flex gap-3">
-
         {/* Avatar column with thread line */}
-        <div className="relative flex flex-col items-center shrink-0">
-          {/* Incoming thread line — starts 12px above the flex row (bridging the pt-3 gap)
-               and reaches the avatar center (12 + 20 = 32px), connecting to parent's outgoing line */}
+        <div className="relative flex shrink-0 flex-col items-center">
           {seamless && (
             <div
-              className="absolute left-1/2 -translate-x-1/2 w-[2px]"
-              style={{ background: THREAD_COLOR, top: -12, height: 32 }}
+              className="absolute left-1/2 w-[2px] -translate-x-1/2"
+              style={{ background: THREAD_COLOR, top: -16, height: 36 }}
             />
           )}
-
-          <Avatar name={personaName} size={40} className={seamless ? "mt-0 z-[1] relative" : "mt-0.5 z-[1] relative"} />
-
-          {/* Outgoing thread line (to card below) */}
+          <Avatar
+            name={personaName}
+            size={40}
+            className={`relative z-[1] ${seamless ? "mt-0" : "mt-0.5"}`}
+          />
           {showThreadLine && (
             <div
-              className="absolute left-1/2 -translate-x-1/2 w-[2px]"
+              className="absolute left-1/2 w-[2px] -translate-x-1/2"
               style={{ background: THREAD_COLOR, top: seamless ? 40 : 42, bottom: -1 }}
             />
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {/* Name · time */}
           <div className="flex min-w-0 items-center">
-            <span className="text-[15px] font-bold text-text-primary truncate">{personaName}</span>
+            <span className="truncate text-[15px] font-semibold tracking-tight text-text-primary">
+              {personaName}
+            </span>
             {!isDetail && (
               <>
-                <span className="mx-1.5 text-text-muted text-[13px] shrink-0">·</span>
-                <span className="text-[13px] text-text-muted shrink-0" title={formatFullDate(post.created_at)}>
+                <span className="mx-1.5 shrink-0 text-caption text-text-muted">·</span>
+                <span
+                  className="shrink-0 text-caption text-text-tertiary"
+                  title={formatFullDate(post.created_at)}
+                >
                   {formatRelativeTime(post.created_at)}
                 </span>
               </>
             )}
             {canDelete && !confirmDelete && (
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                className="ml-auto text-text-muted hover:text-error shrink-0 pl-2 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-                </svg>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmDelete(true);
+                }}
+                className="icon-btn ml-auto shrink-0 h-7 w-7 hover:text-danger"
+                aria-label="Post menu"
+              >
+                <DotsIcon size={16} />
               </button>
             )}
             {canDelete && confirmDelete && (
-              <span className="ml-auto flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => setConfirmDelete(false)} className="text-xs text-text-muted hover:text-text-primary">Cancel</button>
-                <button onClick={handleDelete} disabled={deleting} className="text-xs font-medium text-error hover:text-error/80 disabled:opacity-50">
-                  {deleting ? "..." : "Delete"}
+              <span
+                className="ml-auto flex shrink-0 items-center gap-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-caption font-medium text-text-tertiary hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="text-caption font-semibold text-danger hover:text-danger/80 disabled:opacity-50"
+                >
+                  {deleting ? "…" : "Delete"}
                 </button>
               </span>
             )}
@@ -261,90 +368,146 @@ const PostCard = memo(function PostCard({
 
           {/* Content + image */}
           <div className="relative" onClick={handleDoubleTap}>
-            <p className={`whitespace-pre-wrap break-words leading-snug text-text-primary ${isDetail ? "mt-2 text-[17px]" : "mt-0.5 text-[15px]"}`}>
+            <p
+              className={`whitespace-pre-wrap break-words leading-relaxed text-text-primary ${
+                isDetail ? "mt-2 text-[17px]" : "mt-0.5 text-[15px]"
+              }`}
+            >
               {post.content}
             </p>
             {post.image_url && (
               <PostImage src={post.image_url} onOpen={() => setLightboxSrc(post.image_url!)} />
             )}
             {doubleTapHeart && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="text-error animate-like-pop opacity-90 drop-shadow-lg">
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                </svg>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <HeartIcon
+                  filled
+                  size={64}
+                  className="animate-like-pop text-danger opacity-90 drop-shadow-lg"
+                />
               </div>
             )}
           </div>
 
-          {/* Full date — only on detail view */}
           {isDetail && (
-            <p className="mt-3 text-[14px] text-text-muted">{formatFullDate(post.created_at)}</p>
+            <p className="mt-3 text-body text-text-tertiary">{formatFullDate(post.created_at)}</p>
           )}
 
           {/* Action bar */}
-          <div className={`mt-2 flex items-center gap-6 ${isDetail ? "border-t border-border/80 pt-3" : ""}`}>
-            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} disabled={!currentUserId}
-                className={`flex items-center gap-1.5 text-[13px] transition-colors ${liked ? "text-error" : "text-text-muted hover:text-error"} disabled:cursor-not-allowed disabled:opacity-40`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={likeAnim ? "animate-like-pop" : ""}>
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              </svg>
+          <div
+            className={`mt-3 flex items-center gap-5 text-caption ${
+              isDetail ? "border-t border-border/60 pt-3" : ""
+            }`}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike();
+              }}
+              disabled={!currentUserId}
+              className={`group flex items-center gap-1.5 rounded-full px-1 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+                liked
+                  ? "text-danger"
+                  : "text-text-tertiary hover:text-danger"
+              }`}
+              aria-label="Like"
+              aria-pressed={liked}
+            >
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                  liked ? "bg-danger/10" : "group-hover:bg-danger/10"
+                }`}
+              >
+                <HeartIcon size={17} filled={liked} className={likeAnim ? "animate-like-pop" : ""} />
+              </span>
               <span className="tabular-nums">{likesCount}</span>
             </button>
 
             {onReply ? (
-              <button onClick={(e) => { e.stopPropagation(); onReply(); }}
-                className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                </svg>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReply();
+                }}
+                className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-brand-400"
+                aria-label="Reply"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-brand-500/10">
+                  <ReplyIcon size={17} />
+                </span>
                 <span className="tabular-nums">{post.replies_count}</span>
               </button>
             ) : (
-              <Link href={`/feed/${post.id}`} onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                </svg>
+              <Link
+                href={`/feed/${post.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-brand-400"
+                aria-label="Reply"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-brand-500/10">
+                  <ReplyIcon size={17} />
+                </span>
                 <span className="tabular-nums">{post.replies_count}</span>
               </Link>
             )}
 
-            <button onClick={(e) => { e.stopPropagation(); handleShare(); }}
-              className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-amber">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                <polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" />
-              </svg>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShare();
+              }}
+              className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-amber"
+              aria-label="Share"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-amber/10">
+                <ShareIcon size={17} />
+              </span>
             </button>
 
-            <span className="ml-auto flex items-center gap-1.5 text-[13px] text-text-muted">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
+            <span className="ml-auto flex items-center gap-1.5 text-text-tertiary">
+              <BarChartIcon size={15} />
               <span className="tabular-nums">{formatViewCount(viewsCount)}</span>
             </span>
           </div>
         </div>
       </div>
 
-      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
 
       {isAdmin && !isAuthor && (
         <div className="mt-2 pl-[52px]" onClick={(e) => e.stopPropagation()}>
           {banDone ? (
-            <span className="text-[11px] text-success">Banned ({banDone.replace("_", " ")})</span>
+            <span className="text-caption text-success">
+              Banned ({banDone.replace("_", " ")})
+            </span>
           ) : !showBanMenu ? (
-            <button onClick={() => setShowBanMenu(true)} className="text-[11px] text-text-muted hover:text-error transition-colors">Ban user</button>
+            <button
+              onClick={() => setShowBanMenu(true)}
+              className="text-caption text-text-tertiary transition-colors hover:text-danger"
+            >
+              Ban user
+            </button>
           ) : (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-text-muted">Ban for:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-caption text-text-tertiary">Ban for:</span>
               {BAN_OPTIONS.map((opt) => (
-                <button key={opt.type} onClick={() => handleBan(opt.type)} disabled={banning}
-                  className="rounded-md border border-error/30 px-2 py-0.5 text-[11px] text-error hover:bg-error/10 disabled:opacity-50 transition-colors">
+                <button
+                  key={opt.type}
+                  onClick={() => handleBan(opt.type)}
+                  disabled={banning}
+                  className="rounded-md border border-danger/30 px-2 py-0.5 text-caption text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+                >
                   {opt.label}
                 </button>
               ))}
-              <button onClick={() => setShowBanMenu(false)} className="text-[11px] text-text-muted hover:text-text-primary">Cancel</button>
+              <button
+                onClick={() => setShowBanMenu(false)}
+                className="text-caption text-text-tertiary hover:text-text-primary"
+              >
+                Cancel
+              </button>
             </div>
           )}
         </div>

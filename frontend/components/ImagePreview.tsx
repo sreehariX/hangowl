@@ -1,6 +1,7 @@
 "use client";
 
 import { ProgressiveImage } from "@/components/ProgressiveImage";
+import { CloseIcon } from "@/components/icons";
 
 interface ImagePreviewProps {
   src: string;
@@ -9,19 +10,20 @@ interface ImagePreviewProps {
 
 export function ImagePreview({ src, onRemove }: ImagePreviewProps) {
   return (
-    <div className="relative mt-2 inline-block">
+    <div className="relative inline-block">
       <ProgressiveImage
         src={src}
         alt="Attachment preview"
-        className="max-h-48 rounded-xl border border-border object-cover"
-        skeletonClassName="h-32 w-48 rounded-xl"
+        className="max-h-56 rounded-2xl border border-border/60 object-cover"
+        skeletonClassName="h-36 w-56 rounded-2xl"
       />
       <button
         type="button"
         onClick={onRemove}
-        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-white text-xs font-bold shadow-md transition-transform hover:scale-110"
+        aria-label="Remove image"
+        className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-ink-900 text-text-primary shadow-soft transition-transform hover:scale-105 active:scale-95"
       >
-        &times;
+        <CloseIcon size={14} />
       </button>
     </div>
   );
