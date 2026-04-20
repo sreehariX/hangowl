@@ -93,7 +93,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, onOpt
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="panel-surface p-4">
       <textarea
         ref={textareaRef}
         value={content}
@@ -125,7 +125,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, onOpt
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="text-text-muted transition-colors hover:text-amber disabled:opacity-40"
+            className="rounded-lg p-1 text-text-muted transition-colors hover:bg-navy-lighter/60 hover:text-amber disabled:opacity-40"
             title="Attach image (up to 20MB, auto-compressed)"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -145,7 +145,7 @@ export function ComposeBox({ parentId, placeholder, onPosted, onPostStart, onOpt
         <button
           onClick={handlePost}
           disabled={!canPost}
-          className="rounded-lg bg-amber px-4 py-1.5 text-sm font-semibold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="premium-button px-4 py-1.5 text-sm"
         >
           {posting ? "Posting..." : parentId ? "Reply" : "Post"}
         </button>

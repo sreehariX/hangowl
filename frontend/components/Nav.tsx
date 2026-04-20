@@ -54,19 +54,23 @@ export function Nav() {
   const badgeLabel = displayCount > 99 ? "99+" : displayCount > 0 ? String(displayCount) : null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-navy/95 backdrop-blur-md safe-area-pb">
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 py-1">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 safe-area-pb px-3 pb-2">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[680px] items-stretch justify-around rounded-2xl border border-border/80 bg-navy-light/85 px-2 py-1.5 shadow-glass backdrop-blur-xl">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
-                active ? "text-amber" : "text-text-muted"
+              className={`group flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
+                active
+                  ? "bg-amber/12 text-amber"
+                  : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
               }`}
             >
-              {item.icon(active)}
+              <div className={`${active ? "" : "transition-transform group-hover:-translate-y-0.5"}`}>
+                {item.icon(active)}
+              </div>
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );
@@ -76,14 +80,16 @@ export function Nav() {
         {!authLoading && isAuthenticated && (
           <Link
             href="/notifications"
-            className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
-              bellActive ? "text-amber" : "text-text-muted"
+            className={`group relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
+              bellActive
+                ? "bg-amber/12 text-amber"
+                : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
             }`}
           >
-            <div className={`relative ${pulse ? "animate-like-pop" : ""}`}>
+            <div className={`relative ${pulse ? "animate-like-pop" : "transition-transform group-hover:-translate-y-0.5"}`}>
               <BellIcon active={bellActive} />
               {badgeLabel && (
-                <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold leading-none text-white shadow-sm">
                   {badgeLabel}
                 </span>
               )}
@@ -95,11 +101,13 @@ export function Nav() {
         {!authLoading && isAuthenticated ? (
           <Link
             href="/profile"
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
-              pathname === "/profile" ? "text-amber" : "text-text-muted"
+            className={`group flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
+              pathname === "/profile"
+                ? "bg-amber/12 text-amber"
+                : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
             }`}
           >
-            <div className={`rounded-full ${pathname === "/profile" ? "ring-2 ring-amber" : "ring-2 ring-transparent"} transition-all`}>
+            <div className={`rounded-full transition-all ${pathname === "/profile" ? "ring-2 ring-amber/80 ring-offset-2 ring-offset-navy-light" : "ring-2 ring-transparent group-hover:-translate-y-0.5"}`}>
               <Avatar name={personaName || ""} size={24} />
             </div>
             <span className="text-[10px] font-medium">You</span>
@@ -107,7 +115,7 @@ export function Nav() {
         ) : !authLoading ? (
           <Link
             href="/verify"
-            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-amber"
+            className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-amber transition-all hover:bg-amber/10"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />

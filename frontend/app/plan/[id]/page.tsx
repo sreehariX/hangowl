@@ -108,12 +108,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   };
 
   return (
-    <div className="mx-auto max-w-sm px-4 pt-8 pb-24 space-y-4">
+    <div className="app-shell pt-6">
+      <div className="mx-auto w-full max-w-[620px] space-y-4 pb-24">
       {lightboxOpen && plan.image_url && (
         <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
       )}
 
-      <div className="rounded-2xl border border-border bg-surface overflow-hidden">
+      <div className="hero-surface overflow-hidden">
         {plan.image_url && (
           <button
             type="button"
@@ -130,7 +131,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </button>
         )}
 
-      <div className="p-6">
+      <div className="p-6 md:p-7">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">{emoji}</div>
           <h1 className="text-2xl font-bold text-text-primary">
@@ -145,7 +146,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </p>
         )}
 
-        <div className="flex items-center justify-around mb-6 rounded-xl bg-navy-lighter p-3">
+        <div className="mb-6 flex items-center justify-around rounded-xl border border-border/70 bg-navy-lighter/80 p-3">
           <div className="text-center">
             <div className="text-sm font-bold text-amber">
               {plan.plan_date ? formatDateIST(plan.plan_date) : ""}
@@ -207,7 +208,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               className={`w-full rounded-xl py-3 font-semibold transition-all active:scale-[0.98] ${
                 alreadyJoined
                   ? "bg-success/15 text-success border border-success/30 cursor-default"
-                  : "bg-amber text-navy hover:bg-amber-dark disabled:opacity-50"
+                  : "premium-button disabled:opacity-50"
               }`}
             >
               {joining
@@ -222,7 +223,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             </button>
             <button
               onClick={handleShare}
-              className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover"
+              className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:border-mid-blue/50 hover:bg-surface-hover"
             >
               Share with friends
             </button>
@@ -302,6 +303,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       </div>
 
       <PlanChat planId={plan.id} />
+      </div>
     </div>
   );
 }
@@ -343,13 +345,15 @@ export default function PlanPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-sm px-4 pt-8">
-        <div className="rounded-2xl bg-surface p-6 space-y-4">
+      <div className="app-shell pt-6">
+        <div className="mx-auto w-full max-w-[620px]">
+        <div className="hero-surface p-6 space-y-4">
           <div className="skeleton h-12 w-12 mx-auto rounded-xl" />
           <div className="skeleton h-6 w-32 mx-auto" />
           <div className="skeleton h-4 w-24 mx-auto" />
           <div className="skeleton h-20 w-full rounded-xl" />
           <div className="skeleton h-12 w-full rounded-xl" />
+        </div>
         </div>
       </div>
     );
@@ -357,12 +361,14 @@ export default function PlanPage() {
 
   if (error || !plan) {
     return (
-      <div className="mx-auto max-w-sm px-4 pt-20 text-center">
+      <div className="app-shell pt-16">
+        <div className="mx-auto max-w-sm text-center">
         <div className="text-4xl mb-4">🦉</div>
         <h1 className="text-xl font-bold text-text-primary mb-2">
           Plan not found
         </h1>
         <p className="text-sm text-text-secondary">{error}</p>
+        </div>
       </div>
     );
   }

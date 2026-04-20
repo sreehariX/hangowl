@@ -2,18 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  -webkit-overflow-scrolling: touch;
-  /* Prevent browser scroll anchoring from fighting manual scroll positioning
-     in thread views — we handle scroll position ourselves via useLayoutEffect */
-  overflow-anchor: none;
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-overflow-scrolling: touch;
+    overflow-anchor: none;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(1200px 700px at 8% -20%, rgba(78, 121, 199, 0.24), transparent 60%),
+      radial-gradient(900px 620px at 100% 0%, rgba(244, 182, 60, 0.14), transparent 55%),
+      linear-gradient(180deg, #070b14 0%, #090e18 40%, #0a1020 100%);
+    color: #f7f9fc;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(78, 121, 199, 0.34);
+    color: #f7f9fc;
+  }
+
+  *:focus-visible {
+    outline: 2px solid rgba(104, 147, 224, 0.8);
+    outline-offset: 2px;
+  }
 }
 
-body {
-  background: #1A1A2E;
-  color: #F0F0F5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer components {
+  .app-shell {
+    @apply relative mx-auto w-full max-w-[1080px] px-4 pb-24 md:px-6;
+  }
+
+  .app-content {
+    @apply mx-auto w-full max-w-[680px];
+  }
+
+  .hero-surface {
+    @apply rounded-3xl border border-border/70 bg-surface/90 shadow-elevated backdrop-blur-xl;
+  }
+
+  .panel-surface {
+    @apply rounded-2xl border border-border/80 bg-surface/90 shadow-soft;
+  }
+
+  .glass-surface {
+    @apply rounded-2xl border border-border/70 bg-navy-light/80 shadow-glass backdrop-blur-xl;
+  }
+
+  .pill-chip {
+    @apply rounded-full border border-border/70 bg-navy-light/75 px-3.5 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-mid-blue/60 hover:text-text-primary;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold uppercase tracking-[0.14em] text-text-muted;
+  }
+
+  .premium-button {
+    @apply inline-flex items-center justify-center rounded-xl bg-amber px-4 py-2.5 text-sm font-semibold text-navy transition-all hover:bg-amber-dark hover:shadow-lg hover:shadow-amber/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .premium-input {
+    @apply w-full rounded-xl border border-border/80 bg-navy-light/85 px-4 py-3 text-sm text-text-primary placeholder:text-text-muted/90 transition-colors focus:border-mid-blue;
+  }
+
+  .premium-divider {
+    @apply h-px bg-gradient-to-r from-transparent via-border/90 to-transparent;
+  }
 }
 
 @keyframes pulse-glow {
@@ -72,7 +134,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #1E1E34 25%, #2A2A46 50%, #1E1E34 75%);
+  background: linear-gradient(90deg, #152132 25%, #1d2c43 50%, #152132 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
   border-radius: 8px;
@@ -168,4 +230,15 @@ body {
 
 .animate-lightbox-in {
   animation: lightbox-in 0.18s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

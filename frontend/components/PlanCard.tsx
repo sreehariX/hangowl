@@ -80,7 +80,7 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
   return (
     <Link
       href={`/plan/${plan.id}`}
-      className="block group rounded-2xl bg-surface border border-border overflow-hidden transition-all hover:bg-surface-hover hover:shadow-lg hover:shadow-black/10"
+      className="panel-surface group block overflow-hidden border-border/80 transition-all hover:-translate-y-0.5 hover:border-mid-blue/40 hover:bg-surface-hover/95"
     >
       {plan.image_url && (
         <ProgressiveImage
@@ -92,7 +92,7 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
 
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-lighter text-xl shrink-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-lighter text-xl">
             {emoji}
           </div>
           <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
               <p className="text-xs text-text-muted truncate">{creatorName} &middot; {plan.location}</p>
             </div>
           </div>
-          <span className="shrink-0 text-[11px] font-medium text-amber bg-amber/10 rounded-full px-2 py-0.5">
+          <span className="shrink-0 rounded-full border border-amber/20 bg-amber/10 px-2 py-0.5 text-[11px] font-medium text-amber">
             {formatDateIST(plan.plan_date)} {formatTimeIST(plan.starts_at)}
           </span>
         </div>
@@ -138,7 +138,7 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
               <button
                 onClick={handleJoin}
                 disabled={joining}
-                className="rounded-full bg-amber px-4 py-1 text-[11px] font-bold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-50"
+                className="premium-button rounded-full px-4 py-1 text-[11px] font-bold"
               >
                 {joining ? "..." : "Join"}
               </button>

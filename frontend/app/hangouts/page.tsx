@@ -65,7 +65,7 @@ function PastPlanCard({ plan }: { plan: Plan }) {
   return (
     <Link
       href={`/plan/${plan.id}`}
-      className="block rounded-xl border border-border bg-surface/50 p-3 transition-colors hover:bg-surface-hover"
+      className="panel-surface block rounded-xl p-3 transition-colors hover:bg-surface-hover/90"
     >
       <div className="flex items-center gap-3">
         <span className="text-lg">{emoji}</span>
@@ -240,8 +240,10 @@ export default function HangoutsPage() {
 
   if (authLoading) {
     return (
-      <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
-        <PlanListSkeleton count={4} />
+      <div className="app-shell pt-6">
+        <div className="app-content">
+          <PlanListSkeleton count={4} />
+        </div>
       </div>
     );
   }
@@ -249,21 +251,36 @@ export default function HangoutsPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-4 pb-24">
+    <div className="app-shell pt-5">
+      <div className="app-content">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Hangouts</h1>
+          <p className="text-xs text-text-muted">Discover active plans or host your own.</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="premium-button rounded-lg px-3 py-2 text-xs"
+        >
+          New plan
+        </button>
+      </div>
+      </div>
       <div className="mb-4">
         <SegmentedControl tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
+      <div className="panel-surface rounded-3xl p-4 md:p-5">
       {/* Browse Tab */}
       {tab === 0 && (
         <div>
-          <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+          <div className="mb-1 flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
             <button
               onClick={() => setFilterActivity("all")}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                 filterActivity === "all"
-                  ? "bg-amber text-navy"
-                  : "bg-surface text-text-secondary hover:text-text-primary"
+                  ? "border-amber/20 bg-amber text-navy"
+                  : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
               }`}
             >
               All
@@ -272,10 +289,10 @@ export default function HangoutsPage() {
               <button
                 key={a.label}
                 onClick={() => setFilterActivity(a.label)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   filterActivity === a.label
-                    ? "bg-amber text-navy"
-                    : "bg-surface text-text-secondary hover:text-text-primary"
+                    ? "border-amber/20 bg-amber text-navy"
+                    : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
                 }`}
               >
                 {a.emoji} {a.label}
@@ -286,11 +303,11 @@ export default function HangoutsPage() {
           {loadingPlans ? (
             <PlanListSkeleton count={4} />
           ) : plans.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-surface p-8 text-center">
+            <div className="hero-surface p-8 text-center">
               <p className="text-text-secondary text-sm mb-4">No plans right now</p>
               <button
                 onClick={() => setShowCreate(true)}
-                className="rounded-xl bg-amber px-6 py-2.5 text-sm font-semibold text-navy hover:bg-amber-dark"
+                className="premium-button px-6 py-2.5 text-sm"
               >
                 Create one
               </button>
@@ -304,7 +321,7 @@ export default function HangoutsPage() {
               </div>
               <button
                 onClick={() => setShowCreate(true)}
-                className="mt-4 w-full py-4 text-center transition-colors hover:bg-surface/50 rounded-xl"
+                className="panel-surface mt-4 w-full rounded-xl py-4 text-center transition-colors hover:bg-surface/80"
               >
               <p className="text-sm text-text-muted">Didn&apos;t find any plans that you&apos;re interested in?</p>
               <p className="text-sm font-medium text-amber mt-0.5">Tap here to create your own plan and let others join</p>
@@ -326,11 +343,11 @@ export default function HangoutsPage() {
                   Live ({livePlans.length})
                 </h2>
                 {livePlans.length === 0 ? (
-                  <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+                  <div className="hero-surface p-6 text-center">
                     <p className="text-sm text-text-muted mb-3">No live plans</p>
                     <button
                       onClick={() => setShowCreate(true)}
-                      className="rounded-xl bg-amber px-5 py-2 text-sm font-semibold text-navy hover:bg-amber-dark"
+                      className="premium-button px-5 py-2 text-sm"
                     >
                       Create one
                     </button>
@@ -362,12 +379,13 @@ export default function HangoutsPage() {
           )}
         </div>
       )}
+      </div>
 
       {/* Create FAB */}
       {!showCreate && (
         <button
           onClick={() => setShowCreate(true)}
-          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
+          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-elevated transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-340px+24px)]"
           aria-label="Create hangout"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -383,8 +401,8 @@ export default function HangoutsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-navy animate-fade-in overflow-y-auto">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-navy z-10">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-navy/95 backdrop-blur-xl animate-fade-in">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-navy/90 px-4 py-3 backdrop-blur-xl">
             <button
               onClick={() => { if (!submitting) { setShowCreate(false); resetForm(); } }}
               disabled={submitting}
@@ -398,7 +416,7 @@ export default function HangoutsPage() {
             <button
               onClick={handleCreate}
               disabled={submitting || !resolvedActivity || !resolvedLocation || !description.trim()}
-              className="rounded-full bg-amber px-4 py-1.5 text-xs font-bold text-navy transition-all hover:bg-amber-dark active:scale-95 disabled:opacity-40 min-w-[56px] flex items-center justify-center"
+              className="premium-button min-w-[56px] rounded-full px-4 py-1.5 text-xs font-bold"
             >
               {submitting ? (
                 <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -410,12 +428,13 @@ export default function HangoutsPage() {
           </div>
 
           {createError && (
-            <div className="mx-auto max-w-lg px-4 pt-3">
+            <div className="app-content px-4 pt-3">
               <p className="text-xs text-error text-center bg-error/10 rounded-lg py-2 px-3">{createError}</p>
             </div>
           )}
 
-          <div className="mx-auto max-w-lg px-4 py-4 space-y-5">
+          <div className="app-content px-4 py-4">
+            <div className="hero-surface space-y-5 p-4 md:p-5">
             {/* Activity */}
             <div>
               <p className="text-xs font-medium text-text-muted mb-2">Activity</p>
@@ -442,7 +461,7 @@ export default function HangoutsPage() {
                   onChange={(e) => setCustomActivity(e.target.value)}
                   placeholder="What activity?"
                   maxLength={50}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none"
+                  className="premium-input mt-2 px-3 py-2 text-sm"
                   autoFocus
                 />
               )}
@@ -474,7 +493,7 @@ export default function HangoutsPage() {
                   onChange={(e) => setCustomLocation(e.target.value)}
                   placeholder="Where?"
                   maxLength={50}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-mid-blue focus:outline-none"
+                  className="premium-input mt-2 px-3 py-2 text-sm"
                   autoFocus
                 />
               )}
@@ -489,7 +508,7 @@ export default function HangoutsPage() {
                 maxLength={200}
                 rows={2}
                 placeholder="What's the plan? e.g. Late night maggi run"
-                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none resize-none"
+                className="premium-input resize-none px-3 py-2.5 text-sm"
               />
             </div>
 
@@ -503,14 +522,14 @@ export default function HangoutsPage() {
                     value={planDate}
                     min={todayIST()}
                     onChange={(e) => setPlanDate(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-surface px-2 py-2 text-xs text-text-primary focus:border-amber focus:outline-none"
+                    className="premium-input flex-1 rounded-lg px-2 py-2 text-xs"
                   />
                   <input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                     step={60}
-                    className="w-24 rounded-lg border border-border bg-surface px-2 py-2 text-xs text-text-primary focus:border-amber focus:outline-none"
+                    className="premium-input w-24 rounded-lg px-2 py-2 text-xs"
                   />
                 </div>
               </div>
@@ -522,10 +541,10 @@ export default function HangoutsPage() {
                       key={d.minutes}
                       type="button"
                       onClick={() => setDuration(d.minutes)}
-                      className={`rounded-lg px-2 py-2 text-xs font-medium transition-all ${
+                      className={`rounded-lg border px-2 py-2 text-xs font-medium transition-all ${
                         duration === d.minutes
-                          ? "bg-amber text-navy"
-                          : "bg-surface text-text-muted hover:text-text-primary"
+                          ? "border-amber/20 bg-amber text-navy"
+                          : "border-border/70 bg-surface text-text-muted hover:text-text-primary"
                       }`}
                     >
                       {d.label}
@@ -572,10 +591,11 @@ export default function HangoutsPage() {
                 </button>
               )}
             </div>
-
+            </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

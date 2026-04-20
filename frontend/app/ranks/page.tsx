@@ -29,26 +29,28 @@ export default function RanksPage() {
   }, [fetchLeaderboard]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-4 pb-24">
-      <div className="text-center mb-6">
-        <h1 className="text-xl font-bold text-text-primary">Ranks</h1>
-        <p className="text-xs text-text-muted mt-1">Most active on campus</p>
+    <div className="app-shell pt-5">
+      <div className="app-content">
+      <div className="mb-6 text-center">
+        <p className="section-title mb-1">Leaderboard</p>
+        <h1 className="text-2xl font-semibold text-text-primary">Campus ranks</h1>
+        <p className="mt-1 text-xs text-text-muted">Most active on campus</p>
       </div>
 
       {loading ? (
         <LeaderboardSkeleton />
       ) : leaderboard.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-8 text-center">
-          <p className="text-text-secondary text-sm">No hangouts yet. Be the first!</p>
+        <div className="panel-surface p-8 text-center">
+          <p className="text-sm text-text-secondary">No hangouts yet. Be the first!</p>
         </div>
       ) : (
         <div className="space-y-2">
           {leaderboard.map((entry) => {
-            const style = entry.rank <= 3 ? RANK_COLORS[entry.rank - 1] : "border-border bg-surface";
+            const style = entry.rank <= 3 ? RANK_COLORS[entry.rank - 1] : "border-border/80 bg-surface/85";
             return (
               <div
                 key={entry.persona_name}
-                className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${style}`}
+                className={`panel-surface flex items-center gap-3 border p-3 transition-colors ${style}`}
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold">
                   {entry.rank <= 3
@@ -70,6 +72,7 @@ export default function RanksPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

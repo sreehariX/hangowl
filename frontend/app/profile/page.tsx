@@ -50,8 +50,10 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center pb-24">
-        <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+      <div className="app-shell pt-10">
+        <div className="app-content flex min-h-[50dvh] items-center justify-center pb-24">
+          <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+        </div>
       </div>
     );
   }
@@ -59,9 +61,10 @@ export default function ProfilePage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-4 pb-24">
+    <div className="app-shell pt-5">
+      <div className="app-content">
       {/* Profile header */}
-      <div className="flex flex-col items-center py-6">
+      <div className="hero-surface mb-6 flex flex-col items-center py-7">
         <Avatar name={personaName || ""} size={72} />
         <h1 className="mt-3 text-lg font-bold text-text-primary">{personaName}</h1>
         <p className="text-xs text-text-muted mt-0.5">Anonymous identity</p>
@@ -77,7 +80,7 @@ export default function ProfilePage() {
             <div className="h-5 w-5 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
           </div>
         ) : posts.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+          <div className="panel-surface p-6 text-center">
             <p className="text-sm text-text-muted">No posts yet</p>
           </div>
         ) : (
@@ -100,7 +103,7 @@ export default function ProfilePage() {
         <h2 className="text-sm font-semibold text-text-secondary mb-3">Campus rankings</h2>
         <a
           href="/ranks"
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
+          className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber shrink-0">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -126,7 +129,7 @@ export default function ProfilePage() {
         <div className="space-y-2">
           <a
             href="tel:+918639012320"
-            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
+            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
           >
             <span className="text-lg">📞</span>
             <div className="flex-1 min-w-0">
@@ -136,7 +139,7 @@ export default function ProfilePage() {
           </a>
           <a
             href="mailto:sreeharixe@gmail.com"
-            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
+            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
           >
             <span className="text-lg">📧</span>
             <div className="flex-1 min-w-0">
@@ -147,7 +150,7 @@ export default function ProfilePage() {
             href="https://www.linkedin.com/in/sreeharix/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
+            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-[#0A66C2] shrink-0">
               <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -168,6 +171,7 @@ export default function ProfilePage() {
       <p className="text-center text-[11px] text-text-muted mt-6">
         HangOwl &middot; Built for IIT Bombay students
       </p>
+      </div>
     </div>
   );
 }
