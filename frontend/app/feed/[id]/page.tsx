@@ -92,16 +92,6 @@ export default function PostDetailPage() {
     finally { setLoading(false); }
   }, [postId]);
 
-  // Light refresh: only post + replies, no ancestor re-fetch (used after posting a reply)
-  const refreshReplies = useCallback(async () => {
-    try {
-      const data = await api.getPost(postId);
-      setPost(data.post);
-      setReplies(data.replies);
-      setSubReplies(data.sub_replies ?? []);
-    } catch { /* silent */ }
-  }, [postId]);
-
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Track virtual keyboard height via Visual Viewport API so the reply sheet

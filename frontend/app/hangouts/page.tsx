@@ -253,135 +253,135 @@ export default function HangoutsPage() {
   return (
     <div className="app-shell pt-5">
       <div className="app-content">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Hangouts</h1>
-          <p className="text-xs text-text-muted">Discover active plans or host your own.</p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="premium-button rounded-lg px-3 py-2 text-xs"
-        >
-          New plan
-        </button>
-      </div>
-      </div>
-      <div className="mb-4">
-        <SegmentedControl tabs={TABS} active={tab} onChange={setTab} />
-      </div>
-
-      <div className="panel-surface rounded-3xl p-4 md:p-5">
-      {/* Browse Tab */}
-      {tab === 0 && (
-        <div>
-          <div className="mb-1 flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
-            <button
-              onClick={() => setFilterActivity("all")}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                filterActivity === "all"
-                  ? "border-amber/20 bg-amber text-navy"
-                  : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
-              }`}
-            >
-              All
-            </button>
-            {ACTIVITIES.map((a) => (
-              <button
-                key={a.label}
-                onClick={() => setFilterActivity(a.label)}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  filterActivity === a.label
-                    ? "border-amber/20 bg-amber text-navy"
-                    : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
-                }`}
-              >
-                {a.emoji} {a.label}
-              </button>
-            ))}
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Hangouts</h1>
+            <p className="text-xs text-text-muted">Discover active plans or host your own.</p>
           </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="premium-button rounded-lg px-3 py-2 text-xs"
+          >
+            New plan
+          </button>
+        </div>
 
-          {loadingPlans ? (
-            <PlanListSkeleton count={4} />
-          ) : plans.length === 0 ? (
-            <div className="hero-surface p-8 text-center">
-              <p className="text-text-secondary text-sm mb-4">No plans right now</p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="premium-button px-6 py-2.5 text-sm"
-              >
-                Create one
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {plans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
+        <div className="mb-4">
+          <SegmentedControl tabs={TABS} active={tab} onChange={setTab} />
+        </div>
+
+        <div className="panel-surface rounded-3xl p-4 md:p-5">
+          {tab === 0 ? (
+            <div>
+              <div className="mb-1 flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+                <button
+                  onClick={() => setFilterActivity("all")}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    filterActivity === "all"
+                      ? "border-amber/20 bg-amber text-navy"
+                      : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
+                  }`}
+                >
+                  All
+                </button>
+                {ACTIVITIES.map((a) => (
+                  <button
+                    key={a.label}
+                    onClick={() => setFilterActivity(a.label)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      filterActivity === a.label
+                        ? "border-amber/20 bg-amber text-navy"
+                        : "border-border/80 bg-surface text-text-secondary hover:border-mid-blue/50 hover:text-text-primary"
+                    }`}
+                  >
+                    {a.emoji} {a.label}
+                  </button>
                 ))}
               </div>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="panel-surface mt-4 w-full rounded-xl py-4 text-center transition-colors hover:bg-surface/80"
-              >
-              <p className="text-sm text-text-muted">Didn&apos;t find any plans that you&apos;re interested in?</p>
-              <p className="text-sm font-medium text-amber mt-0.5">Tap here to create your own plan and let others join</p>
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
-      {/* My Plans Tab */}
-      {tab === 1 && (
-        <div>
-          {loadingMyPlans ? (
-            <PlanListSkeleton count={3} />
-          ) : (
-            <>
-              <div className="mb-6">
-                <h2 className="text-sm font-semibold text-text-secondary mb-3">
-                  Live ({livePlans.length})
-                </h2>
-                {livePlans.length === 0 ? (
-                  <div className="hero-surface p-6 text-center">
-                    <p className="text-sm text-text-muted mb-3">No live plans</p>
-                    <button
-                      onClick={() => setShowCreate(true)}
-                      className="premium-button px-5 py-2 text-sm"
-                    >
-                      Create one
-                    </button>
-                  </div>
-                ) : (
+              {loadingPlans ? (
+                <PlanListSkeleton count={4} />
+              ) : plans.length === 0 ? (
+                <div className="hero-surface p-8 text-center">
+                  <p className="mb-4 text-sm text-text-secondary">No plans right now</p>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="premium-button px-6 py-2.5 text-sm"
+                  >
+                    Create one
+                  </button>
+                </div>
+              ) : (
+                <>
                   <div className="space-y-3">
-                    {livePlans.map((plan) => (
-                      <PlanCard key={plan.id} plan={plan} onJoined={fetchMyPlans} />
+                    {plans.map((plan) => (
+                      <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
                     ))}
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="panel-surface mt-4 w-full rounded-xl py-4 text-center transition-colors hover:bg-surface/80"
+                  >
+                    <p className="text-sm text-text-muted">
+                      Didn&apos;t find any plans that you&apos;re interested in?
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-amber">
+                      Tap here to create your own plan and let others join
+                    </p>
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div>
+              {loadingMyPlans ? (
+                <PlanListSkeleton count={3} />
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <h2 className="mb-3 text-sm font-semibold text-text-secondary">
+                      Live ({livePlans.length})
+                    </h2>
+                    {livePlans.length === 0 ? (
+                      <div className="hero-surface p-6 text-center">
+                        <p className="mb-3 text-sm text-text-muted">No live plans</p>
+                        <button
+                          onClick={() => setShowCreate(true)}
+                          className="premium-button px-5 py-2 text-sm"
+                        >
+                          Create one
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {livePlans.map((plan) => (
+                          <PlanCard key={plan.id} plan={plan} onJoined={fetchMyPlans} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-              <div>
-                <h2 className="text-sm font-semibold text-text-secondary mb-3">
-                  Past ({pastPlans.length})
-                </h2>
-                {pastPlans.length === 0 ? (
-                  <p className="text-sm text-text-muted text-center py-4">No past plans yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {pastPlans.map((plan) => (
-                      <PastPlanCard key={plan.id} plan={plan} />
-                    ))}
+                  <div>
+                    <h2 className="mb-3 text-sm font-semibold text-text-secondary">
+                      Past ({pastPlans.length})
+                    </h2>
+                    {pastPlans.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-text-muted">No past plans yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {pastPlans.map((plan) => (
+                          <PastPlanCard key={plan.id} plan={plan} />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </>
+                </>
+              )}
+            </div>
           )}
         </div>
-      )}
       </div>
 
-      {/* Create FAB */}
       {!showCreate && (
         <button
           onClick={() => setShowCreate(true)}
@@ -399,17 +399,22 @@ export default function HangoutsPage() {
         </button>
       )}
 
-      {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-navy/95 backdrop-blur-xl animate-fade-in">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-navy/95 animate-fade-in backdrop-blur-xl">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-navy/90 px-4 py-3 backdrop-blur-xl">
             <button
-              onClick={() => { if (!submitting) { setShowCreate(false); resetForm(); } }}
+              onClick={() => {
+                if (!submitting) {
+                  setShowCreate(false);
+                  resetForm();
+                }
+              }}
               disabled={submitting}
-              className="text-text-muted hover:text-text-primary transition-colors disabled:opacity-30"
+              className="text-text-muted transition-colors hover:text-text-primary disabled:opacity-30"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
               </svg>
             </button>
             <span className="text-sm font-semibold text-text-primary">Create New Hangout Plan</span>
@@ -419,7 +424,7 @@ export default function HangoutsPage() {
               className="premium-button min-w-[56px] rounded-full px-4 py-1.5 text-xs font-bold"
             >
               {submitting ? (
-                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
@@ -429,173 +434,166 @@ export default function HangoutsPage() {
 
           {createError && (
             <div className="app-content px-4 pt-3">
-              <p className="text-xs text-error text-center bg-error/10 rounded-lg py-2 px-3">{createError}</p>
+              <p className="rounded-lg bg-error/10 px-3 py-2 text-center text-xs text-error">{createError}</p>
             </div>
           )}
 
           <div className="app-content px-4 py-4">
             <div className="hero-surface space-y-5 p-4 md:p-5">
-            {/* Activity */}
-            <div>
-              <p className="text-xs font-medium text-text-muted mb-2">Activity</p>
-              <div className="flex gap-2 flex-wrap">
-                {ACTIVITIES.map((a) => (
-                  <button
-                    key={a.label}
-                    type="button"
-                    onClick={() => setActivity(a.label)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
-                      activity === a.label
-                        ? "bg-amber text-navy"
-                        : "bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
-                    }`}
-                  >
-                    {a.emoji} {a.label}
-                  </button>
-                ))}
-              </div>
-              {activity === "Others" && (
-                <input
-                  type="text"
-                  value={customActivity}
-                  onChange={(e) => setCustomActivity(e.target.value)}
-                  placeholder="What activity?"
-                  maxLength={50}
-                  className="premium-input mt-2 px-3 py-2 text-sm"
-                  autoFocus
-                />
-              )}
-            </div>
-
-            {/* Location */}
-            <div>
-              <p className="text-xs font-medium text-text-muted mb-2">Location</p>
-              <div className="flex gap-2 flex-wrap">
-                {LOCATIONS.map((loc) => (
-                  <button
-                    key={loc}
-                    type="button"
-                    onClick={() => setLocation(loc)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
-                      location === loc
-                        ? "bg-mid-blue text-white"
-                        : "bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
-                    }`}
-                  >
-                    {loc}
-                  </button>
-                ))}
-              </div>
-              {location === "Others" && (
-                <input
-                  type="text"
-                  value={customLocation}
-                  onChange={(e) => setCustomLocation(e.target.value)}
-                  placeholder="Where?"
-                  maxLength={50}
-                  className="premium-input mt-2 px-3 py-2 text-sm"
-                  autoFocus
-                />
-              )}
-            </div>
-
-            {/* Description */}
-            <div>
-              <textarea
-                ref={descRef}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={200}
-                rows={2}
-                placeholder="What's the plan? e.g. Late night maggi run"
-                className="premium-input resize-none px-3 py-2.5 text-sm"
-              />
-            </div>
-
-            {/* Time row */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-text-muted mb-1">When</p>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={planDate}
-                    min={todayIST()}
-                    onChange={(e) => setPlanDate(e.target.value)}
-                    className="premium-input flex-1 rounded-lg px-2 py-2 text-xs"
-                  />
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    step={60}
-                    className="premium-input w-24 rounded-lg px-2 py-2 text-xs"
-                  />
-                </div>
-              </div>
               <div>
-                <p className="text-xs font-medium text-text-muted mb-1">Duration</p>
-                <div className="flex gap-1">
-                  {DURATIONS.map((d) => (
+                <p className="mb-2 text-xs font-medium text-text-muted">Activity</p>
+                <div className="flex flex-wrap gap-2">
+                  {ACTIVITIES.map((a) => (
                     <button
-                      key={d.minutes}
+                      key={a.label}
                       type="button"
-                      onClick={() => setDuration(d.minutes)}
-                      className={`rounded-lg border px-2 py-2 text-xs font-medium transition-all ${
-                        duration === d.minutes
-                          ? "border-amber/20 bg-amber text-navy"
-                          : "border-border/70 bg-surface text-text-muted hover:text-text-primary"
+                      onClick={() => setActivity(a.label)}
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+                        activity === a.label
+                          ? "bg-amber text-navy"
+                          : "bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
                       }`}
                     >
-                      {d.label}
+                      {a.emoji} {a.label}
                     </button>
                   ))}
                 </div>
+                {activity === "Others" && (
+                  <input
+                    type="text"
+                    value={customActivity}
+                    onChange={(e) => setCustomActivity(e.target.value)}
+                    placeholder="What activity?"
+                    maxLength={50}
+                    className="premium-input mt-2 px-3 py-2 text-sm"
+                    autoFocus
+                  />
+                )}
               </div>
-            </div>
 
-            {/* People slider */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-medium text-text-muted">Max people</p>
-                <span className="text-xs font-bold text-amber tabular-nums">{maxPeople}</span>
+              <div>
+                <p className="mb-2 text-xs font-medium text-text-muted">Location</p>
+                <div className="flex flex-wrap gap-2">
+                  {LOCATIONS.map((loc) => (
+                    <button
+                      key={loc}
+                      type="button"
+                      onClick={() => setLocation(loc)}
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+                        location === loc
+                          ? "bg-mid-blue text-white"
+                          : "bg-surface text-text-secondary hover:bg-surface-hover active:scale-95"
+                      }`}
+                    >
+                      {loc}
+                    </button>
+                  ))}
+                </div>
+                {location === "Others" && (
+                  <input
+                    type="text"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    placeholder="Where?"
+                    maxLength={50}
+                    className="premium-input mt-2 px-3 py-2 text-sm"
+                    autoFocus
+                  />
+                )}
               </div>
-              <input
-                type="range"
-                min={2}
-                max={30}
-                value={maxPeople}
-                onChange={(e) => setMaxPeople(Number(e.target.value))}
-                className="w-full accent-amber"
-              />
-            </div>
 
-            {/* Image */}
-            <div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleImagePick} className="hidden" />
-              {imageUrl ? (
-                <ImagePreview src={imageUrl} onRemove={() => setImageUrl(null)} />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                  className="flex items-center gap-2 text-xs text-text-muted hover:text-amber transition-colors disabled:opacity-40"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  {uploading ? <span className="animate-pulse">{uploadLabel}</span> : "Add a cover photo (optional)"}
-                </button>
-              )}
-            </div>
+              <div>
+                <textarea
+                  ref={descRef}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={200}
+                  rows={2}
+                  placeholder="What's the plan? e.g. Late night maggi run"
+                  className="premium-input resize-none px-3 py-2.5 text-sm"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <p className="mb-1 text-xs font-medium text-text-muted">When</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={planDate}
+                      min={todayIST()}
+                      onChange={(e) => setPlanDate(e.target.value)}
+                      className="premium-input flex-1 rounded-lg px-2 py-2 text-xs"
+                    />
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      step={60}
+                      className="premium-input w-24 rounded-lg px-2 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-text-muted">Duration</p>
+                  <div className="flex gap-1">
+                    {DURATIONS.map((d) => (
+                      <button
+                        key={d.minutes}
+                        type="button"
+                        onClick={() => setDuration(d.minutes)}
+                        className={`rounded-lg border px-2 py-2 text-xs font-medium transition-all ${
+                          duration === d.minutes
+                            ? "border-amber/20 bg-amber text-navy"
+                            : "border-border/70 bg-surface text-text-muted hover:text-text-primary"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-xs font-medium text-text-muted">Max people</p>
+                  <span className="tabular-nums text-xs font-bold text-amber">{maxPeople}</span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={30}
+                  value={maxPeople}
+                  onChange={(e) => setMaxPeople(Number(e.target.value))}
+                  className="w-full accent-amber"
+                />
+              </div>
+
+              <div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImagePick} className="hidden" />
+                {imageUrl ? (
+                  <ImagePreview src={imageUrl} onRemove={() => setImageUrl(null)} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-2 text-xs text-text-muted transition-colors hover:text-amber disabled:opacity-40"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    </svg>
+                    {uploading ? <span className="animate-pulse">{uploadLabel}</span> : "Add a cover photo (optional)"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
