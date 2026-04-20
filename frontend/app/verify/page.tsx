@@ -89,32 +89,35 @@ export default function VerifyPage() {
 
   if (step === "welcome") {
     return (
-      <div className="mx-auto max-w-sm px-4 pt-20 text-center">
+      <div className="app-shell pt-12">
+        <div className="mx-auto max-w-sm text-center">
         <div className="flex justify-center mb-6">
           <Avatar name={persona} size={80} />
         </div>
-        <h1 className="text-2xl font-bold text-text-primary mb-2">
+        <h1 className="mb-2 text-2xl font-semibold text-text-primary">
           {isNew ? "Welcome to HangOwl!" : "Welcome back!"}
         </h1>
-        <p className="text-text-secondary mb-6">Your anonymous name is</p>
-        <div className="rounded-2xl bg-surface border border-amber/30 px-6 py-4 mb-8">
+        <p className="mb-6 text-text-secondary">Your anonymous name is</p>
+        <div className="hero-surface mb-8 px-6 py-4">
           <span className="text-xl font-bold text-amber">{persona}</span>
         </div>
         <button
           onClick={() => router.push("/")}
-          className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark"
+          className="premium-button w-full py-3.5"
         >
           Go to Feed
         </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-sm px-4 pt-20">
+    <div className="app-shell pt-12">
+      <div className="mx-auto max-w-sm">
       <div className="text-center mb-8">
         <div className="text-4xl mb-4">🦉</div>
-        <h1 className="text-2xl font-bold text-text-primary mb-1">
+        <h1 className="mb-1 text-2xl font-semibold text-text-primary">
           {step === "email" ? "Verify your IIT-B email" : "Enter the 6-digit code"}
         </h1>
         <p className="text-sm text-text-secondary">
@@ -132,7 +135,7 @@ export default function VerifyPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="rollnumber@iitb.ac.in"
-              className="w-full rounded-xl border border-border bg-surface px-4 py-3.5 text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+              className="premium-input py-3.5"
               autoFocus
               required
             />
@@ -140,7 +143,7 @@ export default function VerifyPage() {
           <button
             type="submit"
             disabled={loading || !email}
-            className="w-full rounded-xl bg-amber py-3.5 font-semibold text-navy transition-colors hover:bg-amber-dark disabled:opacity-50"
+            className="premium-button w-full py-3.5"
           >
             {loading ? "Sending..." : "Send verification code"}
           </button>
@@ -160,7 +163,7 @@ export default function VerifyPage() {
                 value={digit}
                 onChange={(e) => handleOtpChange(i, e.target.value)}
                 onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                className="h-14 w-11 rounded-xl border border-border bg-surface text-center text-xl font-bold text-text-primary focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+                className="h-14 w-11 rounded-xl border border-border bg-navy-light/85 text-center text-xl font-bold text-text-primary transition-colors focus:border-mid-blue focus:outline-none"
                 autoFocus={i === 0}
               />
             ))}
@@ -186,6 +189,7 @@ export default function VerifyPage() {
       {error && (
         <p className="mt-4 text-center text-sm text-error">{error}</p>
       )}
+      </div>
     </div>
   );
 }

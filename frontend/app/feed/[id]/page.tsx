@@ -92,16 +92,6 @@ export default function PostDetailPage() {
     finally { setLoading(false); }
   }, [postId]);
 
-  // Light refresh: only post + replies, no ancestor re-fetch (used after posting a reply)
-  const refreshReplies = useCallback(async () => {
-    try {
-      const data = await api.getPost(postId);
-      setPost(data.post);
-      setReplies(data.replies);
-      setSubReplies(data.sub_replies ?? []);
-    } catch { /* silent */ }
-  }, [postId]);
-
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Track virtual keyboard height via Visual Viewport API so the reply sheet
@@ -276,8 +266,9 @@ export default function PostDetailPage() {
   // to rendering the post and show reply skeletons in-place instead.
   if (!post && (loading || authLoading)) {
     return (
-      <div className="mx-auto max-w-lg pb-24">
-        <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+      <div className="app-shell pb-24 pt-4">
+        <div className="app-content overflow-hidden rounded-2xl border border-border/80 bg-surface/80">
+        <div className="sticky top-0 z-20 flex items-center gap-4 border-b border-border/80 bg-navy/90 px-4 py-3 backdrop-blur-md">
           <button onClick={() => router.back()} className="text-text-muted hover:text-text-primary transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
@@ -291,14 +282,15 @@ export default function PostDetailPage() {
         <PostSkeleton />
         <PostSkeleton />
         <PostSkeleton />
+        </div>
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="mx-auto max-w-lg px-4 pt-16 pb-24 md:pt-6">
-        <div className="rounded-2xl border border-border bg-surface p-8 text-center">
+      <div className="app-shell pb-24 pt-16 md:pt-6">
+        <div className="app-content panel-surface p-8 text-center">
           <p className="text-text-secondary mb-4">Post not found</p>
           <Link href="/" className="text-amber hover:text-amber-dark text-sm">Back to Feed</Link>
         </div>
@@ -316,9 +308,10 @@ export default function PostDetailPage() {
   });
 
   return (
-    <div className="mx-auto max-w-lg pb-24">
+    <div className="app-shell pb-24 pt-4">
+      <div className="app-content overflow-hidden rounded-2xl border border-border/80 bg-surface/75">
       {/* Sticky header */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-navy/95 backdrop-blur-md border-b border-border">
+      <div className="sticky top-0 z-20 flex items-center gap-4 border-b border-border/80 bg-navy/90 px-4 py-3 backdrop-blur-md">
         <button onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
           className="text-text-muted hover:text-text-primary transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -421,7 +414,7 @@ export default function PostDetailPage() {
             }}
             onAnimationEnd={handleSheetAnimationEnd}
           >
-            <div className="mx-auto max-w-lg bg-navy rounded-t-2xl border-t border-x border-border overflow-hidden">
+            <div className="app-content overflow-hidden rounded-t-2xl border-x border-t border-border/80 bg-navy-light/95">
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-9 h-1 rounded-full bg-border" />
@@ -466,6 +459,7 @@ export default function PostDetailPage() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

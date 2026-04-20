@@ -110,8 +110,8 @@ export function PlanChat({ planId }: PlanChatProps) {
   let lastSender = "";
 
   return (
-    <div className="rounded-2xl border border-border bg-surface overflow-hidden">
-      <div className="px-4 py-3 border-b border-border">
+    <div className="panel-surface overflow-hidden">
+      <div className="border-b border-border/80 px-4 py-3">
         <h3 className="text-sm font-semibold text-text-primary">Chat</h3>
         <p className="text-[11px] text-text-muted">Coordinate with your group here</p>
       </div>
@@ -163,19 +163,19 @@ export function PlanChat({ planId }: PlanChatProps) {
       </div>
 
       {isAuthenticated ? (
-        <form onSubmit={handleSend} className="flex gap-2 p-3 border-t border-border">
+        <form onSubmit={handleSend} className="flex gap-2 border-t border-border/80 p-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
             maxLength={500}
-            className="flex-1 rounded-full border border-border bg-navy-lighter px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none transition-colors"
+            className="flex-1 rounded-full border border-border bg-navy-lighter/90 px-4 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus:border-amber focus:outline-none"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-full bg-amber h-9 w-9 flex items-center justify-center text-navy transition-colors hover:bg-amber-dark disabled:opacity-50 shrink-0"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber text-navy transition-colors hover:bg-amber-dark disabled:opacity-50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
@@ -183,7 +183,7 @@ export function PlanChat({ planId }: PlanChatProps) {
           </button>
         </form>
       ) : (
-        <div className="p-3 border-t border-border text-center">
+        <div className="border-t border-border/80 p-3 text-center">
           <p className="text-xs text-text-muted">Sign in to chat</p>
         </div>
       )}

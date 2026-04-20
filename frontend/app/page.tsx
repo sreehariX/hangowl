@@ -184,11 +184,15 @@ export default function FeedHomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-4 pb-24 relative">
+    <div className="app-shell pt-5">
+      <div className="app-content relative">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">HangOwl</h1>
-        <div className="flex items-center gap-3">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">HangOwl</h1>
+          <p className="text-xs text-text-muted">Campus social, designed for clarity.</p>
+        </div>
+        <div className="glass-surface flex items-center gap-3 px-3 py-2">
           {stats && (
             <span className="text-[11px] font-medium text-text-muted tabular-nums">
               {stats.total_users} students
@@ -208,33 +212,33 @@ export default function FeedHomePage() {
 
       {/* Trust text */}
       {!authLoading && (
-        <p className="text-[11px] text-text-muted mb-4">
+        <p className="mb-4 text-[11px] text-text-muted">
           Every student is verified with their IITB email. Completely anonymous.
         </p>
       )}
 
       {/* Logged-out hero */}
       {!authLoading && !isAuthenticated && (
-        <section className="mb-6 rounded-2xl border border-border bg-surface p-6 text-center">
-          <div className="text-4xl mb-3">🦉</div>
-          <h2 className="text-lg font-bold text-text-primary mb-1">
+        <section className="hero-surface mb-6 p-6 text-center">
+          <div className="mb-3 text-4xl">🦉</div>
+          <h2 className="mb-1 text-xl font-semibold text-text-primary">
             Find your people at IIT Bombay
           </h2>
-          <p className="text-sm text-text-secondary mb-2">
+          <p className="mb-2 text-sm text-text-secondary">
             Every student is verified with their IITB email. Your identity stays completely anonymous.
           </p>
           {stats && (
-            <p className="text-xs text-text-muted mb-4">
+            <p className="mb-4 text-xs text-text-muted">
               {stats.total_users} students already here
             </p>
           )}
           <Link
             href="/verify"
-            className="inline-block w-full rounded-xl bg-amber py-3 font-semibold text-navy transition-all hover:bg-amber-dark active:scale-[0.98]"
+            className="premium-button w-full py-3"
           >
             Join with IIT-B email
           </Link>
-          <p className="text-[11px] text-text-muted mt-2">
+          <p className="mt-2 text-[11px] text-text-muted">
             No signup. No password. Just a one-time code.
           </p>
         </section>
@@ -244,7 +248,7 @@ export default function FeedHomePage() {
       {stats && stats.active_plans > 0 && (
         <Link
           href="/hangouts"
-          className="flex items-center justify-between mb-4 rounded-xl border border-amber/20 bg-amber/5 px-4 py-2.5 transition-colors hover:bg-amber/10 active:scale-[0.99]"
+          className="mb-4 flex items-center justify-between rounded-xl border border-amber/20 bg-amber/10 px-4 py-3 transition-colors hover:bg-amber/15 active:scale-[0.99]"
         >
           <span className="text-xs font-medium text-amber">
             {stats.active_plans} hangout{stats.active_plans !== 1 ? "s" : ""} happening now
@@ -272,12 +276,12 @@ export default function FeedHomePage() {
       {loading ? (
         <FeedSkeleton />
       ) : posts.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-          <p className="text-text-secondary text-sm">No posts yet. Be the first to share something!</p>
+        <div className="panel-surface p-10 text-center">
+          <p className="text-sm text-text-secondary">No posts yet. Be the first to share something!</p>
         </div>
       ) : (
         <>
-          <div className="rounded-2xl border border-border overflow-hidden">
+          <div className="panel-surface overflow-hidden">
             {posts.map((post) => (
               <Fragment key={post.id}>
                 <PostCard
@@ -313,7 +317,7 @@ export default function FeedHomePage() {
       {isAuthenticated && !showCompose && (
         <button
           onClick={() => setShowCompose(true)}
-          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-lg shadow-amber/30 transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-256px+16px)]"
+          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-elevated transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-340px+24px)]"
           aria-label="New post"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -324,8 +328,8 @@ export default function FeedHomePage() {
       )}
 
       {showCompose && (
-        <div className="fixed inset-0 z-50 bg-navy animate-fade-in">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="fixed inset-0 z-50 bg-navy/95 backdrop-blur-xl animate-fade-in">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <button
               onClick={() => setShowCompose(false)}
               className="text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -337,11 +341,12 @@ export default function FeedHomePage() {
             <span className="text-sm font-semibold text-text-primary">New post</span>
             <div className="w-5" />
           </div>
-          <div className="mx-auto max-w-lg px-4 pt-4">
+          <div className="app-content px-4 pt-4">
             <ComposeBox onPosted={handlePosted} placeholder="What's happening?" autoFocus />
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

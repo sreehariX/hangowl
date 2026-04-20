@@ -202,7 +202,7 @@ const PostCard = memo(function PostCard({
   return (
     <div
       ref={cardRef}
-      className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "hover:bg-surface-hover/50 cursor-pointer select-none" : ""}`}
+      className={`px-4 transition-colors ${pt} ${pbBorder} ${isNavigable ? "cursor-pointer select-none hover:bg-surface-hover/45" : ""}`}
       onClick={isNavigable ? () => { postCache.set(post.id, post); startTransition(() => router.push(`/feed/${post.id}`)); } : undefined}
     >
       <div className="flex gap-3">
@@ -231,7 +231,7 @@ const PostCard = memo(function PostCard({
 
         <div className="flex-1 min-w-0">
           {/* Name · time */}
-          <div className="flex items-center min-w-0">
+          <div className="flex min-w-0 items-center">
             <span className="text-[15px] font-bold text-text-primary truncate">{personaName}</span>
             {!isDetail && (
               <>
@@ -261,7 +261,7 @@ const PostCard = memo(function PostCard({
 
           {/* Content + image */}
           <div className="relative" onClick={handleDoubleTap}>
-            <p className={`text-text-primary leading-snug whitespace-pre-wrap break-words ${isDetail ? "text-[17px] mt-2" : "text-[15px] mt-0.5"}`}>
+            <p className={`whitespace-pre-wrap break-words leading-snug text-text-primary ${isDetail ? "mt-2 text-[17px]" : "mt-0.5 text-[15px]"}`}>
               {post.content}
             </p>
             {post.image_url && (
@@ -282,9 +282,9 @@ const PostCard = memo(function PostCard({
           )}
 
           {/* Action bar */}
-          <div className={`mt-2 flex items-center gap-6 ${isDetail ? "pt-3 border-t border-border" : ""}`}>
+          <div className={`mt-2 flex items-center gap-6 ${isDetail ? "border-t border-border/80 pt-3" : ""}`}>
             <button onClick={(e) => { e.stopPropagation(); handleLike(); }} disabled={!currentUserId}
-              className={`flex items-center gap-1.5 text-[13px] transition-colors ${liked ? "text-error" : "text-text-muted hover:text-error"} disabled:opacity-40 disabled:cursor-not-allowed`}>
+                className={`flex items-center gap-1.5 text-[13px] transition-colors ${liked ? "text-error" : "text-text-muted hover:text-error"} disabled:cursor-not-allowed disabled:opacity-40`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={likeAnim ? "animate-like-pop" : ""}>
                 <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
               </svg>
@@ -293,7 +293,7 @@ const PostCard = memo(function PostCard({
 
             {onReply ? (
               <button onClick={(e) => { e.stopPropagation(); onReply(); }}
-                className="flex items-center gap-1.5 text-[13px] text-text-muted hover:text-mid-blue-light transition-colors">
+                className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
                 </svg>
@@ -301,7 +301,7 @@ const PostCard = memo(function PostCard({
               </button>
             ) : (
               <Link href={`/feed/${post.id}`} onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1.5 text-[13px] text-text-muted hover:text-mid-blue-light transition-colors">
+                className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-mid-blue-light">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
                 </svg>
@@ -310,7 +310,7 @@ const PostCard = memo(function PostCard({
             )}
 
             <button onClick={(e) => { e.stopPropagation(); handleShare(); }}
-              className="flex items-center gap-1.5 text-[13px] text-text-muted hover:text-amber transition-colors">
+              className="flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-amber">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                 <polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" />

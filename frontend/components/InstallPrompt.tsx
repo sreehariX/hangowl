@@ -160,7 +160,7 @@ export function InstallPrompt() {
         <div className="rounded-2xl border border-amber/30 bg-navy-light p-5 shadow-2xl shadow-black/60 relative overflow-hidden">
           <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-amber/10 blur-2xl pointer-events-none" />
 
-          <div className="relative flex flex-col items-center text-center gap-1">
+          <div className="relative flex flex-col items-center gap-1 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/20 text-3xl mb-1">
               🦉
             </div>

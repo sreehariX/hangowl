@@ -92,7 +92,7 @@ function NotificationItem({
   return (
     <button
       onClick={() => onTap(n)}
-      className={`relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06] ${
+      className={`relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-navy-lighter/55 active:bg-navy-lighter/70 ${
         isNew ? "bg-blue-500/[0.06]" : ""
       }`}
     >
@@ -117,7 +117,7 @@ function NotificationItem({
 
         {/* Action text */}
         <p className="text-[14px] leading-snug">
-          <span className="font-bold text-text">{n.actor_persona || "Someone"}</span>{" "}
+          <span className="font-bold text-text-primary">{n.actor_persona || "Someone"}</span>{" "}
           <span className="text-text-muted">{meta.label}</span>
         </p>
 
@@ -224,10 +224,11 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg pb-24">
+    <div className="app-shell min-h-screen pt-4">
+      <div className="app-content pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-border bg-navy/95 px-4 py-3.5 backdrop-blur-md">
-        <h1 className="text-xl font-bold text-text">Notifications</h1>
+      <div className="sticky top-0 z-10 glass-surface border-b border-border/80 px-4 py-3.5 backdrop-blur-md">
+        <h1 className="text-xl font-bold text-text-primary">Notifications</h1>
       </div>
 
       {/* New notifications pill */}
@@ -253,7 +254,7 @@ export default function NotificationsPage() {
               <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
             </svg>
           </div>
-          <p className="text-lg font-bold text-text">Nothing yet</p>
+          <p className="text-lg font-bold text-text-primary">Nothing yet</p>
           <p className="text-sm text-text-muted">Likes, replies, and hangout joins will show up here</p>
         </div>
       ) : (
@@ -261,7 +262,7 @@ export default function NotificationsPage() {
           {newNotifs.length > 0 && (
             <>
               <div className="px-4 pb-1 pt-3">
-                <span className="text-[13px] font-bold text-text">New</span>
+                <span className="text-[13px] font-bold text-text-primary">New</span>
               </div>
               <div className="divide-y divide-border/20">
                 {newNotifs.map((n) => (
@@ -274,7 +275,7 @@ export default function NotificationsPage() {
           {earlierNotifs.length > 0 && (
             <>
               <div className={`px-4 pb-1 ${newNotifs.length > 0 ? "mt-4 border-t border-border/30 pt-3" : "pt-3"}`}>
-                <span className="text-[13px] font-bold text-text">Earlier</span>
+                <span className="text-[13px] font-bold text-text-primary">Earlier</span>
               </div>
               <div className="divide-y divide-border/20">
                 {earlierNotifs.map((n) => (
@@ -285,6 +286,7 @@ export default function NotificationsPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -10,33 +10,38 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#1A1A2E",
-          light: "#22223A",
-          lighter: "#2A2A45",
+          DEFAULT: "#090C14",
+          light: "#101726",
+          lighter: "#182236",
         },
         amber: {
-          DEFAULT: "#F5A623",
-          dark: "#D48E1A",
+          DEFAULT: "#F4B63C",
+          dark: "#D79A2B",
         },
         "mid-blue": {
-          DEFAULT: "#4A4E8A",
-          light: "#5A5E9A",
+          DEFAULT: "#4E79C7",
+          light: "#6893E0",
         },
         surface: {
-          DEFAULT: "#1E1E35",
-          hover: "#25253F",
+          DEFAULT: "#121B2B",
+          hover: "#1A2537",
         },
         text: {
-          primary: "#F0F0F5",
-          secondary: "#9595AD",
-          muted: "#6B6B85",
+          primary: "#F7F9FC",
+          secondary: "#B6C0D4",
+          muted: "#7C8BA4",
         },
-        border: "#2E2E4A",
-        success: "#4ADE80",
-        error: "#F87171",
+        border: "#233149",
+        success: "#3DD9A4",
+        error: "#FF6A7A",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+      },
+      boxShadow: {
+        soft: "0 8px 30px rgba(4, 10, 23, 0.22)",
+        glass: "0 8px 24px rgba(4, 10, 23, 0.3)",
+        elevated: "0 12px 42px rgba(2, 8, 18, 0.45)",
       },
     },
   },
