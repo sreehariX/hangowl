@@ -31,10 +31,12 @@ interface AvatarProps {
 function AvatarComponent({ name, size = 40, className = "" }: AvatarProps) {
   const hash = hashCode(name);
 
+  // Slightly desaturated, consistent luminance — avatars feel like they
+  // belong to the same palette rather than a ransom of random colours.
   const hue1 = hash % 360;
-  const hue2 = (hue1 + 40 + (hash % 60)) % 360;
-  const color1 = hslToHex(hue1, 0.7, 0.55);
-  const color2 = hslToHex(hue2, 0.65, 0.45);
+  const hue2 = (hue1 + 42 + (hash % 40)) % 360;
+  const color1 = hslToHex(hue1, 0.58, 0.58);
+  const color2 = hslToHex(hue2, 0.52, 0.42);
 
   const grid = 5;
   const cells: boolean[][] = [];
@@ -60,7 +62,8 @@ function AvatarComponent({ name, size = 40, className = "" }: AvatarProps) {
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       className={className}
-      style={{ borderRadius: size * 0.22 }}
+      style={{ borderRadius: size * 0.28 }}
+      aria-hidden
     >
       <defs>
         <linearGradient id={`grad-${hash}`} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -68,7 +71,7 @@ function AvatarComponent({ name, size = 40, className = "" }: AvatarProps) {
           <stop offset="100%" stopColor={color2} />
         </linearGradient>
       </defs>
-      <rect width={size} height={size} rx={size * 0.22} fill={`url(#grad-${hash})`} />
+      <rect width={size} height={size} rx={size * 0.28} fill={`url(#grad-${hash})`} />
       {cells.map((row, r) =>
         row.map((on, c) =>
           on ? (
