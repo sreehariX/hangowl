@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckIcon, SparkleIcon } from "@/components/icons";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -12,12 +13,20 @@ const ONE_HOUR = 60 * 60 * 1000;
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 function isSuppressed() {
-  const until = localStorage.getItem(SUPPRESS_KEY);
-  return until ? Date.now() < parseInt(until, 10) : false;
+  try {
+    const until = localStorage.getItem(SUPPRESS_KEY);
+    return until ? Date.now() < parseInt(until, 10) : false;
+  } catch {
+    return false;
+  }
 }
 
 function suppressFor(ms: number) {
-  localStorage.setItem(SUPPRESS_KEY, (Date.now() + ms).toString());
+  try {
+    localStorage.setItem(SUPPRESS_KEY, (Date.now() + ms).toString());
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 type Stage = "prompt" | "progress" | "done";
@@ -36,7 +45,6 @@ export function InstallPrompt() {
       ("standalone" in window.navigator &&
         (window.navigator as Navigator & { standalone: boolean }).standalone);
     if (isStandalone) return;
-
     if (isSuppressed()) return;
 
     const handler = (e: Event) => {
@@ -49,11 +57,12 @@ export function InstallPrompt() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (progressRef.current) clearInterval(progressRef.current);
-    };
-  }, []);
+    },
+    [],
+  );
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
@@ -62,7 +71,7 @@ export function InstallPrompt() {
     setDeferredPrompt(null);
 
     if (outcome === "accepted") {
-      suppressFor(THIRTY_DAYS); // don't show again for 30 days after install
+      suppressFor(THIRTY_DAYS);
       setStage("progress");
       setProgress(0);
 
@@ -83,7 +92,7 @@ export function InstallPrompt() {
   };
 
   const handleLater = () => {
-    suppressFor(ONE_HOUR); // try again in 1 hour
+    suppressFor(ONE_HOUR);
     setShow(false);
     setStage("prompt");
     setProgress(0);
@@ -91,32 +100,33 @@ export function InstallPrompt() {
 
   if (!show) return null;
 
+  const shell =
+    "pointer-events-auto w-full max-w-sm animate-slide-up surface-hero overflow-hidden p-5";
+
   if (stage === "progress") {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center pb-24 px-4 pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-sm animate-slide-up">
-          <div className="rounded-2xl border border-amber/30 bg-navy-light p-5 shadow-2xl shadow-black/60">
-            <div className="flex flex-col items-center text-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/20 text-3xl">
-                🦉
-              </div>
-              <div>
-                <p className="font-bold text-base text-text-primary">
-                  Adding to home screen…
-                </p>
-                <p className="text-xs text-text-muted mt-1">Just a moment</p>
-              </div>
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center px-4 pb-28">
+        <div className={shell}>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/15 text-3xl">
+              🦉
             </div>
-            <div className="mt-4 rounded-full bg-surface h-2 overflow-hidden">
-              <div
-                className="h-full bg-amber rounded-full transition-all duration-100 ease-out"
-                style={{ width: `${progress}%` }}
-              />
+            <div>
+              <p className="text-body-lg font-semibold text-text-primary">
+                Adding to home screen…
+              </p>
+              <p className="mt-1 text-caption text-text-tertiary">Just a moment</p>
             </div>
-            <p className="text-center text-xs text-text-muted mt-2">
-              {Math.round(progress)}%
-            </p>
           </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink-850">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-[width] duration-100 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="mt-2 text-center text-caption tabular-nums text-text-tertiary">
+            {Math.round(progress)}%
+          </p>
         </div>
       </div>
     );
@@ -124,74 +134,63 @@ export function InstallPrompt() {
 
   if (stage === "done") {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center pb-24 px-4 pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-sm animate-slide-up">
-          <div className="rounded-2xl border border-amber/30 bg-navy-light p-5 shadow-2xl shadow-black/60">
-            <div className="flex flex-col items-center text-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/20 text-3xl">
-                ✅
-              </div>
-              <div>
-                <p className="font-bold text-base text-text-primary">
-                  HangOwl is on your home screen!
-                </p>
-                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
-                  Press your phone&apos;s home button, find the{" "}
-                  <span className="text-amber font-semibold">HangOwl</span>{" "}
-                  icon, and tap it to continue.
-                </p>
-              </div>
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center px-4 pb-28">
+        <div className={shell}>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15 text-success">
+              <CheckIcon size={28} />
             </div>
-            <button
-              onClick={() => setShow(false)}
-              className="mt-4 w-full rounded-xl bg-amber py-2.5 text-sm font-bold text-navy transition-colors hover:bg-amber-dark"
-            >
-              Got it!
-            </button>
+            <div>
+              <p className="text-body-lg font-semibold text-text-primary">
+                HangOwl is on your home screen
+              </p>
+              <p className="mt-1.5 text-caption leading-relaxed text-text-tertiary">
+                Close this and tap the{" "}
+                <span className="font-semibold text-amber">HangOwl</span> icon to
+                continue.
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setShow(false)}
+            className="btn-primary btn-block mt-4"
+          >
+            Got it
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pb-24 px-4 pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-sm animate-slide-up">
-        <div className="rounded-2xl border border-amber/30 bg-navy-light p-5 shadow-2xl shadow-black/60 relative overflow-hidden">
-          <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-amber/10 blur-2xl pointer-events-none" />
-
-          <div className="relative flex flex-col items-center gap-1 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/20 text-3xl mb-1">
-              🦉
-            </div>
-            <p className="font-bold text-base text-text-primary">
-              Add HangOwl to your home screen
-            </p>
-            <p className="text-xs text-text-muted leading-relaxed max-w-[220px]">
-              Open it like any other app — no browser needed.
-            </p>
-
-            <div className="mt-2 flex items-center gap-1.5 rounded-full bg-amber/10 px-3 py-1">
-              <span className="text-xs text-amber font-medium">
-                ⚡ One tap to open, anytime
-              </span>
-            </div>
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center px-4 pb-28">
+      <div className={`${shell} relative`}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-amber/15 blur-3xl"
+        />
+        <div className="relative flex flex-col items-center gap-1.5 text-center">
+          <div className="mb-1 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber/15 text-3xl">
+            🦉
           </div>
+          <p className="text-body-lg font-semibold text-text-primary">
+            Add HangOwl to your home screen
+          </p>
+          <p className="max-w-[240px] text-caption leading-relaxed text-text-tertiary">
+            Open it like any other app — no browser needed.
+          </p>
+          <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber/10 px-3 py-1 text-caption font-semibold text-amber">
+            <SparkleIcon size={12} /> One tap to open, anytime
+          </span>
+        </div>
 
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={handleLater}
-              className="flex-1 rounded-xl border border-border py-2.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface"
-            >
-              Later
-            </button>
-            <button
-              onClick={handleInstall}
-              className="flex-[2] rounded-xl bg-amber py-2.5 text-sm font-bold text-navy transition-all hover:bg-amber-dark active:scale-95"
-            >
-              Install App →
-            </button>
-          </div>
+        <div className="mt-5 flex gap-2">
+          <button onClick={handleLater} className="btn-secondary flex-1">
+            Later
+          </button>
+          <button onClick={handleInstall} className="btn-primary flex-[2]">
+            Install app
+          </button>
         </div>
       </div>
     </div>
