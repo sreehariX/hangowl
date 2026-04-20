@@ -2,130 +2,138 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { memo, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { Avatar } from "@/components/Avatar";
+import {
+  HomeIcon,
+  CompassIcon,
+  BellIcon,
+  LoginIcon,
+} from "@/components/icons";
 
-const NAV_ITEMS = [
-  {
-    href: "/",
-    label: "Feed",
-    icon: (active: boolean) => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        {!active && <polyline points="9 22 9 12 15 12 15 22" />}
-      </svg>
-    ),
-  },
-  {
-    href: "/hangouts",
-    label: "Hangouts",
-    icon: (active: boolean) => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-      </svg>
-    ),
-  },
+/**
+ * Premium bottom navigation — pill-shaped, blurred, with active pill
+ * background and subtle amber glow on the selected item.
+ */
+
+interface Item {
+  href: string;
+  label: string;
+  icon: ReactNode;
+}
+
+const BASE_ITEMS: Item[] = [
+  { href: "/", label: "Feed", icon: <HomeIcon size={22} /> },
+  { href: "/hangouts", label: "Hangouts", icon: <CompassIcon size={22} /> },
 ];
 
-function BellIcon({ active }: { active: boolean }) {
+function NavButton({
+  href,
+  label,
+  icon,
+  active,
+  badge,
+}: Item & { active: boolean; badge?: ReactNode }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
+    <Link
+      href={href}
+      className={`group relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10.5px] font-medium transition-colors duration-200 ease-[var(--ease-premium)] ${
+        active
+          ? "text-amber"
+          : "text-text-tertiary hover:text-text-secondary"
+      }`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span
+        className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-200 ${
+          active ? "bg-amber/12" : "group-hover:bg-surface-hover/70"
+        }`}
+      >
+        {icon}
+        {badge}
+      </span>
+      <span className={`${active ? "font-semibold" : ""}`}>{label}</span>
+    </Link>
   );
 }
 
-export function Nav() {
+export const Nav = memo(function Nav() {
   const pathname = usePathname();
   const { isAuthenticated, personaName, loading: authLoading } = useAuth();
   const { unreadCount, pulse } = useNotifications();
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   const bellActive = pathname === "/notifications";
-  // Derive display count: hide badge when not authenticated or currently viewing notifications
+  const profileActive = pathname === "/profile";
   const displayCount = isAuthenticated && !bellActive ? unreadCount : 0;
-  const badgeLabel = displayCount > 99 ? "99+" : displayCount > 0 ? String(displayCount) : null;
+  const badgeLabel =
+    displayCount > 99 ? "99+" : displayCount > 0 ? String(displayCount) : null;
 
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 safe-area-pb px-3 pb-2">
-      <div className="pointer-events-auto mx-auto flex w-full max-w-[680px] items-stretch justify-around rounded-2xl border border-border/80 bg-navy-light/85 px-2 py-1.5 shadow-glass backdrop-blur-xl">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`group flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
-                active
-                  ? "bg-amber/12 text-amber"
-                  : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
-              }`}
-            >
-              <div className={`${active ? "" : "transition-transform group-hover:-translate-y-0.5"}`}>
-                {item.icon(active)}
-              </div>
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
+    <nav
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      aria-label="Primary"
+    >
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[520px] items-stretch justify-around rounded-3xl border border-border/60 bg-ink-850/85 p-1.5 shadow-glass backdrop-blur-2xl">
+        {BASE_ITEMS.map((item) => (
+          <NavButton key={item.href} {...item} active={isActive(item.href)} />
+        ))}
 
-        {/* Notification Bell */}
         {!authLoading && isAuthenticated && (
-          <Link
+          <NavButton
             href="/notifications"
-            className={`group relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
-              bellActive
-                ? "bg-amber/12 text-amber"
-                : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
-            }`}
-          >
-            <div className={`relative ${pulse ? "animate-like-pop" : "transition-transform group-hover:-translate-y-0.5"}`}>
-              <BellIcon active={bellActive} />
-              {badgeLabel && (
-                <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+            label="Buzz"
+            active={bellActive}
+            icon={
+              <span className={pulse ? "animate-like-pop" : ""}>
+                <BellIcon size={22} />
+              </span>
+            }
+            badge={
+              badgeLabel ? (
+                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-850">
                   {badgeLabel}
                 </span>
-              )}
-            </div>
-            <span className="text-[10px] font-medium">Buzz</span>
-          </Link>
+              ) : null
+            }
+          />
         )}
 
         {!authLoading && isAuthenticated ? (
           <Link
             href="/profile"
-            className={`group flex flex-1 flex-col items-center gap-1 rounded-xl py-2 transition-all ${
-              pathname === "/profile"
-                ? "bg-amber/12 text-amber"
-                : "text-text-muted hover:bg-navy-lighter/80 hover:text-text-secondary"
+            className={`group relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10.5px] font-medium transition-colors duration-200 ${
+              profileActive ? "text-amber" : "text-text-tertiary hover:text-text-secondary"
             }`}
           >
-            <div className={`rounded-full transition-all ${pathname === "/profile" ? "ring-2 ring-amber/80 ring-offset-2 ring-offset-navy-light" : "ring-2 ring-transparent group-hover:-translate-y-0.5"}`}>
-              <Avatar name={personaName || ""} size={24} />
-            </div>
-            <span className="text-[10px] font-medium">You</span>
+            <span
+              className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                profileActive ? "bg-amber/12" : "group-hover:bg-surface-hover/70"
+              }`}
+            >
+              <span
+                className={`rounded-full transition-all ${
+                  profileActive ? "ring-2 ring-amber ring-offset-2 ring-offset-ink-850" : ""
+                }`}
+              >
+                <Avatar name={personaName || ""} size={22} />
+              </span>
+            </span>
+            <span className={profileActive ? "font-semibold" : ""}>You</span>
           </Link>
         ) : !authLoading ? (
-          <Link
+          <NavButton
             href="/verify"
-            className="flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-amber transition-all hover:bg-amber/10"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" x2="3" y1="12" y2="12" />
-            </svg>
-            <span className="text-[10px] font-medium">Join</span>
-          </Link>
+            label="Join"
+            active={false}
+            icon={<LoginIcon size={22} />}
+          />
         ) : null}
       </div>
     </nav>
   );
-}
+});
