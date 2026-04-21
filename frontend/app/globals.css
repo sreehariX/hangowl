@@ -937,6 +937,22 @@
   height: 280px;
   border-radius: 20px;
   overflow: hidden;
+  /*
+   * Critical: the map frame MUST be its own stacking context.
+   *
+   * Leaflet ships its panes at z-index: 200-700 and its zoom/
+   * attribution controls at z-index: 1000. Those numbers are
+   * absolute, not scoped to the map — without `isolation: isolate`
+   * they punch through any ancestor sitting below z-index 1000
+   * (including the z-[70] chat sheet), leaving the zoom buttons
+   * and destination pin floating on top of the chat.
+   *
+   * `isolation: isolate` creates a new stacking context on the
+   * map frame so Leaflet's internal z-indexes are re-rooted here
+   * and never escape this rectangle.
+   */
+  isolation: isolate;
+  z-index: 0;
   background: #0F0F10;
   border: 1px solid rgba(246, 186, 61, 0.18);
   box-shadow:

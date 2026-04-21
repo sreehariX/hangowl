@@ -486,7 +486,10 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       )}
 
       {!ended && alreadyJoined && chatOpen && (
-        <div className="fixed inset-0 z-[70] flex animate-fade-in flex-col bg-ink-900">
+        // z-[1200] so the sheet sits above any Leaflet control /
+        // tooltip (Leaflet's internal stack tops out at 1000 for
+        // controls, 800 for tooltips).
+        <div className="fixed inset-0 z-[1200] flex animate-fade-in flex-col bg-ink-900">
           <div className="sticky-bar">
             <button
               onClick={() => setChatOpen(false)}
