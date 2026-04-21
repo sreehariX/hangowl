@@ -1069,13 +1069,24 @@
   background: rgba(52, 217, 159, 0.18);
 }
 
+/*
+ * Directions pill. Deliberately styled as an obviously-tappable
+ * secondary button: bright 2px amber border, amber-tinted fill,
+ * amber icon + label. At a glance it reads "clickable" — none of
+ * the old "is this a button?" ambiguity users were hitting.
+ */
 .presence-pill-btn--directions {
-  background: rgba(241, 242, 245, 0.04);
-  color: #F1F2F5;
-  border: 1px solid rgba(36, 36, 43, 0.9);
+  background: rgba(246, 186, 61, 0.1);
+  color: #F6BA3D;
+  border: 1.5px solid rgba(246, 186, 61, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(246, 186, 61, 0.05) inset,
+    0 4px 10px rgba(0, 0, 0, 0.25);
 }
 .presence-pill-btn--directions:hover {
-  background: rgba(241, 242, 245, 0.08);
+  background: rgba(246, 186, 61, 0.18);
+  border-color: rgba(246, 186, 61, 0.75);
+  color: #FBD06A;
 }
 
 /* Tiny pulsing dot inside the "Stop sharing" pill so the user has a
