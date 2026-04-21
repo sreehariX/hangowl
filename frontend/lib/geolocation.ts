@@ -1,6 +1,49 @@
 import type { LatLng } from "./maps";
 
 /**
+ * Permission state we model in the UI.
+ * - "unsupported" — `navigator.geolocation` is missing (ancient browser / sandbox).
+ * - "prompt"      — we haven't asked this session yet, OS will show a dialog.
+ * - "granted"     — already allowed; we can start watching immediately.
+ * - "denied"      — user or OS has blocked us; retrying will silently fail.
+ * - "unknown"     — Permissions API not available (Safari <16). Treat like prompt.
+ */
+export type GeoPermissionState =
+  | "unsupported"
+  | "prompt"
+  | "granted"
+  | "denied"
+  | "unknown";
+
+/**
+ * Read the current geolocation permission without actually requesting it.
+ * Safe to call on mount so we can render the right CTA copy up front
+ * ("Share live" vs "Enable location in your browser settings…").
+ *
+ * Uses the Permissions API where available, which is every modern browser
+ * except Safari <16. Falls back to "unknown" otherwise.
+ */
+export async function readGeoPermission(): Promise<GeoPermissionState> {
+  if (typeof navigator === "undefined") return "unsupported";
+  if (!("geolocation" in navigator)) return "unsupported";
+  const perms = (navigator as Navigator & {
+    permissions?: {
+      query: (d: { name: PermissionName }) => Promise<PermissionStatus>;
+    };
+  }).permissions;
+  if (!perms?.query) return "unknown";
+  try {
+    const status = await perms.query({ name: "geolocation" as PermissionName });
+    if (status.state === "granted" || status.state === "denied" || status.state === "prompt") {
+      return status.state;
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * Thin, promise-based wrapper around `navigator.geolocation.getCurrentPosition`.
  *
  * Browsers only hand out the geolocation prompt on a secure context from a

@@ -80,13 +80,20 @@
   color: #0B0B0F;
   border-color: #F6BA3D;
 }
+/*
+ * Presence dot. Role-based colours:
+ *   .is-joiner  — blue  (#3B82F6) : everyone who joined
+ *   .is-host    — amber (#F6BA3D) : plan creator, star badge on the dot
+ *   .is-me      — thicker ring so "this is me" stays legible regardless
+ *                 of which role the user has. Layers on top of role colour.
+ */
 .presence-dot {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #3B82F6;
   border: 2px solid #F1F2F5;
@@ -96,7 +103,22 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+.presence-marker.is-host .presence-dot {
+  background: #F6BA3D;
+  color: #0B0B0F;
+  border-color: #FFF3D6;
+}
 .presence-marker.is-me .presence-dot {
+  border-width: 3px;
+  border-color: #F1F2F5;
+  box-shadow:
+    0 0 0 2px rgba(11, 11, 15, 0.9),
+    0 2px 8px rgba(0, 0, 0, 0.55);
+}
+.presence-marker.is-me.is-joiner .presence-dot {
+  background: #3B82F6;
+}
+.presence-marker.is-me.is-host .presence-dot {
   background: #F6BA3D;
   color: #0B0B0F;
 }
@@ -111,22 +133,78 @@
   position: relative;
   z-index: 1;
 }
+.presence-host-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #F6BA3D;
+  color: #0B0B0F;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  border: 1.5px solid #0B0B0F;
+}
+.presence-you-tag,
+.presence-host-tag {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+.presence-you-tag {
+  background: rgba(241, 242, 245, 0.18);
+  color: #F1F2F5;
+}
+.presence-host-tag {
+  background: rgba(246, 186, 61, 0.22);
+  color: #F6BA3D;
+}
 .presence-pulse {
   position: absolute;
-  inset: -6px;
+  inset: -7px;
   border-radius: 50%;
-  background: currentColor;
+  background: #3B82F6;
   opacity: 0.25;
   animation: presence-pulse 1.8s ease-out infinite;
   pointer-events: none;
 }
-.presence-marker.is-me .presence-pulse {
+.presence-marker.is-host .presence-pulse {
   background: #F6BA3D;
 }
 @keyframes presence-pulse {
   0%   { transform: scale(0.6); opacity: 0.45; }
   80%  { transform: scale(1.8); opacity: 0;    }
   100% { transform: scale(1.8); opacity: 0;    }
+}
+
+/* Legend dots under the map header. Miniature versions of the live
+ * markers so the UI is self-documenting. */
+.presence-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #F1F2F5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.presence-legend-dot.is-host   { background: #F6BA3D; }
+.presence-legend-dot.is-joiner { background: #3B82F6; }
+.presence-legend-dot.is-me {
+  background: transparent;
+  border-color: #F1F2F5;
+  box-shadow: 0 0 0 2px #0B0B0F, 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* Destination tooltip ("H7", etc.) sits above the default Leaflet pin. */

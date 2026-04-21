@@ -380,6 +380,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           <div className="mt-6 px-4">
             <LivePresenceMap
               planId={plan.id}
+              hostId={plan.creator_id}
               destination={planCoords}
               destinationLabel={plan.location}
             />
