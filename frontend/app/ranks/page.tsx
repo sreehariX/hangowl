@@ -29,7 +29,7 @@ export default function RanksPage() {
   return (
     <div className="app-shell pt-0">
       <div className="app-content">
-        <div className="sticky-bar">
+        <div className="top-bar">
           <button onClick={() => router.back()} className="icon-btn" aria-label="Back">
             <ArrowLeftIcon size={20} />
           </button>

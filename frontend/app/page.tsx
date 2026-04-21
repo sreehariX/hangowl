@@ -184,7 +184,7 @@ export default function FeedHomePage() {
   return (
     <div className="app-shell pt-0">
       <div className="app-content relative">
-        <header className="sticky-bar">
+        <header className="top-bar">
           <h1 className="text-[17px] font-semibold text-text-primary">Feed</h1>
           {stats && (
             <span className="ml-auto flex items-center gap-2 text-[11px] font-medium text-text-tertiary">
@@ -307,7 +307,7 @@ export default function FeedHomePage() {
         {isAuthenticated && !showCompose && (
           <button
             onClick={() => setShowCompose(true)}
-            className="fab bottom-24 right-4 md:right-[calc(50%-300px+16px)]"
+            className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
             aria-label="New post"
           >
             <PlusIcon size={24} />

@@ -101,7 +101,7 @@ export default function ProfilePage() {
   return (
     <div className="app-shell pt-0">
       <div className="app-content">
-        <div className="sticky-bar">
+        <div className="top-bar">
           <h1 className="text-[17px] font-semibold text-text-primary">Profile</h1>
         </div>
 

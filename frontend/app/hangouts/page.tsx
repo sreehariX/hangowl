@@ -236,7 +236,7 @@ export default function HangoutsPage() {
     return (
       <div className="app-shell pt-0">
         <div className="app-content">
-          <div className="sticky-bar"><h1 className="text-[17px] font-semibold">Hangouts</h1></div>
+          <div className="top-bar"><h1 className="text-[17px] font-semibold">Hangouts</h1></div>
           <div className="px-4 pt-4"><PlanListSkeleton count={4} /></div>
         </div>
       </div>
@@ -247,7 +247,7 @@ export default function HangoutsPage() {
   return (
     <div className="app-shell pt-0">
       <div className="app-content">
-        <header className="sticky-bar">
+        <header className="top-bar">
           <h1 className="text-[17px] font-semibold text-text-primary">Hangouts</h1>
           <button
             onClick={() => setShowCreate(true)}
@@ -350,7 +350,7 @@ export default function HangoutsPage() {
       {!showCreate && (
         <button
           onClick={() => setShowCreate(true)}
-          className="fab bottom-24 right-4 md:right-[calc(50%-300px+16px)]"
+          className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
           aria-label="Create hangout"
         >
           <PlusIcon size={24} />
