@@ -254,8 +254,26 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
         # yet: drop the new image_urls column and retry with only the legacy
         # image_url so single-image posts still work.
         if _is_missing_image_urls_error(e):
+            # The `image_urls` column is missing -> schema_v10 migration has
+            # not been applied on this deployment. If the user only attached
+            # one image we can safely fall back to the legacy column, but
+            # silently dropping 2-4 images while returning success is what
+            # caused "I uploaded 4 photos, only 1 shows up" — the server
+            # persisted one image and echoed all four so the creator saw
+            # the full grid until the next refresh. Refuse the multi-image
+            # write instead so the client surfaces a real error and the
+            # admin knows to run the migration.
             _image_urls_column_present = False
             insert_data.pop("image_urls", None)
+            if len(images) > 1:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Multi-image posts are not enabled on this server yet. "
+                        "Ask the admin to run schema_v10_migration.sql, then "
+                        "try again."
+                    ),
+                ) from e
             try:
                 result = db.table("posts").insert(insert_data).execute()
             except Exception as e2:
@@ -276,10 +294,12 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
     if not result.data:
         raise HTTPException(status_code=500, detail="Could not save post")
     post = result.data[0]
-    # Echo the full list back so the client shows every image it uploaded,
-    # even if the DB column is missing and only the first one persisted.
-    if images and not post.get("image_urls"):
-        post["image_urls"] = images
+    # On a modern deployment the DB echoes `image_urls` directly. For pre-v10
+    # deployments (single-image fallback above) we surface the one persisted
+    # image so the client stays in sync with what actually landed on disk.
+    if not post.get("image_urls"):
+        persisted = post.get("image_url")
+        post["image_urls"] = [persisted] if persisted else None
 
     if body.parent_id:
         parent_post = (

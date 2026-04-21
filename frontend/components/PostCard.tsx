@@ -110,6 +110,11 @@ function PostImage({
  *  2 → side-by-side split
  *  3 → left tall + two stacked right
  *  4 → 2×2 square grid
+ *
+ * IMPORTANT: we always declare `gridTemplateRows` explicitly. Leaving it
+ * implicit + `auto` means children with `h-full` resolve against a 0-height
+ * row in some WebKit / older Chromium builds — which is what caused "I
+ * uploaded 4 photos but only see 1" in production.
  */
 function PostImages({
   urls,
@@ -133,7 +138,14 @@ function PostImages({
 
   if (n === 2) {
     return (
-      <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "2 / 1" }}>
+      <div
+        className={wrap}
+        style={{
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "1fr",
+          aspectRatio: "2 / 1",
+        }}
+      >
         {urls.map((u, i) => (
           <PostImage key={i} src={u} onOpen={() => onOpen(i)} />
         ))}
@@ -143,8 +155,15 @@ function PostImages({
 
   if (n === 3) {
     return (
-      <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "2 / 1" }}>
-        <div className="row-span-2">
+      <div
+        className={wrap}
+        style={{
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "1fr 1fr",
+          aspectRatio: "2 / 1",
+        }}
+      >
+        <div className="row-span-2 h-full">
           <PostImage src={urls[0]} onOpen={() => onOpen(0)} />
         </div>
         <PostImage src={urls[1]} onOpen={() => onOpen(1)} />
@@ -154,7 +173,14 @@ function PostImages({
   }
 
   return (
-    <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "1 / 1" }}>
+    <div
+      className={wrap}
+      style={{
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+        aspectRatio: "1 / 1",
+      }}
+    >
       {urls.slice(0, 4).map((u, i) => (
         <PostImage key={i} src={u} onOpen={() => onOpen(i)} />
       ))}

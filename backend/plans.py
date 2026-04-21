@@ -28,6 +28,10 @@ class CreatePlanRequest(BaseModel):
     starts_at: str
     ends_at: str
     image_url: Optional[str] = None
+    # Optional exact pin for Google Maps navigation. If omitted we fall back
+    # to the text label (legacy behaviour).
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class SendMessageRequest(BaseModel):
@@ -278,6 +282,18 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
                 detail="Image URL must come from the HangOwl uploader",
             )
         insert_data["image_url"] = body.image_url
+
+    # A lone axis is always a mistake; require both or neither.
+    if (body.latitude is None) != (body.longitude is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Both latitude and longitude must be provided together",
+        )
+    if body.latitude is not None and body.longitude is not None:
+        if not -90 <= body.latitude <= 90 or not -180 <= body.longitude <= 180:
+            raise HTTPException(status_code=400, detail="Invalid coordinates")
+        insert_data["latitude"] = body.latitude
+        insert_data["longitude"] = body.longitude
 
     result = (
         db.table("plans")
