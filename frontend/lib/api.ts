@@ -120,8 +120,11 @@ export const api = {
     starts_at: string;
     ends_at: string;
     image_url?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
+    // Required as of v1.1 — every new plan ships with a door-level
+    // pin so friends arriving on campus can navigate to the exact
+    // spot, not a 100-metre-radius text label.
+    latitude: number;
+    longitude: number;
   }) =>
     request<{ plan: import("./types").Plan }>("/plans", {
       method: "POST",
