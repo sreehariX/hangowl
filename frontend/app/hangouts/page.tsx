@@ -199,6 +199,12 @@ export default function HangoutsPage() {
       setCreateError("Pick an activity, a location, and add a quick description.");
       return;
     }
+    if (!pinCoords) {
+      setCreateError("Drop the exact pin on the map — it's how friends find your spot.");
+      // Jump them straight into the picker so the fix is one tap away.
+      setShowLocationPicker(true);
+      return;
+    }
     const startISO = `${planDate}T${startTime}:00+05:30`;
     const startDate = new Date(startISO);
     const endDate = new Date(startDate.getTime() + duration * 60000);
@@ -214,8 +220,8 @@ export default function HangoutsPage() {
         starts_at: startDate.toISOString(),
         ends_at: endDate.toISOString(),
         image_url: imageUrl,
-        latitude: pinCoords?.lat ?? null,
-        longitude: pinCoords?.lng ?? null,
+        latitude: pinCoords.lat,
+        longitude: pinCoords.lng,
       });
       resetForm();
       setShowCreate(false);
@@ -488,9 +494,11 @@ export default function HangoutsPage() {
                 )}
 
                 {/*
-                 * Optional exact pin. Encourages Uber-style precision: the
-                 * label ("H7") gets you close, the pin gets you to the
-                 * specific door.
+                 * Exact pin. Required: the text label ("H7") gets you
+                 * close, but only the pin gets friends to the specific
+                 * door. When unset we render the prompt as an amber
+                 * "Required" callout so the host can't miss it; when
+                 * set we flip to a green "Exact spot pinned" state.
                  */}
                 <div className="mt-3">
                   {pinCoords ? (
@@ -513,33 +521,31 @@ export default function HangoutsPage() {
                       >
                         Adjust
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setPinCoords(null)}
-                        className="icon-btn h-8 w-8"
-                        aria-label="Remove pin"
-                      >
-                        <CloseIcon size={14} />
-                      </button>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setShowLocationPicker(true)}
-                      className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-left text-caption text-text-tertiary transition-colors hover:border-text-tertiary hover:text-text-secondary"
+                      className="flex w-full items-center gap-2 rounded-xl border-[1.5px] border-amber/55 bg-amber/10 px-3 py-2.5 text-left transition-colors hover:bg-amber/15"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-hover text-text-tertiary">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber/20 text-amber">
                         <MapPinIcon size={14} />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-semibold text-text-secondary">
+                        <span className="flex items-center gap-1.5 font-semibold text-amber">
                           Pin the exact spot
+                          <span
+                            className="rounded-full bg-amber/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                            aria-hidden
+                          >
+                            Required
+                          </span>
                         </span>
-                        <span className="truncate text-[11px] text-text-muted">
+                        <span className="truncate text-[11px] text-amber/80">
                           Drop a map marker so friends navigate right to the door
                         </span>
                       </span>
-                      <NavigationIcon size={14} className="text-text-tertiary" />
+                      <NavigationIcon size={14} className="text-amber" />
                     </button>
                   )}
                 </div>

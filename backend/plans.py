@@ -28,8 +28,11 @@ class CreatePlanRequest(BaseModel):
     starts_at: str
     ends_at: str
     image_url: Optional[str] = None
-    # Optional exact pin for Google Maps navigation. If omitted we fall back
-    # to the text label (legacy behaviour).
+    # Exact pin for Google Maps navigation. Mandatory as of v1.1 — the
+    # text label ("H7") was too ambiguous for people arriving on
+    # campus, so every plan now ships with a door-level pin. The fields
+    # stay Optional at the schema level so we can surface a clearer
+    # 400 error than Pydantic's default "field required" message.
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -283,17 +286,19 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
             )
         insert_data["image_url"] = body.image_url
 
-    # A lone axis is always a mistake; require both or neither.
-    if (body.latitude is None) != (body.longitude is None):
+    # Every plan must ship with a door-level pin. The text label alone
+    # ("H7", "Gymkhana") is too ambiguous for people arriving on
+    # campus, and the whole point of the live map is to navigate
+    # people to the right spot.
+    if body.latitude is None or body.longitude is None:
         raise HTTPException(
             status_code=400,
-            detail="Both latitude and longitude must be provided together",
+            detail="Drop the exact pin on the map before creating the hangout.",
         )
-    if body.latitude is not None and body.longitude is not None:
-        if not -90 <= body.latitude <= 90 or not -180 <= body.longitude <= 180:
-            raise HTTPException(status_code=400, detail="Invalid coordinates")
-        insert_data["latitude"] = body.latitude
-        insert_data["longitude"] = body.longitude
+    if not -90 <= body.latitude <= 90 or not -180 <= body.longitude <= 180:
+        raise HTTPException(status_code=400, detail="Invalid coordinates")
+    insert_data["latitude"] = body.latitude
+    insert_data["longitude"] = body.longitude
 
     result = (
         db.table("plans")
