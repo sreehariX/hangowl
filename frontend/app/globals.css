@@ -454,25 +454,49 @@
   }
 
   /*
-   * Post body text. Disables the Chrome-on-Android "Touch to Search"
-   * popup (the Google bubble that appears after a single tap on a word)
-   * by making the text non-selectable and suppressing the long-press
-   * callout. Inputs / textareas keep their normal selection behaviour
-   * because they're explicitly selectable by user agent stylesheet.
+   * Kill Chrome-on-Android "Touch to Search" globally. A single tap on any
+   * non-input text was popping the Google search bubble across the app —
+   * chat bubbles, plan titles, map labels, the dock, everything. The
+   * previous narrowly-scoped `.post-content` rule only covered post
+   * bodies and missed every other surface.
+   *
+   * Strategy: default text to user-select:none (Touch-to-Search needs a
+   * selectable text range to fire), then explicitly opt back in on the
+   * few places where the user legitimately expects to copy/paste:
+   *   - form fields (<input>, <textarea>, contenteditable)
+   *   - code / pre blocks (rare, but preserve native behaviour)
+   *   - anything tagged `.selectable` (escape hatch for a future
+   *     long-press-to-copy coords / invite link feature)
+   *
+   * The touch-callout:none bonus suppresses iOS's long-press preview
+   * popover so the same single-tap-to-read flow works on both platforms.
    */
-  .post-content {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-  }
-
   body {
     min-height: 100dvh;
     background: #0B0B0F;
     color: #F1F2F5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable=""],
+  code,
+  pre,
+  .selectable,
+  .selectable * {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 
   ::selection {
