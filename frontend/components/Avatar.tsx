@@ -84,20 +84,26 @@ function pickDistinct<T>(arr: readonly T[], n: number, rnd: () => number): T[] {
 }
 
 function initialsFor(name: string) {
-  const trimmed = name.trim();
+  // Personas look like "BlushRaven#5763" — drop the numeric suffix and any
+  // non-letter decoration before picking initials.
+  const trimmed = name.split("#")[0].trim();
   if (!trimmed) return "?";
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) {
-    // Prefer the first two letters of a single word if they're alphabetic —
-    // "Crimson" -> "CR", matches Apple Music style.
-    const first = parts[0].charAt(0);
-    const second = parts[0].charAt(1);
-    if (second && /[a-zA-Z]/.test(second)) {
-      return (first + second).toUpperCase();
-    }
-    return first.toUpperCase();
+
+  // Prefer explicit word boundaries first ("Blush Raven" → BR).
+  const words = trimmed.split(/[\s_\-.]+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
   }
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+
+  // Otherwise split camelCase so "BlushRaven" → BR, "IronOwl" → IO.
+  const camel = trimmed.match(/[A-Z][a-z]*|[a-z]+/g);
+  if (camel && camel.length >= 2) {
+    return (camel[0].charAt(0) + camel[1].charAt(0)).toUpperCase();
+  }
+
+  // Single token — fall back to the first two alphabetic chars.
+  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
+  return (letters.slice(0, 2) || letters.charAt(0) || "?").toUpperCase();
 }
 
 interface AvatarProps {
