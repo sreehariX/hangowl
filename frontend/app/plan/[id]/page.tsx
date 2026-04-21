@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -16,7 +17,9 @@ import {
   CalendarIcon,
   CheckIcon,
   ClockIcon,
+  CloseIcon,
   MapPinIcon,
+  MessageCircleIcon,
   NavigationIcon,
   ShareIcon,
   UsersIcon,
@@ -71,6 +74,37 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  /** Unread badge count rendered on the chat FAB. Bumped by realtime
+   *  INSERTs on plan_messages whenever the sheet is closed and the
+   *  message isn't our own echo; zeroed the moment the sheet opens. */
+  const [unread, setUnread] = useState(0);
+  const chatOpenRef = useRef(chatOpen);
+  useEffect(() => {
+    chatOpenRef.current = chatOpen;
+  }, [chatOpen]);
+
+  // Lock body scroll + Esc-to-close while the chat sheet is open,
+  // matching the Post compose screen so the keyboard doesn't fight
+  // the outer page.
+  useEffect(() => {
+    if (!chatOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [chatOpen]);
+
+  // Opening the sheet counts as "seen".
+  useEffect(() => {
+    if (chatOpen) setUnread(0);
+  }, [chatOpen]);
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
@@ -82,6 +116,33 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       : null;
   const isCreator = userId === plan.creator_id;
   const alreadyJoined = members.some((m) => m.user_id === userId);
+
+  // Realtime unread counter. Only spin up the subscription for
+  // members — non-members never see the FAB.
+  useEffect(() => {
+    if (!alreadyJoined || ended || !plan.id) return;
+    const channel = supabase
+      .channel(`plan-chat-unread-${plan.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "plan_messages",
+          filter: `plan_id=eq.${plan.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { user_id?: string };
+          if (row.user_id === userId) return;
+          if (chatOpenRef.current) return;
+          setUnread((n) => Math.min(n + 1, 99));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [alreadyJoined, ended, plan.id, userId]);
 
   async function handleJoin() {
     if (!isAuthenticated) { router.push("/verify"); return; }
@@ -161,13 +222,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </button>
         </div>
 
-        {/* Live map + group chat sit directly below the back/title bar
-         * so they're the first things a member sees when opening a
-         * plan. Both are inline (no modal, no FAB) — you just scroll
-         * past them to read the plan details, exactly like how posts
-         * are laid out elsewhere in the app. */}
+        {/* Live map sits directly below the back/title bar so it's the
+         * first thing a member sees when opening a plan. Group chat
+         * lives behind a floating button (same .fab pattern as the
+         * Post / Create-hangout FABs) so it doesn't eat vertical
+         * space until the user actually wants to read it. */}
         {!ended && alreadyJoined && (
-          <div className="space-y-3 px-4 pt-4">
+          <div className="px-4 pt-4">
             <LivePresenceMap
               planId={plan.id}
               hostId={plan.creator_id}
@@ -175,7 +236,6 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               destinationLabel={plan.location}
               variant="card"
             />
-            <PlanChat planId={plan.id} variant="card" />
           </div>
         )}
 
@@ -394,7 +454,56 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
+        {/* Keep a small bottom gap so the floating chat FAB never
+         * covers the join / leave actions above it. */}
+        {!ended && alreadyJoined && (
+          <div aria-hidden className="h-24" />
+        )}
       </div>
+
+      {!ended && alreadyJoined && !chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
+          aria-label={
+            unread > 0
+              ? `Open group chat (${unread} new ${
+                  unread === 1 ? "message" : "messages"
+                })`
+              : "Open group chat"
+          }
+        >
+          <MessageCircleIcon size={22} />
+          {unread > 0 && (
+            <span
+              className="chat-fab-badge tabular-nums"
+              aria-hidden
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+      )}
+
+      {!ended && alreadyJoined && chatOpen && (
+        <div className="fixed inset-0 z-[70] flex animate-fade-in flex-col bg-ink-900">
+          <div className="sticky-bar">
+            <button
+              onClick={() => setChatOpen(false)}
+              className="icon-btn"
+              aria-label="Close"
+            >
+              <CloseIcon size={20} />
+            </button>
+            <span className="text-[17px] font-semibold text-text-primary">
+              Group chat
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <PlanChat planId={plan.id} variant="fill" hideHeader />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

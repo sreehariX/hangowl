@@ -1100,6 +1100,37 @@
   opacity: 0.75;
 }
 
+/*
+ * Unread-count badge for the chat FAB. Sits in the top-right of the
+ * circle, iOS-style: bright red pill, bold white count, ringed by
+ * the page background so it reads as a separate element on top of
+ * the amber button. Tabular numerals so 1 → 9+ doesn't wobble.
+ */
+.chat-fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #F4212E;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0B0B0F;
+  box-shadow: 0 2px 8px rgba(244, 33, 46, 0.55);
+  animation: chat-fab-badge-pop 220ms var(--ease);
+}
+@keyframes chat-fab-badge-pop {
+  0%   { transform: scale(0.5);  opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
