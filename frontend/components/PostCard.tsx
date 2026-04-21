@@ -402,7 +402,7 @@ const PostCard = memo(function PostCard({
 
           <div className="relative mt-0.5" onClick={handleDoubleTap}>
             <p
-              className={`whitespace-pre-wrap break-words leading-[1.4] text-text-primary ${
+              className={`post-content whitespace-pre-wrap break-words leading-[1.4] text-text-primary ${
                 isDetail ? "mt-1 text-[17px]" : "text-[15px]"
               }`}
             >

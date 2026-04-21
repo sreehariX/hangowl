@@ -16,6 +16,54 @@ PAGE_SIZE = 20
 MAX_IMAGES_PER_POST = 4
 
 
+# True once we have confirmed the `image_urls` column exists. Stays None until
+# the first successful query tells us one way or the other. We cache the
+# negative case so every subsequent SELECT skips that column from the start
+# and avoids paying the cost of the initial failing request again.
+_image_urls_column_present: Optional[bool] = None
+
+
+def _post_cols() -> str:
+    """Column list for post SELECTs; omits `image_urls` when we know the
+    schema_v10 migration has not been applied yet so the query does not fail
+    with "column does not exist"."""
+    if _image_urls_column_present is False:
+        return (
+            "id, user_id, content, image_url, parent_id, likes_count, "
+            "replies_count, views_count, created_at, users(persona_name)"
+        )
+    return (
+        "id, user_id, content, image_url, image_urls, parent_id, likes_count, "
+        "replies_count, views_count, created_at, users(persona_name)"
+    )
+
+
+def _is_missing_image_urls_error(err: Exception) -> bool:
+    msg = str(err)
+    return "image_urls" in msg and (
+        "does not exist" in msg or "column" in msg.lower()
+    )
+
+
+def _run_post_query(build):
+    """Run a post-table SELECT built by `build(cols)` and transparently retry
+    without the `image_urls` column when the migration has not been applied.
+    Remembers the answer in a module-level flag so the retry only runs once."""
+    global _image_urls_column_present
+    try:
+        result = build(_post_cols()).execute()
+    except Exception as e:
+        if _image_urls_column_present is not False and _is_missing_image_urls_error(e):
+            _image_urls_column_present = False
+            result = build(_post_cols()).execute()
+        else:
+            raise
+    else:
+        if _image_urls_column_present is None:
+            _image_urls_column_present = True
+    return result
+
+
 class CreatePostRequest(BaseModel):
     content: str
     image_url: Optional[str] = None
@@ -27,23 +75,22 @@ class CreatePostRequest(BaseModel):
 async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] = None):
     db = get_supabase()
 
-    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
-    query = (
-        db.table("posts")
-        .select(COLS)
-        .is_("parent_id", "null")
-        .eq("is_hidden", False)
-        .order("created_at", desc=True)
-        .limit(PAGE_SIZE)
-    )
+    def _build_feed(cols: str):
+        q = (
+            db.table("posts")
+            .select(cols)
+            .is_("parent_id", "null")
+            .eq("is_hidden", False)
+            .order("created_at", desc=True)
+            .limit(PAGE_SIZE)
+        )
+        if cursor:
+            q = q.lt("created_at", cursor)
+        if user_id_filter:
+            q = q.eq("user_id", user_id_filter)
+        return q
 
-    if cursor:
-        query = query.lt("created_at", cursor)
-
-    if user_id_filter:
-        query = query.eq("user_id", user_id_filter)
-
-    result = query.execute()
+    result = _run_post_query(_build_feed)
     posts = result.data
 
     # Batch-fetch top reply for posts that have replies.
@@ -55,28 +102,26 @@ async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] =
         post_author_map = {p["id"]: p["user_id"] for p in posts_with_replies}
 
         # Query A: most-liked replies (any author, ≥1 like)
-        liked_res = (
-            db.table("posts")
-            .select(COLS)
+        liked_res = _run_post_query(
+            lambda cols: db.table("posts")
+            .select(cols)
             .in_("parent_id", post_ids)
             .eq("is_hidden", False)
             .gt("likes_count", 0)
             .order("likes_count", desc=True)
             .limit(min(len(post_ids) * 3, 60))
-            .execute()
         )
 
         # Query B: potential self-replies (author replies to own post)
         author_ids = list(set(post_author_map.values()))
-        self_res = (
-            db.table("posts")
-            .select(COLS)
+        self_res = _run_post_query(
+            lambda cols: db.table("posts")
+            .select(cols)
             .in_("parent_id", post_ids)
             .in_("user_id", author_ids)
             .eq("is_hidden", False)
             .order("created_at", desc=False)
             .limit(len(post_ids) * 2)
-            .execute()
         )
 
         # Build top_reply map: author reply > liked reply
@@ -137,13 +182,19 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
             detail=f"A post can have at most {MAX_IMAGES_PER_POST} images",
         )
 
+    global _image_urls_column_present
+
     insert_data = {
         "user_id": user["sub"],
         "content": content,
         "image_url": images[0] if images else None,
-        "image_urls": images if images else None,
         "is_hidden": False,
     }
+    # Only include `image_urls` when the schema_v10 migration is known to be
+    # present (or we haven't checked yet). Skipping it up-front when we know
+    # the column is missing avoids a guaranteed-to-fail INSERT round-trip.
+    if _image_urls_column_present is not False:
+        insert_data["image_urls"] = images if images else None
 
     if body.parent_id:
         parent = (
@@ -159,14 +210,16 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
 
     try:
         result = db.table("posts").insert(insert_data).execute()
+        if _image_urls_column_present is None and "image_urls" in insert_data:
+            _image_urls_column_present = True
     except Exception as e:
-        msg = str(e)
         # Graceful fallback when the schema_v10 migration has not been applied
         # yet: drop the new image_urls column and retry with only the legacy
         # image_url so single-image posts still work. Multi-image posts will
         # only keep the first URL on disk, but the response still echoes the
         # full list so the client can optimistically render all thumbnails.
-        if "image_urls" in msg and ("does not exist" in msg or "column" in msg.lower()):
+        if _is_missing_image_urls_error(e):
+            _image_urls_column_present = False
             insert_data.pop("image_urls", None)
             try:
                 result = db.table("posts").insert(insert_data).execute()
@@ -204,20 +257,21 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
 @router.get("/my")
 async def get_my_posts(user: dict = Depends(verify_token), cursor: Optional[str] = None):
     db = get_supabase()
-    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
-    query = (
-        db.table("posts")
-        .select(COLS)
-        .eq("user_id", user["sub"])
-        .eq("is_hidden", False)
-        .order("created_at", desc=True)
-        .limit(PAGE_SIZE)
-    )
 
-    if cursor:
-        query = query.lt("created_at", cursor)
+    def _build(cols: str):
+        q = (
+            db.table("posts")
+            .select(cols)
+            .eq("user_id", user["sub"])
+            .eq("is_hidden", False)
+            .order("created_at", desc=True)
+            .limit(PAGE_SIZE)
+        )
+        if cursor:
+            q = q.lt("created_at", cursor)
+        return q
 
-    result = query.execute()
+    result = _run_post_query(_build)
     return {"posts": result.data}
 
 
@@ -277,42 +331,38 @@ async def record_view(post_id: str, bg: BackgroundTasks):
 async def get_post(post_id: str):
     db = get_supabase()
 
-    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
-    post_result = (
-        db.table("posts")
-        .select(COLS)
+    post_result = _run_post_query(
+        lambda cols: db.table("posts")
+        .select(cols)
         .eq("id", post_id)
         .eq("is_hidden", False)
-        .execute()
     )
 
     if not post_result.data:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    replies_result = (
-        db.table("posts")
-        .select(COLS)
+    replies_result = _run_post_query(
+        lambda cols: db.table("posts")
+        .select(cols)
         .eq("parent_id", post_id)
         .eq("is_hidden", False)
         .order("created_at", desc=False)
         .limit(100)
-        .execute()
     )
 
     replies = replies_result.data
 
     # Fetch sub-replies (replies to replies) for threaded display
-    sub_replies = []
+    sub_replies: list = []
     reply_ids = [r["id"] for r in replies]
     if reply_ids:
-        sub_result = (
-            db.table("posts")
-            .select(COLS)
+        sub_result = _run_post_query(
+            lambda cols: db.table("posts")
+            .select(cols)
             .in_("parent_id", reply_ids)
             .eq("is_hidden", False)
             .order("created_at", desc=False)
             .limit(200)
-            .execute()
         )
         sub_replies = sub_result.data
 

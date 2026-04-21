@@ -13,6 +13,20 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /*
+   * Post body text. Disables the Chrome-on-Android "Touch to Search"
+   * popup (the Google bubble that appears after a single tap on a word)
+   * by making the text non-selectable and suppressing the long-press
+   * callout. Inputs / textareas keep their normal selection behaviour
+   * because they're explicitly selectable by user agent stylesheet.
+   */
+  .post-content {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
   body {
     min-height: 100dvh;
     background: #0B0B0F;
