@@ -436,6 +436,222 @@
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
+/* ── Chat (PlanChat) ────────────────────────────────────────────────── */
+/*
+ * Premium chat styling modeled on WhatsApp / iMessage:
+ *  - Tails drawn with a rotated 12px square behind the bubble corner.
+ *  - Consecutive bubbles from the same sender lose the tail and sit tight
+ *    to the previous one. The first bubble in a run shows the name/avatar.
+ *  - Dark theme: subtle amber-wash for "me", ink-grey for "them".
+ *  - Time + tick cluster lives inside the bubble, right-aligned.
+ */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+}
+.chat-scroller {
+  height: min(70dvh, 560px);
+  min-height: 360px;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(246, 186, 61, 0.04), transparent 60%),
+    radial-gradient(circle at 85% 95%, rgba(142, 166, 242, 0.04), transparent 60%),
+    rgba(10, 10, 14, 0.6);
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+.chat-scroller::-webkit-scrollbar { width: 6px; }
+.chat-scroller::-webkit-scrollbar-track { background: transparent; }
+.chat-scroller::-webkit-scrollbar-thumb {
+  background: rgba(120, 124, 138, 0.25);
+  border-radius: 999px;
+}
+
+.chat-bubble {
+  position: relative;
+  padding: 7px 11px 4px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  line-height: 1.35;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  animation: chat-bubble-in 180ms var(--ease);
+  max-width: 100%;
+}
+@keyframes chat-bubble-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     }
+}
+
+.chat-bubble-me {
+  background: linear-gradient(180deg, rgba(246, 186, 61, 0.18) 0%, rgba(246, 186, 61, 0.12) 100%);
+  color: #F5E8C7;
+  border: 1px solid rgba(246, 186, 61, 0.22);
+  border-bottom-right-radius: 14px;
+}
+.chat-bubble-them {
+  background: rgba(30, 30, 36, 0.92);
+  color: #F1F2F5;
+  border: 1px solid rgba(36, 36, 43, 0.9);
+}
+
+/* Tail as a rotated square tucked behind the bubble, WhatsApp-style. */
+.chat-bubble-tail-me::after,
+.chat-bubble-tail-them::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  z-index: -1;
+}
+.chat-bubble-tail-me {
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-tail-me::after {
+  right: -4px;
+  background: rgba(246, 186, 61, 0.15);
+  border-right: 1px solid rgba(246, 186, 61, 0.22);
+  border-bottom: 1px solid rgba(246, 186, 61, 0.22);
+}
+.chat-bubble-tail-them {
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble-tail-them::after {
+  left: -4px;
+  background: rgba(30, 30, 36, 0.92);
+  border-left: 1px solid rgba(36, 36, 43, 0.9);
+  border-bottom: 1px solid rgba(36, 36, 43, 0.9);
+}
+
+/* Consecutive bubble from the same sender: drop the tail + tighten the
+ * "same side" corner so the run reads as one paragraph of speech. */
+.chat-bubble-cont.chat-bubble-them { border-top-left-radius: 6px; }
+.chat-bubble-cont.chat-bubble-me   { border-top-right-radius: 6px; }
+
+/* Inline time + tick cluster. */
+.chat-meta {
+  margin-left: 8px;
+  margin-top: 2px;
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  color: rgba(170, 170, 178, 0.75);
+}
+.chat-bubble-me .chat-meta {
+  color: rgba(246, 186, 61, 0.75);
+}
+
+/* Typing indicator: three bouncing dots inside a smaller bubble. */
+.chat-bubble-typing {
+  padding: 8px 12px;
+}
+.chat-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.chat-typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(200, 204, 214, 0.7);
+  animation: chat-typing-bounce 1.2s ease-in-out infinite;
+}
+.chat-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.chat-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-typing-bounce {
+  0%, 80%, 100% { transform: translateY(0);   opacity: 0.45; }
+  40%           { transform: translateY(-3px); opacity: 1;    }
+}
+
+/* Composer */
+.chat-textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 140px;
+  resize: none;
+  padding: 9px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(36, 36, 43, 0.9);
+  background: rgba(14, 14, 19, 0.9);
+  color: #F1F2F5;
+  font-size: 15px;
+  line-height: 1.3;
+  outline: none;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.chat-textarea::placeholder { color: rgba(140, 144, 156, 0.7); }
+.chat-textarea:focus {
+  border-color: rgba(246, 186, 61, 0.55);
+  box-shadow: 0 0 0 3px rgba(246, 186, 61, 0.12);
+}
+
+.chat-send-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0B0B0F;
+  background: #F6BA3D;
+  transition: transform 140ms var(--ease), opacity 140ms var(--ease);
+  box-shadow: 0 4px 10px rgba(246, 186, 61, 0.25);
+}
+.chat-send-btn:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  background: rgba(120, 124, 138, 0.35);
+  color: rgba(241, 242, 245, 0.7);
+}
+.chat-send-btn:not(:disabled):hover { transform: translateY(-1px); }
+.chat-send-btn:not(:disabled):active { transform: translateY(0); }
+
+/* "Jump to latest" FAB inside the scroller. */
+.chat-jump-btn {
+  position: sticky;
+  bottom: 8px;
+  margin-left: auto;
+  margin-right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(11, 11, 15, 0.92);
+  border: 1px solid rgba(36, 36, 43, 0.9);
+  color: #F1F2F5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  float: right;
+  transition: transform 140ms var(--ease);
+}
+.chat-jump-btn:hover { transform: translateY(-1px); }
+.chat-jump-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #F6BA3D;
+  color: #0B0B0F;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .safe-area-pt { padding-top: env(safe-area-inset-top, 0px); }
 
