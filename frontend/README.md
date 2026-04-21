@@ -31,12 +31,14 @@ Opens at `http://localhost:3000`.
 
 | Route           | Auth     | Description              |
 |-----------------|----------|--------------------------|
-| /               | Public   | Landing page + live feed |
-| /verify         | Public   | Email OTP verification   |
-| /board          | Required | Main plan board          |
-| /free           | Required | Create a new plan        |
+| /               | Public   | Landing + feed           |
+| /feed/[id]      | Public   | Post detail + replies    |
+| /hangouts       | Required | Plans board + creation   |
 | /plan/[id]      | Public   | Shareable plan detail    |
-| /leaderboard    | Public   | Hostel rankings          |
+| /profile        | Required | Your profile + my posts  |
+| /notifications  | Required | In-app notifications     |
+| /ranks          | Public   | Hangout leaderboard      |
+| /verify         | Public   | Email OTP verification   |
 
 ## PWA
 
