@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CloseIcon } from "@/components/icons";
 
 interface ImageLightboxProps {
   src: string;
@@ -223,11 +224,9 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
         <button
           onClick={onClose}
           aria-label="Close"
-          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-white/15 active:scale-90"
+          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/15 active:scale-95"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-          </svg>
+          <CloseIcon size={18} />
         </button>
       </div>
 
@@ -244,6 +243,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
         onDoubleClick={onDblClick}
         onClick={(e) => { if (!isZoomed && e.target === e.currentTarget) onClose(); }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt=""

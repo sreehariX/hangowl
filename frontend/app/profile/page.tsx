@@ -1,15 +1,78 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/PostCard";
+import { EmptyState, SectionHeading, Spinner } from "@/components/primitives";
+import {
+  ChevronRightIcon,
+  LinkedinIcon,
+  LogoutIcon,
+  MailIcon,
+  PhoneIcon,
+  SparkleIcon,
+  TrophyIcon,
+} from "@/components/icons";
 import type { Post } from "@/lib/types";
 
+function ProfileRow({
+  icon,
+  title,
+  subtitle,
+  href,
+  external,
+  tone = "default",
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  href: string;
+  external?: boolean;
+  tone?: "default" | "amber" | "brand";
+}) {
+  const tint =
+    tone === "amber"
+      ? "bg-amber/10 text-amber"
+      : tone === "brand"
+        ? "bg-brand-500/10 text-brand-400"
+        : "bg-surface-hover text-text-secondary";
+  const Tag = external ? "a" : Link;
+  const extra = external
+    ? { target: "_blank", rel: "noopener noreferrer" }
+    : {};
+
+  return (
+    <Tag
+      href={href}
+      {...extra}
+      className="list-row border border-border/50 bg-surface/60"
+    >
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tint}`}>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-body font-medium text-text-primary">{title}</p>
+        {subtitle && (
+          <p className="truncate text-caption text-text-tertiary">{subtitle}</p>
+        )}
+      </div>
+      <ChevronRightIcon size={16} className="shrink-0 text-text-muted" />
+    </Tag>
+  );
+}
+
 export default function ProfilePage() {
-  const { isAuthenticated, userId, personaName, loading: authLoading, logout } = useAuth();
+  const {
+    isAuthenticated,
+    userId,
+    personaName,
+    loading: authLoading,
+    logout,
+  } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -32,11 +95,16 @@ export default function ProfilePage() {
           setPosts(postsData.posts);
           setLikedIds(new Set(likesData.post_ids));
         }
-      } catch { /* silent */ }
-      finally { if (active) setLoadingPosts(false); }
+      } catch {
+        /* silent */
+      } finally {
+        if (active) setLoadingPosts(false);
+      }
     }
     load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated]);
 
   const handleLogout = () => {
@@ -52,7 +120,7 @@ export default function ProfilePage() {
     return (
       <div className="app-shell pt-10">
         <div className="app-content flex min-h-[50dvh] items-center justify-center pb-24">
-          <div className="h-6 w-6 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+          <Spinner />
         </div>
       </div>
     );
@@ -62,115 +130,108 @@ export default function ProfilePage() {
 
   return (
     <div className="app-shell pt-5">
-      <div className="app-content">
-      {/* Profile header */}
-      <div className="hero-surface mb-6 flex flex-col items-center py-7">
-        <Avatar name={personaName || ""} size={72} />
-        <h1 className="mt-3 text-lg font-bold text-text-primary">{personaName}</h1>
-        <p className="text-xs text-text-muted mt-0.5">Anonymous identity</p>
-      </div>
-
-      {/* My Posts */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold text-text-secondary mb-3">
-          My posts ({posts.length})
-        </h2>
-        {loadingPosts ? (
-          <div className="flex justify-center py-8">
-            <div className="h-5 w-5 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="panel-surface p-6 text-center">
-            <p className="text-sm text-text-muted">No posts yet</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                liked={likedIds.has(post.id)}
-                currentUserId={userId}
-                onDeleted={() => handlePostDeleted(post.id)}
+      <div className="app-content space-y-8">
+        <section className="surface-hero relative overflow-hidden py-8">
+          <div
+            aria-hidden
+            className="absolute -top-20 left-1/2 h-56 w-[420px] -translate-x-1/2 rounded-full bg-amber/15 blur-3xl"
+          />
+          <div className="relative flex flex-col items-center">
+            <div className="relative">
+              <div
+                aria-hidden
+                className="absolute inset-0 -z-10 rounded-2xl bg-amber/20 blur-xl"
               />
-            ))}
+              <Avatar name={personaName || ""} size={80} />
+            </div>
+            <h1 className="mt-4 text-title font-semibold tracking-tight text-text-primary">
+              {personaName}
+            </h1>
+            <p className="mt-1 flex items-center gap-1.5 text-caption text-text-tertiary">
+              <SparkleIcon size={11} className="text-amber" />
+              Anonymous identity
+            </p>
           </div>
-        )}
-      </div>
+        </section>
 
-      {/* Ranks */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold text-text-secondary mb-3">Campus rankings</h2>
-        <a
-          href="/ranks"
-          className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
+        <section>
+          <SectionHeading>My posts · {posts.length}</SectionHeading>
+          {loadingPosts ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="surface-panel">
+              <EmptyState
+                title="You haven't posted yet"
+                description="Share a thought with campus — it takes seconds."
+              />
+            </div>
+          ) : (
+            <div className="surface-panel overflow-hidden">
+              {posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  liked={likedIds.has(post.id)}
+                  currentUserId={userId}
+                  onDeleted={() => handlePostDeleted(post.id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <SectionHeading>Campus rankings</SectionHeading>
+          <ProfileRow
+            icon={<TrophyIcon size={20} />}
+            title="View leaderboard"
+            subtitle="Top hangout crew on campus"
+            href="/ranks"
+            tone="amber"
+          />
+        </section>
+
+        <section>
+          <SectionHeading>Support</SectionHeading>
+          <div className="space-y-2">
+            <ProfileRow
+              icon={<PhoneIcon size={18} />}
+              title="+91 8639012320"
+              subtitle="Sreehari · available 24×7"
+              href="tel:+918639012320"
+              external
+            />
+            <ProfileRow
+              icon={<MailIcon size={18} />}
+              title="sreeharixe@gmail.com"
+              subtitle="Send us a note"
+              href="mailto:sreeharixe@gmail.com"
+              external
+            />
+            <ProfileRow
+              icon={<LinkedinIcon size={18} />}
+              title="LinkedIn"
+              subtitle="Connect with the maker"
+              href="https://www.linkedin.com/in/sreeharix/"
+              external
+              tone="brand"
+            />
+          </div>
+        </section>
+
+        <button
+          onClick={handleLogout}
+          className="btn-secondary btn-block justify-center gap-2 border-danger/30 bg-danger/5 text-danger hover:border-danger/50 hover:bg-danger/10"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber shrink-0">
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-            <path d="M4 22h16" />
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-text-primary">View leaderboard</p>
-            <p className="text-[11px] text-text-muted">Top hangout crew on campus</p>
-          </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted shrink-0">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </a>
-      </div>
+          <LogoutIcon size={18} />
+          Log out
+        </button>
 
-      {/* Contact */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold text-text-secondary mb-3">Contact</h2>
-        <div className="space-y-2">
-          <a
-            href="tel:+918639012320"
-            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
-          >
-            <span className="text-lg">📞</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary">+91 8639012320</p>
-              <p className="text-[11px] text-text-muted">Sreehari - available 24x7</p>
-            </div>
-          </a>
-          <a
-            href="mailto:sreeharixe@gmail.com"
-            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
-          >
-            <span className="text-lg">📧</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary">sreeharixe@gmail.com</p>
-            </div>
-          </a>
-          <a
-            href="https://www.linkedin.com/in/sreeharix/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="panel-surface flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-surface-hover active:scale-[0.99]"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-[#0A66C2] shrink-0">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-            </svg>
-            <p className="text-sm font-medium text-text-primary">LinkedIn</p>
-          </a>
-        </div>
-      </div>
-
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="w-full rounded-xl border border-error/30 py-3 text-sm font-medium text-error transition-colors hover:bg-error/10"
-      >
-        Log out
-      </button>
-
-      <p className="text-center text-[11px] text-text-muted mt-6">
-        HangOwl &middot; Built for IIT Bombay students
-      </p>
+        <p className="pb-4 text-center text-[11px] text-text-muted">
+          HangOwl · Built with love for IIT Bombay
+        </p>
       </div>
     </div>
   );

@@ -10,23 +10,9 @@ import { supabase } from "@/lib/supabase";
 import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/PostCard";
 import { ComposeBox } from "@/components/ComposeBox";
+import { PostCardSkeleton } from "@/components/Skeleton";
+import { ArrowLeftIcon } from "@/components/icons";
 import type { Post } from "@/lib/types";
-
-function PostSkeleton({ isDetail = false }: { isDetail?: boolean }) {
-  return (
-    <div className="px-4 py-3 border-b border-border">
-      <div className="flex gap-3">
-        <div className="skeleton w-10 h-10 rounded-full shrink-0 mt-0.5" />
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="skeleton h-2.5 w-20 rounded-full" />
-          <div className="skeleton h-2.5 w-full rounded-full" />
-          <div className={`skeleton h-2.5 rounded-full ${isDetail ? "w-2/3" : "w-4/5"}`} />
-          {isDetail && <div className="skeleton h-2.5 w-1/2 rounded-full" />}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -266,22 +252,21 @@ export default function PostDetailPage() {
   // to rendering the post and show reply skeletons in-place instead.
   if (!post && (loading || authLoading)) {
     return (
-      <div className="app-shell pb-24 pt-4">
-        <div className="app-content overflow-hidden rounded-2xl border border-border/80 bg-surface/80">
-        <div className="sticky top-0 z-20 flex items-center gap-4 border-b border-border/80 bg-navy/90 px-4 py-3 backdrop-blur-md">
-          <button onClick={() => router.back()} className="text-text-muted hover:text-text-primary transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
-            </svg>
-          </button>
-          <span className="text-[15px] font-bold text-text-primary">Post</span>
-        </div>
-        <PostSkeleton />
-        <PostSkeleton isDetail />
-        <div className="border-b border-border" />
-        <PostSkeleton />
-        <PostSkeleton />
-        <PostSkeleton />
+      <div className="app-shell pb-28 pt-4">
+        <div className="app-content surface-panel overflow-hidden">
+          <div className="sticky-bar">
+            <button
+              onClick={() => router.back()}
+              className="icon-btn"
+              aria-label="Back"
+            >
+              <ArrowLeftIcon size={20} />
+            </button>
+            <span className="text-[15px] font-semibold text-text-primary">Post</span>
+          </div>
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+          <PostCardSkeleton />
         </div>
       </div>
     );
@@ -289,10 +274,12 @@ export default function PostDetailPage() {
 
   if (!post) {
     return (
-      <div className="app-shell pb-24 pt-16 md:pt-6">
-        <div className="app-content panel-surface p-8 text-center">
-          <p className="text-text-secondary mb-4">Post not found</p>
-          <Link href="/" className="text-amber hover:text-amber-dark text-sm">Back to Feed</Link>
+      <div className="app-shell pb-28 pt-16 md:pt-6">
+        <div className="app-content surface-panel p-8 text-center">
+          <p className="mb-4 text-body text-text-secondary">Post not found</p>
+          <Link href="/" className="text-amber hover:text-amber-dark text-body">
+            Back to feed
+          </Link>
         </div>
       </div>
     );
@@ -308,18 +295,20 @@ export default function PostDetailPage() {
   });
 
   return (
-    <div className="app-shell pb-24 pt-4">
-      <div className="app-content overflow-hidden rounded-2xl border border-border/80 bg-surface/75">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 border-b border-border/80 bg-navy/90 px-4 py-3 backdrop-blur-md">
-        <button onClick={() => router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")}
-          className="text-text-muted hover:text-text-primary transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
-          </svg>
-        </button>
-        <span className="text-[15px] font-bold text-text-primary">Post</span>
-      </div>
+    <div className="app-shell pb-28 pt-4">
+      <div className="app-content surface-panel overflow-hidden">
+        <div className="sticky-bar">
+          <button
+            onClick={() =>
+              router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")
+            }
+            className="icon-btn"
+            aria-label="Back"
+          >
+            <ArrowLeftIcon size={20} />
+          </button>
+          <span className="text-[15px] font-semibold text-text-primary">Post</span>
+        </div>
 
       {/* Ancestor chain — only rendered after scroll is positioned (Phase 2).
            This prevents parent post images/content from flashing on screen. */}
@@ -354,13 +343,13 @@ export default function PostDetailPage() {
            Sub-replies (conversation chains) keep thread lines to their parent reply. */}
       {loading && replies.length === 0 ? (
         <div>
-          <PostSkeleton />
-          <PostSkeleton />
-          <PostSkeleton />
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+          <PostCardSkeleton />
         </div>
       ) : replies.length === 0 ? (
         <div className="px-4 py-10 text-center">
-          <p className="text-sm text-text-muted">No replies yet. Be the first.</p>
+          <p className="text-body text-text-tertiary">No replies yet. Be the first.</p>
         </div>
       ) : (
         <div>
@@ -414,36 +403,32 @@ export default function PostDetailPage() {
             }}
             onAnimationEnd={handleSheetAnimationEnd}
           >
-            <div className="app-content overflow-hidden rounded-t-2xl border-x border-t border-border/80 bg-navy-light/95">
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-9 h-1 rounded-full bg-border" />
+            <div className="app-content overflow-hidden rounded-t-3xl border-x border-t border-border/60 bg-ink-850/95 backdrop-blur-xl">
+              <div className="flex justify-center pt-2.5 pb-1">
+                <div className="h-1 w-10 rounded-full bg-border" />
               </div>
-              {/* Cancel */}
               <div className="flex items-center px-4 py-2">
                 <button
                   onClick={() => closeReplySheet()}
-                  className="text-sm text-text-muted hover:text-text-primary transition-colors"
+                  className="text-body text-text-tertiary transition-colors hover:text-text-primary"
                 >
                   Cancel
                 </button>
               </div>
-              {/* Original post context */}
-              <div className="px-4 pb-2 flex gap-3">
+              <div className="flex gap-3 px-4 pb-2">
                 <div className="flex flex-col items-center">
                   <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
-                  <div className="w-0.5 flex-1 mt-1.5 min-h-[24px] rounded-full bg-border/60" />
+                  <div className="mt-1.5 min-h-[24px] w-0.5 flex-1 rounded-full bg-border/60" />
                 </div>
-                <div className="flex-1 min-w-0 pb-3">
-                  <p className="text-[13px] font-bold text-text-primary">
+                <div className="min-w-0 flex-1 pb-3">
+                  <p className="text-body font-semibold text-text-primary">
                     {replyTarget.users?.persona_name ?? "Anonymous"}
                   </p>
-                  <p className="text-[14px] text-text-secondary mt-0.5 line-clamp-4 whitespace-pre-wrap break-words">
+                  <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-body text-text-secondary">
                     {replyTarget.content}
                   </p>
                 </div>
               </div>
-              {/* Compose */}
               <div className="px-4 pb-4">
                 <ComposeBox
                   parentId={replyTarget.id}

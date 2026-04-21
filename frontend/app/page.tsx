@@ -9,20 +9,27 @@ import { supabase } from "@/lib/supabase";
 import { ComposeBox } from "@/components/ComposeBox";
 import { FeedSkeleton } from "@/components/Skeleton";
 import { PostCard } from "@/components/PostCard";
+import { EmptyState, Spinner } from "@/components/primitives";
+import {
+  ChevronRightIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  PlusIcon,
+  SparkleIcon,
+} from "@/components/icons";
 import type { Post, Stats } from "@/lib/types";
+
+const FEED_CACHE_KEY = "ho_feed_cache_v1";
 
 export default function FeedHomePage() {
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
-  const FEED_CACHE_KEY = "ho_feed_cache_v1";
 
-  // Initialize from cache synchronously so first render shows content immediately
   const [posts, setPosts] = useState<Post[]>(() => {
     if (typeof window === "undefined") return [];
     try {
-      const cached = localStorage.getItem("ho_feed_cache_v1");
+      const cached = localStorage.getItem(FEED_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as Post[];
-        // Seed post cache so cached feed posts also open instantly
         parsed.forEach((p) => {
           postCache.set(p.id, p);
           if (p.top_reply) postCache.set(p.top_reply.id, p.top_reply);
@@ -37,7 +44,9 @@ export default function FeedHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(() => {
     if (typeof window === "undefined") return true;
-    try { return !localStorage.getItem("ho_feed_cache_v1"); } catch {}
+    try {
+      return !localStorage.getItem(FEED_CACHE_KEY);
+    } catch {}
     return true;
   });
   const [loadingMore, setLoadingMore] = useState(false);
@@ -49,7 +58,6 @@ export default function FeedHomePage() {
   const fetchFeed = useCallback(async (cursor?: string) => {
     try {
       const data = await api.getFeed(cursor);
-      // Seed post cache so tapping any card opens it instantly (no skeleton)
       data.posts.forEach((p) => {
         postCache.set(p.id, p);
         if (p.top_reply) postCache.set(p.top_reply.id, p.top_reply);
@@ -62,8 +70,9 @@ export default function FeedHomePage() {
         });
       } else {
         setPosts(data.posts);
-        // Cache fresh feed for instant display next visit
-        try { localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts)); } catch {}
+        try {
+          localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts));
+        } catch {}
       }
       setHasMore(data.posts.length >= 20);
     } catch {
@@ -78,21 +87,27 @@ export default function FeedHomePage() {
       if (active) setLoading(false);
     }
     load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [fetchFeed]);
 
   useEffect(() => {
     let active = true;
     async function loadStats() {
-      if (document.hidden) return; // skip when tab is hidden
+      if (document.hidden) return;
       try {
         const data = await api.getStats();
         if (active) setStats(data);
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     }
     loadStats();
-    const si = setInterval(loadStats, 60000); // 60s — halves the polling cost
-    const onVisible = () => { if (!document.hidden) loadStats(); };
+    const si = setInterval(loadStats, 60000);
+    const onVisible = () => {
+      if (!document.hidden) loadStats();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
@@ -114,16 +129,20 @@ export default function FeedHomePage() {
           setLikedIds(new Set(likesData.post_ids));
           setIsAdmin(adminData.is_admin);
         }
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     }
     loadUserData();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     api.heartbeat().catch(() => {});
-    const hb = setInterval(() => api.heartbeat().catch(() => {}), 120000); // 2min — stats use 5min window
+    const hb = setInterval(() => api.heartbeat().catch(() => {}), 120000);
     return () => clearInterval(hb);
   }, [isAuthenticated]);
 
@@ -132,19 +151,25 @@ export default function FeedHomePage() {
       .channel("feed-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "posts", filter: "parent_id=is.null" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "posts",
+          filter: "parent_id=is.null",
+        },
         (payload) => {
           const newPost = payload.new as Post;
           if (newPost.user_id === userId) return;
-          setQueuedPosts((prev) => {
-            if (prev.some((p) => p.id === newPost.id)) return prev;
-            return [newPost, ...prev];
-          });
-        }
+          setQueuedPosts((prev) =>
+            prev.some((p) => p.id === newPost.id) ? prev : [newPost, ...prev],
+          );
+        },
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userId]);
 
   useEffect(() => {
@@ -152,13 +177,18 @@ export default function FeedHomePage() {
     const target = observerRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && posts.length > 0) {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !loadingMore &&
+          posts.length > 0
+        ) {
           const lastPost = posts[posts.length - 1];
           setLoadingMore(true);
           fetchFeed(lastPost.created_at).finally(() => setLoadingMore(false));
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     observer.observe(target);
     return () => observer.disconnect();
@@ -186,166 +216,184 @@ export default function FeedHomePage() {
   return (
     <div className="app-shell pt-5">
       <div className="app-content relative">
-      {/* Top bar */}
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">HangOwl</h1>
-          <p className="text-xs text-text-muted">Campus social, designed for clarity.</p>
-        </div>
-        <div className="glass-surface flex items-center gap-3 px-3 py-2">
+        {/* Top bar */}
+        <header className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-title-lg font-semibold tracking-tight text-text-primary">
+              HangOwl
+            </h1>
+            <p className="text-caption text-text-tertiary">
+              Campus social, designed for clarity.
+            </p>
+          </div>
           {stats && (
-            <span className="text-[11px] font-medium text-text-muted tabular-nums">
-              {stats.total_users} students
-            </span>
-          )}
-          {stats && (
-            <div className="flex items-center gap-1 text-[11px] font-medium">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+            <div className="surface-glass flex items-center gap-3 px-3.5 py-2">
+              <span className="text-[11px] font-medium tabular-nums text-text-tertiary">
+                {stats.total_users} students
               </span>
-              <span className="text-success tabular-nums">{stats.free_now}</span>
+              <span className="h-3.5 w-px bg-border" />
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+                </span>
+                <span className="tabular-nums text-success">{stats.free_now}</span>
+                <span className="text-text-tertiary">free</span>
+              </span>
             </div>
           )}
-        </div>
-      </div>
+        </header>
 
-      {/* Trust text */}
-      {!authLoading && (
-        <p className="mb-4 text-[11px] text-text-muted">
-          Every student is verified with their IITB email. Completely anonymous.
-        </p>
-      )}
-
-      {/* Logged-out hero */}
-      {!authLoading && !isAuthenticated && (
-        <section className="hero-surface mb-6 p-6 text-center">
-          <div className="mb-3 text-4xl">🦉</div>
-          <h2 className="mb-1 text-xl font-semibold text-text-primary">
-            Find your people at IIT Bombay
-          </h2>
-          <p className="mb-2 text-sm text-text-secondary">
-            Every student is verified with their IITB email. Your identity stays completely anonymous.
+        {/* Trust text */}
+        {!authLoading && (
+          <p className="mb-4 flex items-center gap-1.5 text-[11px] text-text-tertiary">
+            <SparkleIcon size={12} className="text-amber" />
+            Every student is verified with their IITB email. Completely anonymous.
           </p>
-          {stats && (
-            <p className="mb-4 text-xs text-text-muted">
-              {stats.total_users} students already here
-            </p>
-          )}
+        )}
+
+        {/* Logged-out hero */}
+        {!authLoading && !isAuthenticated && (
+          <section className="surface-hero mb-6 overflow-hidden p-7 text-center">
+            <div
+              aria-hidden
+              className="absolute -top-16 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-amber/15 blur-3xl"
+            />
+            <div className="relative">
+              <div className="mb-3 text-4xl">🦉</div>
+              <h2 className="mb-2 text-title font-semibold tracking-tight text-text-primary">
+                Find your people at IIT Bombay
+              </h2>
+              <p className="mx-auto mb-5 max-w-[360px] text-body text-text-secondary">
+                Every student is verified with their IITB email. Your identity stays
+                completely anonymous.
+              </p>
+              {stats && (
+                <p className="mb-4 text-caption text-text-tertiary">
+                  <span className="font-semibold tabular-nums text-amber">
+                    {stats.total_users}
+                  </span>{" "}
+                  students already here
+                </p>
+              )}
+              <Link href="/verify" className="btn-primary btn-lg btn-block">
+                Join with IIT-B email
+              </Link>
+              <p className="mt-3 text-[11px] text-text-tertiary">
+                No signup. No password. Just a one-time code.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Live hangouts nudge */}
+        {stats && stats.active_plans > 0 && (
           <Link
-            href="/verify"
-            className="premium-button w-full py-3"
+            href="/hangouts"
+            className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber/20 bg-gradient-to-r from-amber/10 to-amber/5 px-4 py-3 transition-all duration-200 hover:border-amber/40 hover:from-amber/15 active:scale-[0.99]"
           >
-            Join with IIT-B email
+            <span className="flex items-center gap-2 text-caption font-semibold text-amber">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-amber">
+                <span className="animate-ping absolute h-1.5 w-1.5 rounded-full bg-amber" />
+              </span>
+              {stats.active_plans} hangout
+              {stats.active_plans !== 1 ? "s" : ""} happening now
+            </span>
+            <ChevronRightIcon size={14} className="text-amber" />
           </Link>
-          <p className="mt-2 text-[11px] text-text-muted">
-            No signup. No password. Just a one-time code.
-          </p>
-        </section>
-      )}
+        )}
 
-      {/* Live hangouts nudge */}
-      {stats && stats.active_plans > 0 && (
-        <Link
-          href="/hangouts"
-          className="mb-4 flex items-center justify-between rounded-xl border border-amber/20 bg-amber/10 px-4 py-3 transition-colors hover:bg-amber/15 active:scale-[0.99]"
-        >
-          <span className="text-xs font-medium text-amber">
-            {stats.active_plans} hangout{stats.active_plans !== 1 ? "s" : ""} happening now
-          </span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </Link>
-      )}
+        {/* New posts pill */}
+        {queuedPosts.length > 0 && (
+          <button
+            onClick={showQueuedPosts}
+            className="sticky left-0 right-0 top-3 z-40 mx-auto mb-3 flex w-fit animate-slide-down-in items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-2 text-xs font-semibold text-white shadow-glow-brand transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <ChevronUpIcon size={14} />
+            Show {queuedPosts.length} new post{queuedPosts.length !== 1 ? "s" : ""}
+          </button>
+        )}
 
-      {/* New posts pill (Twitter-style) */}
-      {queuedPosts.length > 0 && (
-        <button
-          onClick={showQueuedPosts}
-          className="sticky top-2 z-40 mx-auto mb-3 flex items-center gap-1.5 rounded-full bg-mid-blue px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-mid-blue/30 transition-all hover:bg-mid-blue-light active:scale-95 animate-slide-down-in w-fit left-0 right-0"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-          Show {queuedPosts.length} new post{queuedPosts.length !== 1 ? "s" : ""}
-        </button>
-      )}
-
-      {/* Feed */}
-      {loading ? (
-        <FeedSkeleton />
-      ) : posts.length === 0 ? (
-        <div className="panel-surface p-10 text-center">
-          <p className="text-sm text-text-secondary">No posts yet. Be the first to share something!</p>
-        </div>
-      ) : (
-        <>
-          <div className="panel-surface overflow-hidden">
-            {posts.map((post) => (
-              <Fragment key={post.id}>
-                <PostCard
-                  post={post}
-                  liked={likedIds.has(post.id)}
-                  currentUserId={userId}
-                  isAdmin={isAdmin}
-                  onDeleted={() => handlePostDeleted(post.id)}
-                  showThreadLine={!!post.top_reply}
-                />
-                {post.top_reply && (
+        {/* Feed */}
+        {loading ? (
+          <FeedSkeleton />
+        ) : posts.length === 0 ? (
+          <div className="surface-panel">
+            <EmptyState
+              icon={<SparkleIcon size={26} />}
+              title="No posts yet"
+              description="Be the first to share something on campus."
+            />
+          </div>
+        ) : (
+          <>
+            <div className="surface-panel overflow-hidden">
+              {posts.map((post) => (
+                <Fragment key={post.id}>
                   <PostCard
-                    post={post.top_reply}
-                    liked={likedIds.has(post.top_reply.id)}
+                    post={post}
+                    liked={likedIds.has(post.id)}
                     currentUserId={userId}
                     isAdmin={isAdmin}
-                    seamless
+                    onDeleted={() => handlePostDeleted(post.id)}
+                    showThreadLine={!!post.top_reply}
                   />
-                )}
-              </Fragment>
-            ))}
-          </div>
-          <div ref={observerRef} className="h-4" />
-          {loadingMore && (
-            <div className="flex justify-center py-4">
-              <div className="h-5 w-5 border-2 border-text-muted/30 border-t-amber rounded-full animate-spin" />
+                  {post.top_reply && (
+                    <PostCard
+                      post={post.top_reply}
+                      liked={likedIds.has(post.top_reply.id)}
+                      currentUserId={userId}
+                      isAdmin={isAdmin}
+                      seamless
+                    />
+                  )}
+                </Fragment>
+              ))}
             </div>
-          )}
-        </>
-      )}
+            <div ref={observerRef} className="h-4" />
+            {loadingMore && (
+              <div className="flex justify-center py-4">
+                <Spinner />
+              </div>
+            )}
+          </>
+        )}
 
-      {/* Compose FAB + Modal */}
-      {isAuthenticated && !showCompose && (
-        <button
-          onClick={() => setShowCompose(true)}
-          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-navy shadow-elevated transition-all hover:bg-amber-dark hover:shadow-xl active:scale-90 md:right-[calc(50%-340px+24px)]"
-          aria-label="New post"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14" />
-            <path d="M5 12h14" />
-          </svg>
-        </button>
-      )}
+        {/* Compose FAB + Modal */}
+        {isAuthenticated && !showCompose && (
+          <button
+            onClick={() => setShowCompose(true)}
+            className="fab bottom-28 right-4 md:right-[calc(50%-260px+8px)]"
+            aria-label="New post"
+          >
+            <PlusIcon size={24} />
+          </button>
+        )}
 
-      {showCompose && (
-        <div className="fixed inset-0 z-50 bg-navy/95 backdrop-blur-xl animate-fade-in">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <button
-              onClick={() => setShowCompose(false)}
-              className="text-sm text-text-muted hover:text-text-primary transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-              </svg>
-            </button>
-            <span className="text-sm font-semibold text-text-primary">New post</span>
-            <div className="w-5" />
+        {showCompose && (
+          <div className="fixed inset-0 z-50 animate-fade-in bg-ink-950/85 backdrop-blur-xl">
+            <div className="sticky-bar">
+              <button
+                onClick={() => setShowCompose(false)}
+                className="icon-btn"
+                aria-label="Close"
+              >
+                <CloseIcon size={20} />
+              </button>
+              <span className="flex-1 text-center text-[15px] font-semibold text-text-primary">
+                New post
+              </span>
+              <div className="h-9 w-9" aria-hidden />
+            </div>
+            <div className="app-content px-4 pt-4">
+              <ComposeBox
+                onPosted={handlePosted}
+                placeholder="What's happening at IITB?"
+                autoFocus
+              />
+            </div>
           </div>
-          <div className="app-content px-4 pt-4">
-            <ComposeBox onPosted={handlePosted} placeholder="What's happening?" autoFocus />
-          </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );

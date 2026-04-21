@@ -23,9 +23,8 @@ function ImageInner({ src, alt = "", className = "", skeletonClassName }: Progre
 
   return (
     <div className={`relative overflow-hidden ${skeletonClassName || className}`}>
-      {!loaded && (
-        <div className="absolute inset-0 bg-navy-lighter animate-pulse" />
-      )}
+      {!loaded && <div className="skeleton absolute inset-0" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgCallback}
         src={src}
