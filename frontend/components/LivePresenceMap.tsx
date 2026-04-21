@@ -119,11 +119,17 @@ export function LivePresenceMap({
         attributionControl: true,
       });
       L.control.zoom({ position: "topright" }).addTo(map);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
+      // Dark-themed tiles so the map blends into the app's midnight palette.
+      // CartoDB Dark Matter is free, no API key, still attributed to OSM.
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 20,
+          subdomains: "abcd",
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        },
+      ).addTo(map);
 
       if (destination) {
         const iconBase = "https://unpkg.com/leaflet@1.9.4/dist/images";
@@ -153,6 +159,25 @@ export function LivePresenceMap({
 
       mapRef.current = map;
       setMapReady(true);
+
+      // Force Leaflet to re-measure once the panel layout settles. Without
+      // this, the map can mount at 0×0 (inside the plan page's section
+      // transitions / grid columns) and only ever paint the centre tile.
+      const invalidate = () => map.invalidateSize({ animate: false });
+      requestAnimationFrame(invalidate);
+      const t = window.setTimeout(invalidate, 250);
+      const ro = "ResizeObserver" in window
+        ? new ResizeObserver(() => invalidate())
+        : null;
+      if (ro && containerRef.current) ro.observe(containerRef.current);
+      window.addEventListener("resize", invalidate);
+      window.addEventListener("orientationchange", invalidate);
+      (map as unknown as { __cleanup?: () => void }).__cleanup = () => {
+        window.clearTimeout(t);
+        ro?.disconnect();
+        window.removeEventListener("resize", invalidate);
+        window.removeEventListener("orientationchange", invalidate);
+      };
     })();
 
     const markers = markersRef.current;
@@ -162,6 +187,8 @@ export function LivePresenceMap({
       markers.clear();
       destMarkerRef.current?.remove();
       destMarkerRef.current = null;
+      const m = mapRef.current as unknown as { __cleanup?: () => void } | null;
+      m?.__cleanup?.();
       mapRef.current?.remove();
       mapRef.current = null;
       setMapReady(false);
