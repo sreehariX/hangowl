@@ -32,19 +32,30 @@ async function request<T>(
   isRetry = false
 ): Promise<T> {
   const token = getToken();
+  const { headers: optHeaders, ...restOptions } = options ?? {};
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options?.headers as Record<string, string>),
+    ...(optHeaders as Record<string, string>),
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-    headers,
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      credentials: "include",
+      ...restOptions,
+      headers,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Network error";
+    throw new Error(
+      msg === "Failed to fetch"
+        ? "Could not reach the server. Check your connection and try again."
+        : msg,
+    );
+  }
 
   if (!res.ok) {
     if (res.status === 401 && !isRetry) {
@@ -182,12 +193,22 @@ export const api = {
     const token = getToken();
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`${API_URL}/feed/upload`, {
-      method: "POST",
-      credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/feed/upload`, {
+        method: "POST",
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      throw new Error(
+        msg === "Failed to fetch"
+          ? "Could not reach the server. Check your connection and try again."
+          : msg,
+      );
+    }
     if (!res.ok) {
       if (res.status === 401 && !isRetry) {
         const newToken = await tryRefreshToken();

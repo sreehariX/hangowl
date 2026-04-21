@@ -92,7 +92,7 @@ export default function PostDetailPage() {
     window.scrollTo(0, 0);
   }, [postId]);
 
-  // Pin the focused post to the top — even when ancestors are rendered above —
+  // Pin the focused post to the top, even when ancestors are rendered above,
   // so the user never sees the thread "push down" what they clicked.
   // We run this in a layout effect before paint so there is no visible flicker.
   useLayoutEffect(() => {

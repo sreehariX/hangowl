@@ -90,18 +90,28 @@ export function PlanChat({ planId }: PlanChatProps) {
   let lastSender = "";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border">
-      <div className="border-b border-border px-4 py-3">
-        <h3 className="text-body font-semibold text-text-primary">Group chat</h3>
-        <p className="text-[11px] text-text-tertiary">
-          Coordinate with everyone who&apos;s joined.
-        </p>
+    <div className="surface-panel overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber/15 text-amber">
+          <SendIcon size={13} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-body font-semibold text-text-primary">Group chat</h3>
+          <p className="text-[11px] text-text-tertiary">
+            Coordinate with everyone who&apos;s joined
+          </p>
+        </div>
+        {!loading && messages.length > 0 && (
+          <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[11px] font-medium tabular-nums text-text-tertiary">
+            {messages.length}
+          </span>
+        )}
       </div>
 
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="max-h-80 space-y-2 overflow-y-auto px-3 py-4"
+        className="max-h-96 space-y-1.5 overflow-y-auto bg-surface-muted/50 px-3 py-4"
       >
         {loading && (
           <div className="flex justify-center py-8">

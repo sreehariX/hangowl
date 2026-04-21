@@ -45,7 +45,7 @@
 
 @layer components {
   /*
-   * Edge-to-edge shell — children that need a readable gutter apply px-4
+   * Edge-to-edge shell. Children that need a readable gutter apply px-4
    * explicitly. On desktop we widen to 680px for more breathing room.
    */
   .app-shell {
@@ -125,7 +125,7 @@
   }
 
   /*
-   * Top bar — plain inline header (NOT sticky). Used for every page's
+   * Top bar. Plain inline header (NOT sticky). Used for every page's
    * primary title row; lives in the normal document flow so it scrolls
    * away as the user scrolls the feed.
    */
@@ -134,7 +134,7 @@
   }
 
   /*
-   * Sticky bar — reserved for modal / overlay headers that must stay
+   * Sticky bar. Reserved for modal / overlay headers that must stay
    * pinned within a scrollable sheet (e.g. the compose sheet).
    */
   .sticky-bar {
@@ -145,7 +145,7 @@
     -webkit-backdrop-filter: saturate(1.4) blur(18px);
   }
 
-  /* Desktop-only top nav — flat, centred, subtle border */
+  /* Desktop only top nav: flat, centred, subtle border */
   .desktop-nav {
     @apply sticky top-0 z-30 w-full border-b border-border;
     background: rgba(11, 11, 15, 0.85);
@@ -153,12 +153,22 @@
     -webkit-backdrop-filter: saturate(1.3) blur(18px);
   }
 
-  /* Mobile bottom nav — opaque, crisp */
+  /*
+   * Mobile bottom nav. Opaque and crisp when at the top of the page,
+   * softens to a translucent "vapor" state on scroll-down and restores on
+   * scroll-up. We animate background + border opacity, never the position,
+   * so the nav stays reachable (matches Twitter / Instagram behaviour).
+   */
   .nav-bar {
     border-top: 1px solid rgba(36, 36, 43, 1);
     background: rgba(11, 11, 15, 0.92);
     backdrop-filter: saturate(1.3) blur(18px);
     -webkit-backdrop-filter: saturate(1.3) blur(18px);
+    transition: background-color 220ms var(--ease), border-color 220ms var(--ease);
+  }
+  .nav-bar[data-dim="true"] {
+    background: rgba(11, 11, 15, 0.45);
+    border-top-color: rgba(36, 36, 43, 0.35);
   }
 }
 

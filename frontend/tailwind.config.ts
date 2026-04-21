@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       colors: {
         /*
-         * Premium ink palette — warm charcoal base, editorial gold accent.
+         * Premium ink palette: warm charcoal base, editorial gold accent.
          * Inspired by Apple Music, Robinhood, NYT Cooking in dark mode.
          * We avoid pure #000 so surfaces have depth and text doesn't vibrate.
          */

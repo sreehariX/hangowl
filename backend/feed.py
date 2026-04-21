@@ -157,8 +157,31 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
             raise HTTPException(status_code=404, detail="Parent post not found")
         insert_data["parent_id"] = body.parent_id
 
-    result = db.table("posts").insert(insert_data).execute()
+    try:
+        result = db.table("posts").insert(insert_data).execute()
+    except Exception as e:
+        msg = str(e)
+        # Graceful fallback when the schema_v10 migration has not been applied
+        # yet: drop the new image_urls column and retry with only the legacy
+        # image_url so single-image posts still work. Multi-image posts will
+        # only keep the first URL on disk, but the response still echoes the
+        # full list so the client can optimistically render all thumbnails.
+        if "image_urls" in msg and ("does not exist" in msg or "column" in msg.lower()):
+            insert_data.pop("image_urls", None)
+            try:
+                result = db.table("posts").insert(insert_data).execute()
+            except Exception as e2:
+                raise HTTPException(status_code=500, detail=f"Could not save post: {e2}") from e2
+        else:
+            raise HTTPException(status_code=500, detail=f"Could not save post: {e}") from e
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Could not save post")
     post = result.data[0]
+    # Echo the full list back so the client shows every image it uploaded,
+    # even if the DB column is missing and only the first one persisted.
+    if images and not post.get("image_urls"):
+        post["image_urls"] = images
 
     if body.parent_id:
         parent_post = (

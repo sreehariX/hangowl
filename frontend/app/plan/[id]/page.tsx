@@ -38,14 +38,22 @@ function formatViews(n: number | null | undefined) {
   return `${(v / 1_000_000).toFixed(1)}M`;
 }
 
-function Stat({
-  icon, value, label,
-}: { icon: React.ReactNode; value: string; label: string }) {
+function MetaRow({
+  icon, label, value,
+}: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-1 px-2">
-      <span className="text-text-tertiary">{icon}</span>
-      <span className="text-body font-semibold text-text-primary">{value}</span>
-      <span className="text-[11px] text-text-tertiary">{label}</span>
+    <div className="flex items-center gap-3 py-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-text-tertiary">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
+          {label}
+        </p>
+        <p className="truncate text-body font-medium text-text-primary">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -94,9 +102,9 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
 
   async function handleShare() {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const time = `${formatTimeIST(plan.starts_at)} – ${formatTimeIST(plan.ends_at)}`;
+    const time = `${formatTimeIST(plan.starts_at)} to ${formatTimeIST(plan.ends_at)}`;
     const text = `${plan.activity} at ${plan.location} (${time} IST)${
-      plan.description ? ` — "${plan.description}"` : ""
+      plan.description ? `. "${plan.description}"` : ""
     }. Join on HangOwl:`;
     try {
       if (navigator.share) {
@@ -111,9 +119,25 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
     } catch {}
   }
 
+  const dateLabel = plan.plan_date ? formatDateIST(plan.plan_date) : "TBD";
+  const timeLabel = `${formatTimeIST(plan.starts_at)} to ${formatTimeIST(plan.ends_at)}`;
+  const spotsLeft = Math.max(0, plan.max_people - members.length);
+  const isFull = spotsLeft === 0;
+  const visibleMembers = members.slice(0, 6);
+  const extraMembers = Math.max(0, members.length - visibleMembers.length);
+
+  const joinButtonLabel = (() => {
+    if (joining) return <Spinner size={16} tone="ink" />;
+    if (alreadyJoined && isCreator) return (<><CheckIcon size={16} />You created this plan</>);
+    if (alreadyJoined) return (<><CheckIcon size={16} />You&apos;re in</>);
+    if (!isAuthenticated) return "Sign in to join";
+    if (isFull) return "Plan is full";
+    return "Join this plan";
+  })();
+
   return (
     <div className="app-shell pt-0">
-      <div className="app-content pb-4">
+      <div className="app-content pb-10">
         {lightboxOpen && plan.image_url && (
           <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
         )}
@@ -130,124 +154,162 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </button>
         </div>
 
-        {plan.image_url && (
-          <button
-            type="button"
-            className="relative block w-full"
-            onClick={() => setLightboxOpen(true)}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={plan.image_url}
-              alt={plan.activity}
-              className="h-56 w-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-          </button>
-        )}
+        <div className="px-4 pt-4">
+          <section className="surface-panel overflow-hidden">
+            {plan.image_url ? (
+              <button
+                type="button"
+                className="relative block h-56 w-full overflow-hidden"
+                onClick={() => setLightboxOpen(true)}
+                aria-label="Open cover photo"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={plan.image_url}
+                  alt={plan.activity}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
+                <span className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
+                  <span>{emoji}</span>
+                  {plan.activity}
+                </span>
+              </button>
+            ) : (
+              <div className="flex h-40 items-center justify-center bg-gradient-to-br from-ink-850 to-ink-800">
+                <span className="text-5xl" aria-hidden>{emoji}</span>
+              </div>
+            )}
 
-        <div className="px-4 py-5">
-          <div className="mb-5 flex flex-col items-center text-center">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-3xl">
-              {emoji}
-            </div>
-            <h1 className="text-title font-semibold text-text-primary">
-              {plan.activity}
-            </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-body text-text-secondary">
-              <MapPinIcon size={14} className="text-text-tertiary" />
-              {plan.location}
-            </p>
-          </div>
+            <div className="p-5">
+              <h1 className="text-title-lg font-semibold text-text-primary">
+                {plan.activity}
+              </h1>
+              <p className="mt-1.5 flex items-center gap-1.5 text-body text-text-secondary">
+                <MapPinIcon size={14} className="text-text-tertiary" />
+                {plan.location}
+              </p>
 
-          {plan.description && (
-            <p className="mb-5 text-center text-body text-text-secondary">
-              {plan.description}
-            </p>
-          )}
+              {plan.description && (
+                <p className="mt-3 whitespace-pre-wrap text-body text-text-secondary">
+                  {plan.description}
+                </p>
+              )}
 
-          <div className="mb-5 flex items-stretch justify-between gap-2 rounded-xl border border-border p-3">
-            <Stat
-              icon={<CalendarIcon size={16} />}
-              value={plan.plan_date ? formatDateIST(plan.plan_date) : "—"}
-              label={`${formatTimeIST(plan.starts_at)} – ${formatTimeIST(plan.ends_at)}`}
-            />
-            <div className="w-px bg-border" />
-            <Stat
-              icon={<UsersIcon size={16} />}
-              value={`${members.length}/${plan.max_people}`}
-              label="joined"
-            />
-            <div className="w-px bg-border" />
-            <Stat
-              icon={<BarChartIcon size={16} />}
-              value={formatViews(plan.views_count)}
-              label="views"
-            />
-          </div>
-
-          <div className="mb-5">
-            <p className="section-eyebrow mb-2">Created by</p>
-            <div className="flex items-center gap-2.5">
-              <Avatar name={creatorName} size={30} />
-              <p className="text-body font-semibold text-text-primary">{creatorName}</p>
-            </div>
-          </div>
-
-          {members.length > 0 && (
-            <div className="mb-5">
-              <p className="section-eyebrow mb-2">People in · {members.length}</p>
-              <div className="flex flex-wrap gap-2">
-                {members.map((m, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-caption text-text-secondary"
-                  >
-                    <Avatar name={m.users?.persona_name ?? "?"} size={18} />
-                    {m.users?.persona_name ?? "?"}
-                  </span>
-                ))}
+              <div className="mt-4 flex items-center gap-2.5 border-t border-border pt-4">
+                <Avatar name={creatorName} size={32} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
+                    Hosted by
+                  </p>
+                  <p className="truncate text-body font-semibold text-text-primary">
+                    {creatorName}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface-hover px-2.5 py-1 text-caption text-text-tertiary">
+                  <BarChartIcon size={12} />
+                  <span className="tabular-nums">{formatViews(plan.views_count)}</span>
+                </span>
               </div>
             </div>
+          </section>
+
+          <section className="surface-panel mt-3 divide-y divide-border px-4">
+            <MetaRow
+              icon={<CalendarIcon size={16} />}
+              label="When"
+              value={<>{dateLabel} <span className="font-normal text-text-tertiary">· {timeLabel}</span></>}
+            />
+            <MetaRow
+              icon={<UsersIcon size={16} />}
+              label="Who"
+              value={
+                <span className="flex items-center gap-2">
+                  <span>{members.length} / {plan.max_people} joined</span>
+                  {!ended && spotsLeft > 0 && spotsLeft <= 3 && (
+                    <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[11px] font-semibold text-amber">
+                      {spotsLeft} left
+                    </span>
+                  )}
+                  {!ended && isFull && (
+                    <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[11px] font-semibold text-text-tertiary">
+                      Full
+                    </span>
+                  )}
+                </span>
+              }
+            />
+          </section>
+
+          {members.length > 0 && (
+            <section className="mt-5">
+              <p className="section-eyebrow mb-2.5">In this plan · {members.length}</p>
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {visibleMembers.map((m, i) => (
+                    <div
+                      key={i}
+                      className="rounded-full ring-2 ring-surface"
+                      title={m.users?.persona_name ?? "?"}
+                    >
+                      <Avatar name={m.users?.persona_name ?? "?"} size={30} />
+                    </div>
+                  ))}
+                  {extraMembers > 0 && (
+                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-surface-hover text-[11px] font-semibold text-text-secondary ring-2 ring-surface">
+                      +{extraMembers}
+                    </div>
+                  )}
+                </div>
+                <p className="ml-1 min-w-0 flex-1 truncate text-caption text-text-tertiary">
+                  {visibleMembers.map((m) => m.users?.persona_name ?? "?").join(", ")}
+                  {extraMembers > 0 ? ` and ${extraMembers} more` : ""}
+                </p>
+              </div>
+            </section>
           )}
 
-          {!ended && (
-            <div className="space-y-2">
+          {!ended ? (
+            <div className="mt-5 space-y-2">
               <button
                 onClick={handleJoin}
-                disabled={joining || alreadyJoined}
+                disabled={joining || alreadyJoined || (!isAuthenticated ? false : isFull)}
                 className={
                   alreadyJoined
                     ? "btn-block flex h-11 items-center justify-center gap-2 rounded-full border border-success/35 bg-success/10 text-body font-semibold text-success"
                     : "btn-primary btn-lg btn-block"
                 }
               >
-                {joining ? (
-                  <Spinner size={16} tone="ink" />
-                ) : alreadyJoined && isCreator ? (
-                  <><CheckIcon size={16} />You created this plan</>
-                ) : alreadyJoined ? (
-                  <><CheckIcon size={16} />You&apos;re in</>
-                ) : isAuthenticated ? (
-                  "Join this plan"
-                ) : (
-                  "Sign in to join"
-                )}
+                {joinButtonLabel}
               </button>
 
-              <button onClick={handleShare} className="btn-secondary btn-lg btn-block gap-2">
-                <ShareIcon size={16} />
-                Share
-              </button>
-
-              {alreadyJoined && !isCreator && !confirmLeave && (
-                <button onClick={() => setConfirmLeave(true)} className="btn-ghost btn-sm btn-block">
-                  Leave this plan
+              <div className="flex gap-2">
+                <button onClick={handleShare} className="btn-secondary btn-lg flex-1 gap-2">
+                  <ShareIcon size={16} />
+                  Share
                 </button>
-              )}
+                {alreadyJoined && !isCreator && !confirmLeave && (
+                  <button
+                    onClick={() => setConfirmLeave(true)}
+                    className="btn-secondary btn-lg flex-1"
+                  >
+                    Leave
+                  </button>
+                )}
+                {isCreator && !confirmDelete && (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="btn-lg flex-1 rounded-full border border-danger/30 bg-danger/10 font-semibold text-danger transition-colors hover:bg-danger/15"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+
               {alreadyJoined && !isCreator && confirmLeave && (
-                <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="surface-panel space-y-2 p-3">
                   <p className="text-center text-body text-text-secondary">
                     Leave this plan?
                   </p>
@@ -261,14 +323,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                   </div>
                 </div>
               )}
-
-              {isCreator && !confirmDelete && (
-                <button onClick={() => setConfirmDelete(true)} className="btn-danger btn-block">
-                  Delete this plan
-                </button>
-              )}
               {isCreator && confirmDelete && (
-                <div className="space-y-2 rounded-xl border border-danger/30 p-3">
+                <div className="space-y-2 rounded-2xl border border-danger/30 p-3">
                   <p className="text-center text-body text-text-secondary">
                     Delete this plan?
                   </p>
@@ -283,25 +339,21 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                 </div>
               )}
             </div>
+          ) : (
+            <div className="surface-panel mt-5 flex items-center justify-center gap-1.5 px-3 py-3 text-body text-text-tertiary">
+              <ClockIcon size={14} />
+              This plan has ended
+            </div>
           )}
 
           {error && (
-            <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-center text-caption text-danger">
+            <p className="mt-3 rounded-xl bg-danger/10 px-3 py-2 text-center text-caption text-danger">
               {error}
             </p>
           )}
-
-          {ended && (
-            <div className="rounded-xl border border-border px-3 py-2.5 text-center">
-              <p className="flex items-center justify-center gap-1.5 text-body text-text-tertiary">
-                <ClockIcon size={14} />
-                This plan has ended
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="px-4">
+        <div className="mt-6 px-4">
           <PlanChat planId={plan.id} />
         </div>
       </div>

@@ -25,7 +25,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
-  // Cache-first for _next/static/ — files are content-hashed and immutable.
+  // Cache-first for _next/static/: files are content-hashed and immutable.
   // Serve from cache instantly on repeat visits; zero network round-trip.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
@@ -41,7 +41,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for pages and everything else — needs freshness.
+  // Network-first for pages and everything else; needs freshness.
   event.respondWith(
     fetch(event.request)
       .then((response) => {
