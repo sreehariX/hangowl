@@ -165,12 +165,16 @@ export default function VerifyPage() {
                   ref={(el) => { otpRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
+                  enterKeyHint="done"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
                   className="h-14 w-11 rounded-xl border border-border bg-transparent text-center text-xl font-semibold tabular-nums text-text-primary focus:border-amber focus:outline-none"
                   autoFocus={i === 0}
+                  aria-label={`OTP digit ${i + 1}`}
                 />
               ))}
             </div>

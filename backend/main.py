@@ -70,6 +70,23 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         headers=_cors_headers_for(request),
     )
 
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Defense-in-depth headers on every response.
+
+    These are belt-and-braces — the API is API-only (no browser-rendered
+    HTML) so the practical attack surface is small, but setting them
+    costs us nothing and stops a category of mistakes if we ever
+    accidentally return HTML.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Permissions-Policy", "interest-cohort=()")
+    return response
+
 app.include_router(auth_router)
 app.include_router(plans_router)
 app.include_router(feed_router)
