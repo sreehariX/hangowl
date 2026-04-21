@@ -20,10 +20,8 @@ export default function PostDetailPage() {
   const postId = params.id as string;
   const { isAuthenticated, userId, personaName, loading: authLoading } = useAuth();
 
-  // Seed from cache for instant display — avoids skeleton when navigating
-  // to a reply that was already visible on screen.
   const [post, setPost] = useState<Post | null>(() => postCache.get(postId) ?? null);
-  const [ancestors, setAncestors] = useState<Post[]>([]); // oldest → newest
+  const [ancestors, setAncestors] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
   const [subReplies, setSubReplies] = useState<Post[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -31,13 +29,10 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
   const optimisticReplyIdRef = useRef<string | null>(null);
-  // Maps post.id → stable render key so the optimistic→real swap doesn't remount the component
   const replyKeysRef = useRef<Map<string, string>>(new Map());
   const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
   const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  // Two-phase render: ancestors stay hidden until scroll is positioned to prevent
-  // the flash where parent post/image briefly appears before scrolling to focused post.
   const [showAncestors, setShowAncestors] = useState(false);
   const focusedPostRef = useRef<HTMLDivElement>(null);
 
@@ -50,11 +45,9 @@ export default function PostDetailPage() {
     return map;
   }, [subReplies]);
 
-  // Full fetch: post + replies + ancestors (initial load only)
   const fetchAll = useCallback(async () => {
     try {
       const data = await api.getPost(postId);
-      // Seed cache so any reply visible here can be opened instantly next tap
       postCache.set(data.post.id, data.post);
       data.replies.forEach((r) => postCache.set(r.id, r));
       (data.sub_replies ?? []).forEach((r) => postCache.set(r.id, r));
@@ -62,7 +55,6 @@ export default function PostDetailPage() {
       setReplies(data.replies);
       setSubReplies(data.sub_replies ?? []);
 
-      // Walk up ancestor chain (up to 5 deep)
       const chain: Post[] = [];
       let cur = data.post;
       while (cur.parent_id && chain.length < 5) {
@@ -74,14 +66,12 @@ export default function PostDetailPage() {
         } catch { break; }
       }
       setAncestors(chain);
-    } catch { /* silent */ }
+    } catch {}
     finally { setLoading(false); }
   }, [postId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Track virtual keyboard height via Visual Viewport API so the reply sheet
-  // stays above the keyboard on mobile.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -97,18 +87,8 @@ export default function PostDetailPage() {
     };
   }, []);
 
-  // Reset ancestor visibility when navigating between posts
   useEffect(() => { setShowAncestors(false); }, [postId]);
 
-  // Two-phase scroll positioning — prevents ancestor content from flashing on screen.
-  //
-  // Phase 1: Data loads, ancestors exist but showAncestors=false → ancestors NOT in DOM.
-  //          Scroll stays at 0 (focused post is at top). Then we flip showAncestors=true,
-  //          which triggers a synchronous re-render inside useLayoutEffect.
-  //
-  // Phase 2: showAncestors=true → ancestors ARE in DOM (pushing focused post down).
-  //          We immediately scroll to the focused post before the browser paints.
-  //          User never sees the ancestor flash — they scroll UP to reveal context.
   useLayoutEffect(() => {
     if (loading) return;
     if (ancestors.length === 0) {
@@ -116,15 +96,13 @@ export default function PostDetailPage() {
       return;
     }
     if (!showAncestors) {
-      // Phase 1: keep scroll at top, then inject ancestors into DOM
       window.scrollTo(0, 0);
       setShowAncestors(true);
       return;
     }
-    // Phase 2: ancestors now in DOM — scroll focused post to just below sticky header
     const el = focusedPostRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.pageYOffset - 52;
+    const top = el.getBoundingClientRect().top + window.pageYOffset - 48;
     window.scrollTo(0, Math.max(0, top));
   }, [loading, ancestors.length, showAncestors]);
 
@@ -141,7 +119,7 @@ export default function PostDetailPage() {
           setLikedIds(new Set(likesData.post_ids));
           setIsAdmin(adminData.is_admin);
         }
-      } catch { /* silent */ }
+      } catch {}
     }
     loadUserData();
     return () => { active = false; };
@@ -150,17 +128,13 @@ export default function PostDetailPage() {
   const userIdRef = useRef(userId);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  // Realtime: new direct replies
   useEffect(() => {
     const channel = supabase.channel(`post-${postId}-replies`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts", filter: `parent_id=eq.${postId}` },
         (payload) => {
           const r = payload.new as Post;
-          // Skip our own post's realtime event while optimistic is pending —
-          // handleReplied confirms it via the API response, preventing a duplicate
           if (optimisticReplyIdRef.current && r.user_id === userIdRef.current) return;
           setReplies((prev) => prev.some((p) => p.id === r.id) ? prev : [...prev, r]);
-          // Only update count for others' replies — ours was already incremented optimistically
           if (r.user_id !== userIdRef.current) {
             setPost((prev) => prev ? { ...prev, replies_count: prev.replies_count + 1 } : prev);
           }
@@ -215,14 +189,11 @@ export default function PostDetailPage() {
   function handleReplied(post: Post) {
     const optId = optimisticReplyIdRef.current;
     optimisticReplyIdRef.current = null;
-    // Transfer the stable render key from the optimistic ID to the real post ID
-    // so the key={...} in the list doesn't change → no unmount/remount flash
     const stableKey = replyKeysRef.current.get(optId ?? "") ?? post.id;
     replyKeysRef.current.delete(optId ?? "");
     replyKeysRef.current.set(post.id, stableKey);
     setReplies((prev) => prev.map((r) => {
       if (r.id !== optId) return r;
-      // API response has no users join — preserve persona_name from the optimistic entry
       return { ...post, users: r.users };
     }));
   }
@@ -247,23 +218,30 @@ export default function PostDetailPage() {
     ));
   }
 
-  // Only show full skeleton when we have no post data at all (cold load / direct URL).
-  // When navigating from a thread we already have the post in cache, so skip straight
-  // to rendering the post and show reply skeletons in-place instead.
+  const Header = (
+    <div className="sticky-bar">
+      <button
+        onClick={() =>
+          router.push(
+            ancestors.length > 0
+              ? `/feed/${ancestors[ancestors.length - 1].id}`
+              : "/",
+          )
+        }
+        className="icon-btn"
+        aria-label="Back"
+      >
+        <ArrowLeftIcon size={20} />
+      </button>
+      <span className="text-[17px] font-semibold text-text-primary">Post</span>
+    </div>
+  );
+
   if (!post && (loading || authLoading)) {
     return (
-      <div className="app-shell pb-28 pt-4">
-        <div className="app-content surface-panel overflow-hidden">
-          <div className="sticky-bar">
-            <button
-              onClick={() => router.back()}
-              className="icon-btn"
-              aria-label="Back"
-            >
-              <ArrowLeftIcon size={20} />
-            </button>
-            <span className="text-[15px] font-semibold text-text-primary">Post</span>
-          </div>
+      <div className="app-shell pt-0">
+        <div className="app-content">
+          {Header}
           <PostCardSkeleton />
           <PostCardSkeleton />
           <PostCardSkeleton />
@@ -274,18 +252,19 @@ export default function PostDetailPage() {
 
   if (!post) {
     return (
-      <div className="app-shell pb-28 pt-16 md:pt-6">
-        <div className="app-content surface-panel p-8 text-center">
-          <p className="mb-4 text-body text-text-secondary">Post not found</p>
-          <Link href="/" className="text-amber hover:text-amber-dark text-body">
-            Back to feed
-          </Link>
+      <div className="app-shell pt-0">
+        <div className="app-content">
+          {Header}
+          <div className="px-4 py-12 text-center">
+            <p className="mb-4 text-body text-text-secondary">Post not found</p>
+            <Link href="/" className="text-amber text-body">
+              Back to feed
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
-
-  const immediateParent = ancestors[ancestors.length - 1] ?? null;
 
   const sortedReplies = [...replies].sort((a, b) => {
     const aIsAuthor = a.user_id === post.user_id ? 1 : 0;
@@ -295,65 +274,46 @@ export default function PostDetailPage() {
   });
 
   return (
-    <div className="app-shell pb-28 pt-4">
-      <div className="app-content surface-panel overflow-hidden">
-        <div className="sticky-bar">
-          <button
-            onClick={() =>
-              router.push(immediateParent ? `/feed/${immediateParent.id}` : "/")
-            }
-            className="icon-btn"
-            aria-label="Back"
-          >
-            <ArrowLeftIcon size={20} />
-          </button>
-          <span className="text-[15px] font-semibold text-text-primary">Post</span>
+    <div className="app-shell pt-0">
+      <div className="app-content">
+        {Header}
+
+        {showAncestors && ancestors.map((ancestor) => (
+          <PostCard
+            key={ancestor.id}
+            post={ancestor}
+            liked={likedIds.has(ancestor.id)}
+            currentUserId={userId}
+            isAdmin={isAdmin}
+            showThreadLine
+          />
+        ))}
+
+        <div ref={focusedPostRef}>
+          <PostCard
+            post={post}
+            liked={likedIds.has(post.id)}
+            currentUserId={userId}
+            isAdmin={isAdmin}
+            isDetail
+            seamless={showAncestors && ancestors.length > 0}
+            onDeleted={handlePostDeleted}
+            onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
+          />
         </div>
 
-      {/* Ancestor chain — only rendered after scroll is positioned (Phase 2).
-           This prevents parent post images/content from flashing on screen. */}
-      {showAncestors && ancestors.map((ancestor) => (
-        <PostCard
-          key={ancestor.id}
-          post={ancestor}
-          liked={likedIds.has(ancestor.id)}
-          currentUserId={userId}
-          isAdmin={isAdmin}
-          showThreadLine
-        />
-      ))}
-
-      {/* Main (focused) post — seamless connects to ancestors above.
-           NO showThreadLine: Twitter-style clean break between post and replies. */}
-      <div ref={focusedPostRef}>
-        <PostCard
-          post={post}
-          liked={likedIds.has(post.id)}
-          currentUserId={userId}
-          isAdmin={isAdmin}
-          isDetail
-          seamless={showAncestors && ancestors.length > 0}
-          onDeleted={handlePostDeleted}
-          onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
-        />
-      </div>
-
-      {/* Replies — Twitter-style: each reply is an independent card with clean borders.
-           No thread lines connecting replies to the focused post.
-           Sub-replies (conversation chains) keep thread lines to their parent reply. */}
-      {loading && replies.length === 0 ? (
-        <div>
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-        </div>
-      ) : replies.length === 0 ? (
-        <div className="px-4 py-10 text-center">
-          <p className="text-body text-text-tertiary">No replies yet. Be the first.</p>
-        </div>
-      ) : (
-        <div>
-          {sortedReplies.map((reply) => {
+        {loading && replies.length === 0 ? (
+          <>
+            <PostCardSkeleton />
+            <PostCardSkeleton />
+            <PostCardSkeleton />
+          </>
+        ) : replies.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-body text-text-tertiary">No replies yet. Be the first.</p>
+          </div>
+        ) : (
+          sortedReplies.map((reply) => {
             const subs = subRepliesMap[reply.id] ?? [];
             const replyKey = replyKeysRef.current.get(reply.id) ?? reply.id;
             return (
@@ -382,68 +342,64 @@ export default function PostDetailPage() {
                 ))}
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
 
-      {/* Reply bottom sheet */}
-      {replyTarget && (
-        <>
-          {/* Backdrop — must be above nav (z-50) */}
-          <div
-            className={`fixed inset-0 z-[55] bg-black/60 ${isClosingReplySheet ? "animate-fade-out" : "animate-fade-in"}`}
-            onClick={() => closeReplySheet()}
-          />
-          {/* Sheet — must be above nav (z-50) */}
-          <div
-            className={`fixed inset-x-0 z-[60] ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
-            style={{
-              bottom: isClosingReplySheet ? 0 : keyboardHeight,
-              transition: isClosingReplySheet ? "none" : "bottom 0.15s ease-out",
-            }}
-            onAnimationEnd={handleSheetAnimationEnd}
-          >
-            <div className="app-content overflow-hidden rounded-t-3xl border-x border-t border-border/60 bg-ink-850/95 backdrop-blur-xl">
-              <div className="flex justify-center pt-2.5 pb-1">
-                <div className="h-1 w-10 rounded-full bg-border" />
-              </div>
-              <div className="flex items-center px-4 py-2">
-                <button
-                  onClick={() => closeReplySheet()}
-                  className="text-body text-text-tertiary transition-colors hover:text-text-primary"
-                >
-                  Cancel
-                </button>
-              </div>
-              <div className="flex gap-3 px-4 pb-2">
-                <div className="flex flex-col items-center">
-                  <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
-                  <div className="mt-1.5 min-h-[24px] w-0.5 flex-1 rounded-full bg-border/60" />
+        {replyTarget && (
+          <>
+            <div
+              className={`fixed inset-0 z-[55] bg-black/60 ${isClosingReplySheet ? "animate-fade-out" : "animate-fade-in"}`}
+              onClick={() => closeReplySheet()}
+            />
+            <div
+              className={`fixed inset-x-0 z-[60] ${isClosingReplySheet ? "animate-sheet-down" : "animate-sheet-up"}`}
+              style={{
+                bottom: isClosingReplySheet ? 0 : keyboardHeight,
+                transition: isClosingReplySheet ? "none" : "bottom 0.15s ease-out",
+              }}
+              onAnimationEnd={handleSheetAnimationEnd}
+            >
+              <div className="app-content overflow-hidden rounded-t-3xl border border-border bg-surface">
+                <div className="flex justify-center pt-2 pb-1">
+                  <div className="h-1 w-10 rounded-full bg-border" />
                 </div>
-                <div className="min-w-0 flex-1 pb-3">
-                  <p className="text-body font-semibold text-text-primary">
-                    {replyTarget.users?.persona_name ?? "Anonymous"}
-                  </p>
-                  <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-body text-text-secondary">
-                    {replyTarget.content}
-                  </p>
+                <div className="flex items-center px-4 py-2">
+                  <button
+                    onClick={() => closeReplySheet()}
+                    className="text-body text-text-tertiary transition-colors hover:text-text-primary"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </div>
-              <div className="px-4 pb-4">
-                <ComposeBox
-                  parentId={replyTarget.id}
-                  placeholder="Post your reply"
-                  onPostStart={() => closeReplySheet()}
-                  onOptimisticPost={handleOptimisticReply}
-                  onPosted={handleReplied}
-                  onPostFailed={handleReplyFailed}
-                  autoFocus
-                />
+                <div className="flex gap-3 px-4 pb-2">
+                  <div className="flex flex-col items-center">
+                    <Avatar name={replyTarget.users?.persona_name ?? "Anonymous"} size={36} />
+                    <div className="mt-1.5 min-h-[24px] w-px flex-1 bg-border" />
+                  </div>
+                  <div className="min-w-0 flex-1 pb-3">
+                    <p className="text-body font-semibold text-text-primary">
+                      {replyTarget.users?.persona_name ?? "Anonymous"}
+                    </p>
+                    <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-body text-text-secondary">
+                      {replyTarget.content}
+                    </p>
+                  </div>
+                </div>
+                <div className="px-4 pb-4">
+                  <ComposeBox
+                    parentId={replyTarget.id}
+                    placeholder="Post your reply"
+                    onPostStart={() => closeReplySheet()}
+                    onOptimisticPost={handleOptimisticReply}
+                    onPosted={handleReplied}
+                    onPostFailed={handleReplyFailed}
+                    autoFocus
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
       </div>
     </div>
   );

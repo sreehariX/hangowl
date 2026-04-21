@@ -29,7 +29,6 @@ export const metadata: Metadata = {
     title: "HangOwl",
   },
   other: {
-    // Helps mobile browsers pick the right status-bar tint
     "mobile-web-app-capable": "yes",
   },
 };
@@ -38,7 +37,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#05070D",
+  themeColor: "#000000",
   viewportFit: "cover",
 };
 
@@ -57,14 +56,6 @@ export default function RootLayout({
           <NotificationsProvider>
             <SWRegister />
             <InstallPrompt />
-            <div
-              aria-hidden
-              className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-            >
-              <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-brand-500/20 blur-3xl" />
-              <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-amber/10 blur-3xl" />
-              <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-brand-600/15 blur-[120px]" />
-            </div>
             <div className="flex min-h-dvh flex-col">
               <main className="flex-1">{children}</main>
               <Nav />

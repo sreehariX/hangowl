@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
@@ -17,7 +17,7 @@ import {
 } from "@/components/icons";
 import type { Notification } from "@/lib/types";
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string) {
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -29,73 +29,41 @@ function formatDate(dateStr: string): string {
   if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d`;
-  const opts: Intl.DateTimeFormatOptions =
+  return date.toLocaleDateString("en-US",
     date.getFullYear() === now.getFullYear()
       ? { month: "short", day: "numeric" }
-      : { month: "short", day: "numeric", year: "numeric" };
-  return date.toLocaleDateString("en-US", opts);
+      : { month: "short", day: "numeric", year: "numeric" });
 }
 
 type NotifType = Notification["type"];
 
-const TYPE_META: Record<
-  NotifType,
-  { icon: React.ReactNode; tone: "danger" | "info" | "amber"; label: string }
-> = {
-  like: {
-    icon: <HeartIcon filled size={16} />,
-    tone: "danger",
-    label: "liked your post",
-  },
-  reply: {
-    icon: <ReplyIcon size={16} />,
-    tone: "info",
-    label: "replied to your post",
-  },
-  plan_join: {
-    icon: <UsersIcon size={16} />,
-    tone: "amber",
-    label: "joined your hangout",
-  },
-};
-
-const TONE_CLASSES: Record<string, string> = {
-  danger: "bg-danger/15 text-danger",
-  info: "bg-info/15 text-info",
-  amber: "bg-amber/15 text-amber",
+const TYPE_META: Record<NotifType, { icon: React.ReactNode; tone: string; label: string }> = {
+  like: { icon: <HeartIcon filled size={14} />, tone: "bg-danger/15 text-danger", label: "liked your post" },
+  reply: { icon: <ReplyIcon size={14} />, tone: "bg-info/15 text-info", label: "replied to your post" },
+  plan_join: { icon: <UsersIcon size={14} />, tone: "bg-amber/15 text-amber", label: "joined your hangout" },
 };
 
 function NotificationItem({
-  n,
-  onTap,
-  isNew,
-}: {
-  n: Notification;
-  onTap: (n: Notification) => void;
-  isNew?: boolean;
-}) {
+  n, onTap, isNew,
+}: { n: Notification; onTap: (n: Notification) => void; isNew?: boolean }) {
   const meta = TYPE_META[n.type];
-  const preview =
-    n.posts?.content ??
-    (n.plans ? `${n.plans.activity} · ${n.plans.location}` : null);
+  const preview = n.posts?.content ?? (n.plans ? `${n.plans.activity} · ${n.plans.location}` : null);
 
   return (
     <button
       onClick={() => onTap(n)}
-      className={`relative flex w-full items-start gap-3 px-4 py-4 text-left transition-colors duration-200 hover:bg-surface-hover/70 active:bg-surface-hover ${
+      className={`relative flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-surface-hover/40 ${
         isNew ? "bg-amber/[0.04]" : ""
       }`}
     >
       {isNew && (
-        <span className="absolute left-1.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-amber shadow-glow-amber" />
+        <span className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-amber" />
       )}
 
       <div className="relative shrink-0">
         <Avatar name={n.actor_persona || "?"} size={40} />
         <span
-          className={`absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full ring-2 ring-ink-900 ${
-            TONE_CLASSES[meta.tone]
-          }`}
+          className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-black ${meta.tone}`}
         >
           {meta.icon}
         </span>
@@ -110,12 +78,12 @@ function NotificationItem({
         </p>
 
         {preview && (
-          <p className="mt-1 line-clamp-2 rounded-md border-l-2 border-border/70 pl-2.5 text-caption leading-snug text-text-tertiary">
+          <p className="mt-1 line-clamp-2 border-l-2 border-border pl-2 text-caption text-text-tertiary">
             {preview}
           </p>
         )}
 
-        <p className="mt-1.5 text-[11px] text-text-muted">
+        <p className="mt-1 text-[11px] text-text-muted">
           {formatDate(n.created_at)}
         </p>
       </div>
@@ -136,18 +104,12 @@ export default function NotificationsPage() {
     try {
       const data = await api.getNotifications();
       setNotifications(data.notifications);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.replace("/verify");
-      return;
-    }
+    if (!authLoading && !isAuthenticated) { router.replace("/verify"); return; }
     if (!authLoading && isAuthenticated) {
       load();
       const timer = setTimeout(() => {
@@ -164,29 +126,18 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
-
     const channel = supabase
       .channel(`notif-page-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
           const incoming = payload.new as Notification;
           setQueued((prev) =>
             prev.some((n) => n.id === incoming.id) ? prev : [incoming, ...prev],
           );
-        },
-      )
+        })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [isAuthenticated, userId]);
 
   function flushQueued() {
@@ -198,13 +149,10 @@ export default function NotificationsPage() {
     setQueued([]);
   }
 
-  const handleTap = useCallback(
-    (n: Notification) => {
-      if (n.post_id) router.push(`/feed/${n.post_id}`);
-      else if (n.plan_id) router.push(`/plan/${n.plan_id}`);
-    },
-    [router],
-  );
+  const handleTap = useCallback((n: Notification) => {
+    if (n.post_id) router.push(`/feed/${n.post_id}`);
+    else if (n.plan_id) router.push(`/plan/${n.plan_id}`);
+  }, [router]);
 
   const newNotifs = notifications.filter((n) => !n.is_read);
   const earlierNotifs = notifications.filter((n) => n.is_read);
@@ -218,19 +166,19 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="app-shell pt-4">
-      <div className="app-content pb-28">
-        <div className="sticky-bar -mx-4 mb-2 md:-mx-5">
-          <h1 className="text-title font-semibold tracking-tight text-text-primary">
+    <div className="app-shell pt-0">
+      <div className="app-content">
+        <div className="sticky-bar">
+          <h1 className="text-[17px] font-semibold text-text-primary">
             Notifications
           </h1>
         </div>
 
         {queued.length > 0 && (
-          <div className="sticky top-14 z-10 flex justify-center pt-2">
+          <div className="flex justify-center py-2">
             <button
               onClick={flushQueued}
-              className="flex animate-slide-down-in items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 px-4 py-1.5 text-xs font-bold text-ink-950 shadow-glow-amber transition-all hover:scale-105 active:scale-95"
+              className="flex animate-slide-down-in items-center gap-1.5 rounded-full bg-amber px-4 py-1 text-xs font-semibold text-ink-950"
             >
               <ChevronUpIcon size={12} />
               {queued.length} new
@@ -239,52 +187,35 @@ export default function NotificationsPage() {
         )}
 
         {notifications.length === 0 ? (
-          <div className="surface-panel mt-2">
-            <EmptyState
-              icon={<BellIcon size={28} />}
-              title="Nothing yet"
-              description="Likes, replies, and hangout joins will show up here."
-            />
-          </div>
+          <EmptyState
+            icon={<BellIcon size={22} />}
+            title="Nothing yet"
+            description="Likes, replies, and hangout joins will show up here."
+          />
         ) : (
-          <div className="surface-panel mt-2 overflow-hidden">
+          <>
             {newNotifs.length > 0 && (
               <>
                 <div className="px-4 pb-1 pt-4">
                   <span className="section-eyebrow text-amber">New</span>
                 </div>
-                <div className="divide-y divide-border/40">
-                  {newNotifs.map((n) => (
-                    <NotificationItem
-                      key={n.id}
-                      n={n}
-                      onTap={handleTap}
-                      isNew
-                    />
-                  ))}
-                </div>
+                {newNotifs.map((n) => (
+                  <NotificationItem key={n.id} n={n} onTap={handleTap} isNew />
+                ))}
               </>
             )}
 
             {earlierNotifs.length > 0 && (
               <>
-                <div
-                  className={`px-4 pb-1 ${
-                    newNotifs.length > 0
-                      ? "mt-2 border-t border-border/40 pt-3"
-                      : "pt-4"
-                  }`}
-                >
+                <div className="px-4 pb-1 pt-4">
                   <span className="section-eyebrow">Earlier</span>
                 </div>
-                <div className="divide-y divide-border/40">
-                  {earlierNotifs.map((n) => (
-                    <NotificationItem key={n.id} n={n} onTap={handleTap} />
-                  ))}
-                </div>
+                {earlierNotifs.map((n) => (
+                  <NotificationItem key={n.id} n={n} onTap={handleTap} />
+                ))}
               </>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

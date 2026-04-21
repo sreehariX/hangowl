@@ -39,9 +39,7 @@ export function ComposeBox({
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
-  }, [autoFocus]);
+  useEffect(() => { if (autoFocus) textareaRef.current?.focus(); }, [autoFocus]);
 
   const trimmed = content.trim();
   const charCount = trimmed.length;
@@ -52,29 +50,17 @@ export function ComposeBox({
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Only image files are allowed");
-      return;
-    }
-
+    if (!file.type.startsWith("image/")) { setError("Only image files are allowed"); return; }
     if (file.size > MAX_INPUT_MB * 1024 * 1024) {
-      setError(`Image must be under ${MAX_INPUT_MB}MB`);
-      return;
+      setError(`Image must be under ${MAX_INPUT_MB}MB`); return;
     }
-
     setUploading(true);
     setError(null);
-
     try {
       setUploadLabel("Optimizing…");
       const compressed = await compressImage(file, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 0.85,
-        maxSizeMB: 2,
+        maxWidth: 1920, maxHeight: 1920, quality: 0.85, maxSizeMB: 2,
       });
-
       setUploadLabel("Uploading…");
       const result = await api.uploadImage(compressed);
       setImageUrl(result.url);
@@ -112,15 +98,15 @@ export function ComposeBox({
   const cta = parentId ? "Reply" : "Post";
 
   return (
-    <div className="surface-panel p-4">
+    <div className="rounded-2xl border border-border p-4">
       <textarea
         ref={textareaRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={placeholder || "What's on your mind?"}
+        placeholder={placeholder || "What's happening?"}
         rows={3}
         maxLength={MAX_CHARS + 100}
-        className="w-full resize-none bg-transparent text-body-lg leading-relaxed text-text-primary placeholder:text-text-muted outline-none"
+        className="w-full resize-none bg-transparent text-[16px] leading-relaxed text-text-primary placeholder:text-text-muted outline-none"
       />
 
       {imageUrl && (
@@ -162,9 +148,7 @@ export function ComposeBox({
           )}
           {showCounter && (
             <span
-              className={`text-caption tabular-nums ${
-                overLimit ? "text-danger" : "text-text-tertiary"
-              }`}
+              className={`text-caption tabular-nums ${overLimit ? "text-danger" : "text-text-tertiary"}`}
             >
               {MAX_CHARS - charCount}
             </span>
@@ -176,7 +160,7 @@ export function ComposeBox({
           disabled={!canPost}
           className="btn-primary btn-sm px-5"
         >
-          {posting ? <Spinner size={14} tone="white" /> : cta}
+          {posting ? <Spinner size={14} tone="ink" /> : cta}
         </button>
       </div>
     </div>

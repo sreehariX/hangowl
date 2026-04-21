@@ -2,24 +2,22 @@
 
 import { memo } from "react";
 
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
+/* A small, curated palette — avatars feel like one family. */
+const PALETTE = [
+  "#5B83D4",
+  "#F6BA3D",
+  "#34D99F",
+  "#FF6B7D",
+  "#8B6FE8",
+  "#3FB8C9",
+  "#E88B4A",
+  "#6B87A8",
+] as const;
 
-function hslToHex(h: number, s: number, l: number): string {
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color)
-      .toString(16)
-      .padStart(2, "0");
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
+function hash(str: string) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
 }
 
 interface AvatarProps {
@@ -29,77 +27,25 @@ interface AvatarProps {
 }
 
 function AvatarComponent({ name, size = 40, className = "" }: AvatarProps) {
-  const hash = hashCode(name);
-
-  // Slightly desaturated, consistent luminance — avatars feel like they
-  // belong to the same palette rather than a ransom of random colours.
-  const hue1 = hash % 360;
-  const hue2 = (hue1 + 42 + (hash % 40)) % 360;
-  const color1 = hslToHex(hue1, 0.58, 0.58);
-  const color2 = hslToHex(hue2, 0.52, 0.42);
-
-  const grid = 5;
-  const cells: boolean[][] = [];
-  const half = Math.ceil(grid / 2);
-
-  for (let row = 0; row < grid; row++) {
-    cells[row] = [];
-    for (let col = 0; col < half; col++) {
-      const bit = (hash >> ((row * half + col) % 30)) & 1;
-      cells[row][col] = bit === 1;
-      cells[row][grid - 1 - col] = bit === 1;
-    }
-  }
-
-  const cellSize = size / (grid + 2);
-  const offset = cellSize;
-
-  const initial = name.charAt(0).toUpperCase();
+  const bg = PALETTE[hash(name) % PALETTE.length];
+  const initial = (name.trim().charAt(0) || "?").toUpperCase();
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      className={className}
-      style={{ borderRadius: size * 0.28 }}
+    <span
       aria-hidden
+      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full text-white ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: bg,
+        fontSize: size * 0.42,
+        fontWeight: 600,
+        lineHeight: 1,
+        letterSpacing: "-0.01em",
+      }}
     >
-      <defs>
-        <linearGradient id={`grad-${hash}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={color1} />
-          <stop offset="100%" stopColor={color2} />
-        </linearGradient>
-      </defs>
-      <rect width={size} height={size} rx={size * 0.28} fill={`url(#grad-${hash})`} />
-      {cells.map((row, r) =>
-        row.map((on, c) =>
-          on ? (
-            <rect
-              key={`${r}-${c}`}
-              x={offset + c * cellSize}
-              y={offset + r * cellSize}
-              width={cellSize * 0.85}
-              height={cellSize * 0.85}
-              rx={cellSize * 0.15}
-              fill="rgba(255,255,255,0.35)"
-            />
-          ) : null
-        )
-      )}
-      <text
-        x={size / 2}
-        y={size / 2 + 1}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill="rgba(255,255,255,0.9)"
-        fontSize={size * 0.32}
-        fontWeight="700"
-        fontFamily="Inter, system-ui, sans-serif"
-      >
-        {initial}
-      </text>
-    </svg>
+      {initial}
+    </span>
   );
 }
 

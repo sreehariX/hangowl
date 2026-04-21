@@ -3,14 +3,8 @@
 import { type HTMLAttributes, type ReactNode } from "react";
 import { ArrowLeftIcon } from "@/components/icons";
 
-/* -------------------------------------------------------------------------- */
-/* Spinner                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export function Spinner({
-  size = 20,
-  className = "",
-  tone = "amber",
+  size = 20, className = "", tone = "amber",
 }: {
   size?: number;
   className?: string;
@@ -18,9 +12,9 @@ export function Spinner({
 }) {
   const colors: Record<string, string> = {
     amber: "#F6BA3D",
-    muted: "#8594B0",
+    muted: "#797F8B",
     white: "#FFFFFF",
-    ink: "#06080F",
+    ink: "#000000",
   };
   const c = colors[tone] ?? colors.amber;
   return (
@@ -40,10 +34,6 @@ export function Spinner({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Screen header — sticky bar with optional back + trailing action             */
-/* -------------------------------------------------------------------------- */
-
 interface ScreenHeaderProps {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -54,14 +44,10 @@ interface ScreenHeaderProps {
 }
 
 export function ScreenHeader({
-  title,
-  subtitle,
-  onBack,
-  trailing,
-  sticky = true,
+  title, subtitle, onBack, trailing, sticky = true,
 }: ScreenHeaderProps) {
   return (
-    <div className={`${sticky ? "sticky-bar" : "flex items-center gap-3 px-4 py-3"}`}>
+    <div className={sticky ? "sticky-bar" : "flex items-center gap-3 px-4 py-3"}>
       {onBack && (
         <button
           type="button"
@@ -73,7 +59,7 @@ export function ScreenHeader({
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-semibold tracking-tight text-text-primary">
+        <div className="truncate text-[17px] font-semibold text-text-primary">
           {title}
         </div>
         {subtitle && <div className="truncate text-caption text-text-tertiary">{subtitle}</div>}
@@ -82,10 +68,6 @@ export function ScreenHeader({
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* EmptyState                                                                  */
-/* -------------------------------------------------------------------------- */
 
 interface EmptyStateProps {
   icon?: ReactNode;
@@ -99,27 +81,21 @@ export function EmptyState({ icon, title, description, action, className = "" }:
   return (
     <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className}`}>
       {icon && (
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-hover/70 text-text-tertiary">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-hover text-text-tertiary">
           {icon}
         </div>
       )}
       <h3 className="text-headline font-semibold text-text-primary">{title}</h3>
       {description && (
-        <p className="mt-1.5 max-w-xs text-body text-text-tertiary">{description}</p>
+        <p className="mt-1 max-w-xs text-body text-text-tertiary">{description}</p>
       )}
-      {action && <div className="mt-5">{action}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Section heading                                                             */
-/* -------------------------------------------------------------------------- */
-
 export function SectionHeading({
-  children,
-  action,
-  className = "",
+  children, action, className = "",
 }: {
   children: ReactNode;
   action?: ReactNode;
@@ -133,16 +109,10 @@ export function SectionHeading({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Card                                                                        */
-/* -------------------------------------------------------------------------- */
-
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   variant?: "hero" | "panel" | "glass";
 }
 
-export function Card({ variant = "panel", className = "", ...rest }: CardProps) {
-  const base =
-    variant === "hero" ? "surface-hero" : variant === "glass" ? "surface-glass" : "surface-panel";
-  return <div className={`${base} ${className}`} {...rest} />;
+export function Card({ className = "", ...rest }: CardProps) {
+  return <div className={`surface-panel ${className}`} {...rest} />;
 }

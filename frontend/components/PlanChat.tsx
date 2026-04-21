@@ -15,10 +15,7 @@ interface PlanChatProps {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
+    hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
   });
 }
 
@@ -33,74 +30,51 @@ export function PlanChat({ planId }: PlanChatProps) {
 
   const scrollToBottom = () => {
     const el = containerRef.current;
-    if (el && shouldAutoScroll.current) {
-      el.scrollTop = el.scrollHeight;
-    }
+    if (el && shouldAutoScroll.current) el.scrollTop = el.scrollHeight;
   };
 
   useEffect(() => {
     let active = true;
-    api
-      .getMessages(planId)
+    api.getMessages(planId)
       .then((data) => {
         if (!active) return;
         setMessages(data.messages);
         setLoading(false);
         requestAnimationFrame(() => {
-          if (containerRef.current) {
-            containerRef.current.scrollTop = containerRef.current.scrollHeight;
-          }
+          if (containerRef.current) containerRef.current.scrollTop = containerRef.current.scrollHeight;
         });
       })
-      .catch(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [planId]);
 
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${planId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "plan_messages",
-          filter: `plan_id=eq.${planId}`,
-        },
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "plan_messages", filter: `plan_id=eq.${planId}` },
         (payload) => {
           const newMsg = payload.new as PlanMessage;
           setMessages((prev) =>
             prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg],
           );
-        },
-      )
+        })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [planId]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    shouldAutoScroll.current = atBottom;
+    shouldAutoScroll.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   };
 
-  const handleSend = async (e: React.FormEvent) => {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
     if (!text || sending || !isAuthenticated) return;
-
     setSending(true);
     shouldAutoScroll.current = true;
     try {
@@ -109,18 +83,15 @@ export function PlanChat({ planId }: PlanChatProps) {
         prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message],
       );
       setInput("");
-    } catch {
-      /* silent */
-    } finally {
-      setSending(false);
-    }
-  };
+    } catch {}
+    finally { setSending(false); }
+  }
 
   let lastSender = "";
 
   return (
-    <div className="surface-panel overflow-hidden">
-      <div className="border-b border-border/60 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-border">
+      <div className="border-b border-border px-4 py-3">
         <h3 className="text-body font-semibold text-text-primary">Group chat</h3>
         <p className="text-[11px] text-text-tertiary">
           Coordinate with everyone who&apos;s joined.
@@ -139,7 +110,7 @@ export function PlanChat({ planId }: PlanChatProps) {
         )}
         {!loading && messages.length === 0 && (
           <p className="py-8 text-center text-caption text-text-tertiary">
-            No messages yet. Say hi 👋
+            No messages yet.
           </p>
         )}
         {messages.map((msg) => {
@@ -160,23 +131,19 @@ export function PlanChat({ planId }: PlanChatProps) {
               )}
               <div className={`flex max-w-[78%] flex-col ${isMe ? "items-end" : "items-start"}`}>
                 {showName && (
-                  <p className="mb-0.5 ml-2 text-[10px] font-semibold text-brand-400">
+                  <p className="mb-0.5 ml-2 text-[10px] font-semibold text-text-tertiary">
                     {name}
                   </p>
                 )}
                 <div
-                  className={`rounded-2xl px-3.5 py-2 text-body leading-snug ${
+                  className={`rounded-2xl px-3 py-2 text-body leading-snug ${
                     isMe
-                      ? "rounded-br-md bg-gradient-to-br from-amber/30 to-amber/15 text-text-primary"
+                      ? "rounded-br-md bg-amber/15 text-text-primary"
                       : "rounded-bl-md bg-surface-hover text-text-primary"
                   }`}
                 >
                   <p className="break-words">{msg.message}</p>
-                  <p
-                    className={`mt-0.5 text-[9.5px] tabular-nums ${
-                      isMe ? "text-amber/70" : "text-text-muted"
-                    }`}
-                  >
+                  <p className={`mt-0.5 text-[10px] tabular-nums ${isMe ? "text-amber/70" : "text-text-muted"}`}>
                     {formatTime(msg.created_at)}
                   </p>
                 </div>
@@ -189,7 +156,7 @@ export function PlanChat({ planId }: PlanChatProps) {
       {isAuthenticated ? (
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-2 border-t border-border/60 p-3"
+          className="flex items-center gap-2 border-t border-border p-3"
         >
           <input
             type="text"
@@ -197,19 +164,19 @@ export function PlanChat({ planId }: PlanChatProps) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Message"
             maxLength={500}
-            className="flex-1 rounded-full border border-border/70 bg-ink-850/80 px-4 py-2.5 text-body text-text-primary placeholder:text-text-muted transition-colors focus:border-amber focus:outline-none"
+            className="flex-1 rounded-full border border-border bg-transparent px-4 py-2 text-body text-text-primary placeholder:text-text-muted focus:border-text-tertiary focus:outline-none"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-ink-950 shadow-glow-amber transition-all duration-200 hover:scale-105 disabled:pointer-events-none disabled:opacity-40"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber text-ink-950 transition-opacity disabled:opacity-40"
             aria-label="Send"
           >
             {sending ? <Spinner size={14} tone="ink" /> : <SendIcon size={16} />}
           </button>
         </form>
       ) : (
-        <div className="border-t border-border/60 p-4 text-center">
+        <div className="border-t border-border p-4 text-center">
           <p className="text-caption text-text-tertiary">Sign in to chat</p>
         </div>
       )}
