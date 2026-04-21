@@ -336,7 +336,7 @@ export default function FeedHomePage() {
             <div className="app-content px-4 pt-4">
               <ComposeBox
                 onPosted={handlePosted}
-                placeholder="What's happening at IITB?"
+                placeholder="What's happening ?
                 autoFocus
               />
             </div>
