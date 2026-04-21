@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/PostCard";
+import { FeedSkeleton } from "@/components/Skeleton";
 import { EmptyState, SectionHeading, Spinner } from "@/components/primitives";
 import {
   ChevronRightIcon,
@@ -120,9 +121,7 @@ export default function ProfilePage() {
             <SectionHeading>My posts · {posts.length}</SectionHeading>
           </div>
           {loadingPosts ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
+            <FeedSkeleton count={2} />
           ) : posts.length === 0 ? (
             <EmptyState
               title="You haven't posted yet"
