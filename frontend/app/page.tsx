@@ -214,8 +214,8 @@ export default function FeedHomePage() {
               Find your people at IIT Bombay
             </h2>
             <p className="mx-auto mb-2 max-w-[360px] text-body text-text-secondary">
-              Verified IIT-B students. Everyone here went through @iitb.ac.in
-              — but every name on HangOwl is anonymous.
+              Verified IIT-B students. Everyone here went through @iitb.ac.in,
+              but every name on HangOwl is anonymous.
             </p>
             {stats && (
               <p className="mx-auto mb-5 text-caption text-text-tertiary">

@@ -105,7 +105,7 @@ function PostImage({
 }
 
 /*
- * Grid layout for 1 to 4 images — same visual grammar as Twitter / X.
+ * Grid layout for 1 to 4 images - same visual grammar as Twitter / X.
  *  1 → single 2:1 hero
  *  2 → side-by-side split
  *  3 → left tall + two stacked right
@@ -245,7 +245,7 @@ const PostCard = memo(function PostCard({
   const canDelete = isAuthor || isAdmin;
   const isNavigable = !isDetail;
 
-  // Normalize image sources — support both legacy `image_url` and the new
+  // Normalize image sources - support both legacy `image_url` and the new
   // `image_urls` array. Cap at 4 for layout safety.
   const imageUrls: string[] = (() => {
     const many = Array.isArray(post.image_urls) ? post.image_urls.filter(Boolean) : [];

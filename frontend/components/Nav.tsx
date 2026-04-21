@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { memo, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { Avatar } from "@/components/Avatar";
@@ -76,10 +76,43 @@ function DesktopLink({
   );
 }
 
+/*
+ * Scroll direction hook - the bottom nav softens and fades while scrolling
+ * down, then restores its opaque state when the user scrolls up. Mimics
+ * Twitter/X and Instagram's primary bars on mobile.
+ */
+function useScrollState() {
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  const ticking = useRef(false);
+
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    const handler = () => {
+      if (ticking.current) return;
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY.current;
+        if (y < 12) setHidden(false);
+        else if (delta > 8) setHidden(true);
+        else if (delta < -6) setHidden(false);
+        lastY.current = y;
+        ticking.current = false;
+      });
+    };
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  return hidden;
+}
+
 export const Nav = memo(function Nav() {
   const pathname = usePathname();
   const { isAuthenticated, personaName, loading: authLoading } = useAuth();
   const { unreadCount, pulse } = useNotifications();
+  const scrolledDown = useScrollState();
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -111,6 +144,7 @@ export const Nav = memo(function Nav() {
       {/* Mobile bottom nav */}
       <nav
         aria-label="Primary"
+        data-dim={scrolledDown ? "true" : "false"}
         className="nav-bar fixed inset-x-0 bottom-0 z-50 safe-area-pb md:hidden"
       >
         <div className="mx-auto flex max-w-[600px] items-stretch">
@@ -164,7 +198,7 @@ export const Nav = memo(function Nav() {
         </div>
       </nav>
 
-      {/* Desktop top nav — premium, centred, compact */}
+      {/* Desktop top nav - premium, centred, compact */}
       <nav
         aria-label="Primary"
         className="desktop-nav hidden md:flex"

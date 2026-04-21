@@ -1,6 +1,6 @@
 /**
  * Client-side image compression using the Canvas API.
- * Same approach used by Instagram and Twitter — resize + re-encode before upload.
+ * Same approach used by Instagram and Twitter - resize + re-encode before upload.
  * - Resizes to max 1920×1920 preserving aspect ratio
  * - Encodes as WebP (best compression) with JPEG fallback
  * - Iteratively reduces quality if output exceeds maxSizeMB

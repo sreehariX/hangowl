@@ -39,7 +39,7 @@ app.include_router(feed_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
 
-# Module-level TTL caches — persist across warm Vercel invocations on the same instance.
+# Module-level TTL caches - persist across warm Vercel invocations on the same instance.
 # tuple[data_dict, expires_monotonic_ts] | None
 _stats_cache: tuple[dict, float] | None = None
 _leaderboard_cache: tuple[dict, float] | None = None

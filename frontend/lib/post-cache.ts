@@ -1,6 +1,6 @@
 import type { Post } from "./types";
 
-// Module-level cache — survives client-side navigation for the browser session.
+// Module-level cache - survives client-side navigation for the browser session.
 // When a PostCard navigates to a reply we already have on screen, the detail
 // page reads this cache and renders instantly without showing a skeleton.
 const cache = new Map<string, Post>();
