@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
@@ -74,10 +75,25 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const [error, setError] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+<<<<<<< cursor/chat-fab-black-sheet-badge-e5ca
+  /** Unread badge count rendered on the chat FAB. Bumped by realtime
+   *  INSERTs on plan_messages whenever the sheet is closed and the
+   *  message isn't our own echo; zeroed the moment the sheet opens. */
+  const [unread, setUnread] = useState(0);
+  const chatOpenRef = useRef(chatOpen);
+  useEffect(() => {
+    chatOpenRef.current = chatOpen;
+  }, [chatOpen]);
+
+  // Lock body scroll + Esc-to-close while the chat sheet is open,
+  // matching the Post compose screen so the keyboard doesn't fight
+  // the outer page.
+=======
 
   // Lock body scroll while the chat sheet is open — same pattern as
   // the Post compose screen — so the chat owns the viewport and the
   // keyboard doesn't fight the outer page.
+>>>>>>> main
   useEffect(() => {
     if (!chatOpen) return;
     const prev = document.body.style.overflow;
@@ -91,6 +107,14 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       window.removeEventListener("keydown", onKey);
     };
   }, [chatOpen]);
+<<<<<<< cursor/chat-fab-black-sheet-badge-e5ca
+
+  // Opening the sheet counts as "seen".
+  useEffect(() => {
+    if (chatOpen) setUnread(0);
+  }, [chatOpen]);
+=======
+>>>>>>> main
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
@@ -102,6 +126,33 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       : null;
   const isCreator = userId === plan.creator_id;
   const alreadyJoined = members.some((m) => m.user_id === userId);
+
+  // Realtime unread counter. Only spin up the subscription for
+  // members — non-members never see the FAB.
+  useEffect(() => {
+    if (!alreadyJoined || ended || !plan.id) return;
+    const channel = supabase
+      .channel(`plan-chat-unread-${plan.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "plan_messages",
+          filter: `plan_id=eq.${plan.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { user_id?: string };
+          if (row.user_id === userId) return;
+          if (chatOpenRef.current) return;
+          setUnread((n) => Math.min(n + 1, 99));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [alreadyJoined, ended, plan.id, userId]);
 
   async function handleJoin() {
     if (!isAuthenticated) { router.push("/verify"); return; }
@@ -182,9 +233,16 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
         </div>
 
         {/* Live map sits directly below the back/title bar so it's the
+<<<<<<< cursor/chat-fab-black-sheet-badge-e5ca
+         * first thing a member sees when opening a plan. Group chat
+         * lives behind a floating button (same .fab pattern as the
+         * Post / Create-hangout FABs) so it doesn't eat vertical
+         * space until the user actually wants to read it. */}
+=======
          * first thing a member sees when opening a plan. Chat lives
          * behind a floating button (same pattern as the Post FAB) so
          * the hangout details stay the primary surface. */}
+>>>>>>> main
         {!ended && alreadyJoined && (
           <div className="px-4 pt-4">
             <LivePresenceMap
@@ -412,8 +470,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
+<<<<<<< cursor/chat-fab-black-sheet-badge-e5ca
+        {/* Keep a small bottom gap so the floating chat FAB never
+         * covers the join / leave actions above it. */}
+=======
         {/* Keep a small bottom gap so the floating chat button never
          * covers the join / leave actions directly above it. */}
+>>>>>>> main
         {!ended && alreadyJoined && (
           <div aria-hidden className="h-24" />
         )}
@@ -423,9 +486,29 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
         <button
           onClick={() => setChatOpen(true)}
           className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
+<<<<<<< cursor/chat-fab-black-sheet-badge-e5ca
+          aria-label={
+            unread > 0
+              ? `Open group chat (${unread} new ${
+                  unread === 1 ? "message" : "messages"
+                })`
+              : "Open group chat"
+          }
+        >
+          <MessageCircleIcon size={22} />
+          {unread > 0 && (
+            <span
+              className="chat-fab-badge tabular-nums"
+              aria-hidden
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+=======
           aria-label="Open group chat"
         >
           <MessageCircleIcon size={22} />
+>>>>>>> main
         </button>
       )}
 
