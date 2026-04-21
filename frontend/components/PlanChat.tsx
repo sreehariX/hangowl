@@ -445,6 +445,15 @@ export function PlanChat({ planId, variant = "card", hideHeader = false }: PlanC
     setMessages((prev) => [...prev, optimistic]);
     setInput("");
 
+    // Dismiss the mobile keyboard the instant the optimistic bubble lands,
+    // so the user can actually see the message they just sent instead of
+    // staring at the keyboard covering half the screen. Desktop is
+    // unaffected (blur + tab order still behaves).
+    const isCoarse =
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches;
+    if (isCoarse) textareaRef.current?.blur();
+
     // Also clear our own typing-indicator broadcast on send. We can't
     // "untype" a previous broadcast explicitly (presence untrack is for
     // tracked state, not broadcast), but swapping in the new message
@@ -484,7 +493,11 @@ export function PlanChat({ planId, variant = "card", hideHeader = false }: PlanC
       setInput(text);
     } finally {
       setSending(false);
-      textareaRef.current?.focus();
+      // Intentionally do NOT re-focus the textarea after a successful send.
+      // Auto-focus pops the mobile keyboard back up and covers the message
+      // the user just sent — they want to *see* it, not type the next one.
+      // The textarea still keeps desktop focus because the form submit
+      // doesn't blur it; on touch devices the keyboard politely dismisses.
     }
   }, [canSend, planId, trimmed, userId, personaName]);
 

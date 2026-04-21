@@ -6,7 +6,6 @@ import type { LatLng } from "@/lib/maps";
 import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanChat } from "@/components/PlanChat";
 import {
-  ChevronUpIcon,
   CloseIcon,
   MapIcon,
   MessageCircleIcon,
@@ -63,6 +62,11 @@ export function PlanDock({
     name: string;
     text: string;
   } | null>(null);
+  /** How many people are currently sharing their live location on this
+   *  plan, including this user. Powers the "3 live" copy under the Map
+   *  chip. Read from the same presence channel the map itself uses so
+   *  both surfaces stay in sync. */
+  const [liveCount, setLiveCount] = useState(0);
 
   // Refs so the realtime callback always sees the latest open/tab without
   // resubscribing on every render.
@@ -111,6 +115,33 @@ export function PlanDock({
     };
   }, [planId]);
 
+  /* Peek at the same Supabase Presence channel the map uses, just to know
+   *  how many people are live. Keeps the dock chip honest ("3 live") even
+   *  before the user opens the map. */
+  useEffect(() => {
+    if (!planId || !canSeeMap) return;
+    const channel = supabase.channel(`plan-presence-${planId}`, {
+      config: { presence: { key: `dock-peek-${Math.random().toString(36).slice(2, 8)}` } },
+    });
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      // Each key is one user; count distinct keys that actually carry a
+      // lat/lng payload (someone may be subscribed without sharing).
+      let n = 0;
+      for (const key of Object.keys(state)) {
+        const arr = state[key] as Array<{ lat?: number; lng?: number }>;
+        if (arr?.some((p) => typeof p.lat === "number" && typeof p.lng === "number")) {
+          n += 1;
+        }
+      }
+      setLiveCount(n);
+    });
+    channel.subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [planId, canSeeMap]);
+
   const openDock = useCallback(
     (nextTab?: Tab) => {
       if (nextTab) setRawTab(nextTab);
@@ -145,49 +176,84 @@ export function PlanDock({
     };
   }, [open, closeDock]);
 
+  const chatSubline = latestPreview
+    ? `${latestPreview.name}: ${latestPreview.text}`
+    : unreadChat > 0
+    ? `${unreadChat} new ${unreadChat === 1 ? "message" : "messages"}`
+    : "Say hi to everyone going";
+
+  const mapSubline =
+    liveCount > 0
+      ? `${liveCount} sharing live`
+      : "See who's on the way";
+
   return (
     <>
-      {/* Collapsed pill. Sticky to the viewport bottom above the bottom
-       * nav, sized like the Zepto order tracker. Always visible on the
-       * plan page so the live pulse is one tap away. */}
+      {/* Collapsed dock. Two chips (Map + Chat) fused into one pill so the
+       * user can see at a glance that *both* surfaces exist. Each chip is
+       * its own tap target that opens the sheet on the matching tab.
+       * Sticky to the viewport bottom above the bottom nav, iOS Live
+       * Activity proportions. */}
       <div className="plan-dock-rail pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-3">
-        <button
-          type="button"
-          onClick={() => openDock()}
-          className="plan-dock-pill pointer-events-auto group"
-          aria-label="Open live map and chat"
+        <div
+          className="plan-dock-pill pointer-events-auto"
+          role="group"
+          aria-label="Live hangout dock"
         >
           <span className="plan-dock-pill-glow" aria-hidden />
-          <span className="flex items-center gap-2">
-            {canSeeMap && (
-              <span className="plan-dock-live-dot" aria-hidden>
-                <span className="plan-dock-live-pulse" />
-              </span>
-            )}
-            <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber">
-                {canSeeMap ? "Live hangout" : "Group chat"}
-              </span>
-              <span className="max-w-[220px] truncate text-[12.5px] font-medium text-text-primary">
-                {latestPreview
-                  ? `${latestPreview.name}: ${latestPreview.text}`
-                  : canSeeMap
-                  ? "Tap to see who's moving"
-                  : "Say hi to everyone going"}
-              </span>
+
+          {canSeeMap && (
+            <>
+              <button
+                type="button"
+                onClick={() => openDock("map")}
+                className="plan-dock-chip"
+                aria-label="Open live map"
+              >
+                <span className="plan-dock-chip-icon plan-dock-chip-icon--map" aria-hidden>
+                  <MapIcon size={14} />
+                  {liveCount > 0 && (
+                    <span className="plan-dock-live-dot" aria-hidden>
+                      <span className="plan-dock-live-pulse" />
+                    </span>
+                  )}
+                </span>
+                <span className="plan-dock-chip-text">
+                  <span className="plan-dock-chip-label">Map</span>
+                  <span className="plan-dock-chip-sub">{mapSubline}</span>
+                </span>
+              </button>
+              <span className="plan-dock-divider" aria-hidden />
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => openDock("chat")}
+            className="plan-dock-chip plan-dock-chip--chat"
+            aria-label="Open group chat"
+          >
+            <span className="plan-dock-chip-icon plan-dock-chip-icon--chat" aria-hidden>
+              <MessageCircleIcon size={14} />
+              {unreadChat > 0 && (
+                <span className="plan-dock-chip-badge tabular-nums" aria-hidden>
+                  {unreadChat > 9 ? "9+" : unreadChat}
+                </span>
+              )}
             </span>
-          </span>
-          <span className="flex shrink-0 items-center gap-1.5">
-            {unreadChat > 0 && (
-              <span className="plan-dock-badge tabular-nums">
-                {unreadChat > 99 ? "99+" : unreadChat}
+            <span className="plan-dock-chip-text">
+              <span className="plan-dock-chip-label">
+                Chat
+                {unreadChat > 0 && (
+                  <span className="plan-dock-chip-count tabular-nums">
+                    · {unreadChat > 99 ? "99+" : unreadChat}
+                  </span>
+                )}
               </span>
-            )}
-            <span className="plan-dock-chevron">
-              <ChevronUpIcon size={14} />
+              <span className="plan-dock-chip-sub">{chatSubline}</span>
             </span>
-          </span>
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Expanded full-screen sheet. */}

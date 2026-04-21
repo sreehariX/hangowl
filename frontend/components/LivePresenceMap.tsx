@@ -167,7 +167,11 @@ export function LivePresenceMap({
         zoomControl: false,
         attributionControl: true,
       });
-      L.control.zoom({ position: "topright" }).addTo(map);
+      // Zoom control in the bottom-right so it never collides with the
+      // top status/destination chips. Leaflet's attribution ends up in
+      // the bottom-right too, but at a smaller footprint; zoom on top of
+      // it reads cleanly once we style both as dark-glass pills.
+      L.control.zoom({ position: "bottomright" }).addTo(map);
       // Primary tile layer: CartoDB Voyager — colourful, high-contrast,
       // reads like Google Maps. Free, no API key, OSM-attributed.
       const voyager = L.tileLayer(
@@ -543,23 +547,64 @@ export function LivePresenceMap({
           </div>
         )}
 
-        {/* Top status chip */}
-        <div className="pointer-events-none absolute inset-x-3 top-3 z-[400] flex justify-center">
-          <div className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-ink-900/90 px-3 py-1.5 text-[12px] text-text-secondary shadow-[0_6px_20px_rgba(0,0,0,0.45)] backdrop-blur">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${sharing ? "bg-success" : othersSharing > 0 ? "bg-amber" : "bg-text-muted"}`} />
-            <span className="truncate">{statusLine}</span>
+        {/* Top status card. Single full-width pill so nothing truncates
+         * and the destination label + live presence state read as one
+         * sentence ("H7 · Main Gate — 3 live"). Near-opaque dark surface
+         * — Voyager tiles are light, so the usual semi-transparent glass
+         * reads muddy; a solid fill with a subtle amber outline keeps
+         * the text crisp and unmistakably part of the app chrome. */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-[400]">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-amber/30 bg-[rgba(11,11,15,0.96)] px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+            {destinationLabel && (
+              <>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
+                  <NavigationIcon size={12} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-text-primary">
+                  {destinationLabel}
+                </span>
+              </>
+            )}
+            {!destinationLabel && (
+              <span className="text-[13px] font-semibold text-text-primary">
+                Live map
+              </span>
+            )}
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ink-800/90 px-2 py-1 text-[11px] font-semibold text-text-secondary">
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  sharing
+                    ? "bg-success animate-pulse"
+                    : othersSharing > 0
+                    ? "bg-amber"
+                    : "bg-text-muted"
+                }`}
+              />
+              <span>
+                {sharing
+                  ? othersSharing > 0
+                    ? `you + ${othersSharing}`
+                    : "sharing"
+                  : othersSharing > 0
+                  ? `${othersSharing} live`
+                  : "offline"}
+              </span>
+            </span>
           </div>
         </div>
 
         {sharing && !myPos && (
-          <div className="pointer-events-none absolute left-3 top-14 z-[400] rounded-full bg-ink-900/85 px-3 py-1.5 text-[11px] text-text-secondary backdrop-blur">
+          <div className="pointer-events-none absolute left-3 top-16 z-[400] rounded-full border border-border bg-[rgba(11,11,15,0.96)] px-3 py-1.5 text-[11px] font-medium text-text-secondary shadow-[0_4px_14px_rgba(0,0,0,0.5)]">
             Getting your location…
           </div>
         )}
 
-        {/* Bottom action card */}
+        {/* Bottom action card. Two-line layout: first row reads the
+         * status in plain English, second row is the action buttons.
+         * Solid dark surface (Voyager tiles are light; semi-transparent
+         * glass renders muddy over them), amber rim for affordance. */}
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[400]">
-          <div className="pointer-events-auto rounded-2xl border border-border bg-ink-900/92 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="pointer-events-auto rounded-2xl border border-border bg-[rgba(11,11,15,0.96)] p-3.5 shadow-[0_-8px_32px_rgba(0,0,0,0.6)]">
             {error && !deniedOrUnsupported && (
               <p className="mb-2 rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
                 {error}
@@ -587,44 +632,49 @@ export function LivePresenceMap({
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1">
-                  <span className="presence-legend-dot is-host" />
-                  <span className="presence-legend-dot is-joiner ml-1" />
-                  <span className="presence-legend-dot is-me ml-1" />
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="presence-legend-dot is-host" />
+                    <span className="presence-legend-dot is-joiner" />
+                    <span className="presence-legend-dot is-me" />
+                  </div>
+                  <p className="flex-1 truncate text-[12px] font-medium text-text-secondary">
+                    Host · Joined · You
+                  </p>
                 </div>
-                <p className="ml-1 flex-1 truncate text-[12px] text-text-tertiary">
-                  Host · Joined · You
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    openDirections(destinationLabel ?? "", destination ?? null)
-                  }
-                  className="btn-secondary btn-sm gap-1.5"
-                  aria-label="Open directions in Google Maps"
-                >
-                  <NavigationIcon size={13} />
-                  Directions
-                </button>
-                {isAuthenticated && sharing ? (
+                <div className="mt-2.5 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={stopSharing}
-                    className="btn-secondary btn-sm"
+                    onClick={() =>
+                      openDirections(destinationLabel ?? "", destination ?? null)
+                    }
+                    className="btn-secondary btn-sm flex-1 gap-1.5"
+                    aria-label="Open directions in Google Maps"
                   >
-                    Stop
+                    <NavigationIcon size={13} />
+                    Directions
                   </button>
-                ) : isAuthenticated && canShare ? (
-                  <button
-                    type="button"
-                    onClick={startSharing}
-                    className="btn-primary btn-sm"
-                  >
-                    Share live
-                  </button>
-                ) : null}
-              </div>
+                  {isAuthenticated && sharing ? (
+                    <button
+                      type="button"
+                      onClick={stopSharing}
+                      className="btn-secondary btn-sm flex-1"
+                    >
+                      Stop sharing
+                    </button>
+                  ) : isAuthenticated && canShare ? (
+                    <button
+                      type="button"
+                      onClick={startSharing}
+                      className="btn-primary btn-sm flex-1 gap-1.5"
+                    >
+                      <NavigationIcon size={13} />
+                      Share live
+                    </button>
+                  ) : null}
+                </div>
+              </>
             )}
           </div>
         </div>
