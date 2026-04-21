@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanChat } from "@/components/PlanChat";
 import { Spinner } from "@/components/primitives";
 import {
@@ -16,9 +17,11 @@ import {
   CheckIcon,
   ClockIcon,
   MapPinIcon,
+  NavigationIcon,
   ShareIcon,
   UsersIcon,
 } from "@/components/icons";
+import { openDirections } from "@/lib/maps";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -73,6 +76,10 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const members = plan.plan_members ?? [];
   const ended = new Date(plan.ends_at) < new Date();
+  const planCoords =
+    typeof plan.latitude === "number" && typeof plan.longitude === "number"
+      ? { lat: plan.latitude, lng: plan.longitude }
+      : null;
   const isCreator = userId === plan.creator_id;
   const alreadyJoined = members.some((m) => m.user_id === userId);
 
@@ -187,10 +194,18 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               <h1 className="text-title-lg font-semibold text-text-primary">
                 {plan.activity}
               </h1>
-              <p className="mt-1.5 flex items-center gap-1.5 text-body text-text-secondary">
+              <button
+                type="button"
+                onClick={() => openDirections(plan.location, planCoords)}
+                className="group mt-1.5 flex items-center gap-1.5 text-body text-text-secondary transition-colors hover:text-text-primary"
+                aria-label={`Open directions to ${plan.location} in Google Maps`}
+              >
                 <MapPinIcon size={14} className="text-text-tertiary" />
-                {plan.location}
-              </p>
+                <span className="underline decoration-text-muted decoration-dotted underline-offset-4 group-hover:decoration-text-secondary">
+                  {plan.location}
+                </span>
+                <NavigationIcon size={12} className="text-text-tertiary" />
+              </button>
 
               {plan.description && (
                 <p className="mt-3 whitespace-pre-wrap text-body text-text-secondary">
@@ -286,6 +301,14 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               </button>
 
               <div className="flex gap-2">
+                <button
+                  onClick={() => openDirections(plan.location, planCoords)}
+                  className="btn-secondary btn-lg flex-1 gap-2"
+                  aria-label="Open directions in Google Maps"
+                >
+                  <NavigationIcon size={16} />
+                  Directions
+                </button>
                 <button onClick={handleShare} className="btn-secondary btn-lg flex-1 gap-2">
                   <ShareIcon size={16} />
                   Share
@@ -352,6 +375,17 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             </p>
           )}
         </div>
+
+        {!ended && alreadyJoined && (
+          <div className="mt-6 px-4">
+            <LivePresenceMap
+              planId={plan.id}
+              hostId={plan.creator_id}
+              destination={planCoords}
+              destinationLabel={plan.location}
+            />
+          </div>
+        )}
 
         <div className="mt-6 px-4">
           <PlanChat planId={plan.id} />

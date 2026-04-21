@@ -19,6 +19,8 @@ export interface Plan {
   ends_at: string;
   created_at: string;
   image_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   is_hidden?: boolean;
   views_count?: number;
   plan_members?: { count: number }[];
@@ -41,6 +43,8 @@ export interface PlanDetail {
   created_at: string;
   is_hidden?: boolean;
   image_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   views_count?: number;
   plan_members?: {
     user_id: string;
