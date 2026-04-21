@@ -3,26 +3,36 @@
 @tailwind utilities;
 
 /*
- * Leaflet CSS is imported directly from the installed `leaflet` npm package
- * inside the map components themselves (see LocationPicker.tsx /
- * LivePresenceMap.tsx). We do NOT `@import` it here from a CDN because any
+ * Leaflet CSS is imported from the installed `leaflet` npm package inside
+ * the map components themselves (see LocationPicker.tsx /
+ * LivePresenceMap.tsx). It is NOT `@import`ed from a CDN here because any
  * blocked/slow CDN request leaves Leaflet without its own stylesheet — in
  * which case `max-width: 100%` from Tailwind's image reset crushes every
  * tile to the container width and you end up with a single tile floating
- * in a black void (the exact bug we hit in production).
+ * in a black void (the bug users were hitting in production).
  *
- * Defensive rule below: even if leaflet.css fails to load for any reason,
- * guarantee tiles keep their natural 256px size and are positioned
- * absolutely. Cheap insurance, imperceptible when leaflet.css is present.
+ * Defensive rules below mirror exactly what Leaflet's own stylesheet
+ * applies, so even if the bundled leaflet.css ever fails to evaluate,
+ * tiles still position and size correctly. Using `width: auto` (not a
+ * hardcoded 256px) is important — Leaflet sets the HTML `width`/`height`
+ * attribute on each tile img to match its own `tileSize` option, and
+ * `auto` defers to those attributes so @2x and custom-size tiles work.
  */
 .leaflet-container {
   background: #0F0F10;
   font-family: inherit;
   position: relative;
   overflow: hidden;
-  /* Leaflet needs a concrete height or tiles never start loading. */
-  height: 100%;
+  /*
+   * Leaflet needs a concrete height on its container or it measures as
+   * 0×0 and only requests the single tile at the centre. Every call site
+   * mounts the map in a div that is either `absolute inset-0` inside a
+   * sized parent or `h-72`-style explicit height, but belt-and-braces
+   * this rule ensures .leaflet-container always fills whatever box the
+   * caller gave it.
+   */
   width: 100%;
+  height: 100%;
 }
 .leaflet-pane,
 .leaflet-tile,
@@ -38,11 +48,15 @@
   left: 0;
   top: 0;
 }
-.leaflet-tile-container img,
-.leaflet-tile {
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
   max-width: none !important;
-  width: 256px;
-  height: 256px;
+  max-height: none !important;
+  width: auto;
+  padding: 0;
 }
 
 /* Attribution control: tone it down but keep it visible (OSM ToS). */

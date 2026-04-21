@@ -1,4 +1,11 @@
-const CACHE_NAME = "hangowl-v3";
+// Bumped to v4 to evict the cached CSS bundle that still had the unpkg
+// `@import url(...leaflet.css)` in it. That stale CSS was silently failing
+// on flaky networks and leaving Leaflet without its stylesheet, which is
+// what caused the "one tile in a black void" bug even after we shipped
+// the fix: users with the v3 cache kept loading the bad CSS and never
+// saw the new bundle. The cache key is bumped here and in STATIC_ASSETS
+// so the SW's `activate` step purges every old entry.
+const CACHE_NAME = "hangowl-v4";
 const STATIC_ASSETS = ["/", "/hangouts", "/ranks", "/verify"];
 
 self.addEventListener("install", (event) => {
