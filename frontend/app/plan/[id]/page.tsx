@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanChat } from "@/components/PlanChat";
 import { Spinner } from "@/components/primitives";
 import {
@@ -374,6 +375,16 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             </p>
           )}
         </div>
+
+        {!ended && alreadyJoined && (
+          <div className="mt-6 px-4">
+            <LivePresenceMap
+              planId={plan.id}
+              destination={planCoords}
+              destinationLabel={plan.location}
+            />
+          </div>
+        )}
 
         <div className="mt-6 px-4">
           <PlanChat planId={plan.id} />
