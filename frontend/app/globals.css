@@ -3,18 +3,46 @@
 @tailwind utilities;
 
 /*
- * Leaflet CSS for the location picker. We pin to the same version as the
- * installed `leaflet` package so tile clipping + marker shadows line up
- * correctly. Loaded from unpkg to keep our bundle small — the file is ~15KB
- * gzipped and only fetched on the /hangouts route when the picker opens.
+ * Leaflet CSS is imported directly from the installed `leaflet` npm package
+ * inside the map components themselves (see LocationPicker.tsx /
+ * LivePresenceMap.tsx). We do NOT `@import` it here from a CDN because any
+ * blocked/slow CDN request leaves Leaflet without its own stylesheet — in
+ * which case `max-width: 100%` from Tailwind's image reset crushes every
+ * tile to the container width and you end up with a single tile floating
+ * in a black void (the exact bug we hit in production).
+ *
+ * Defensive rule below: even if leaflet.css fails to load for any reason,
+ * guarantee tiles keep their natural 256px size and are positioned
+ * absolutely. Cheap insurance, imperceptible when leaflet.css is present.
  */
-@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
-
-/* Leaflet's default .leaflet-container has a light background; make it
- * blend with our dark theme until the tiles load. */
 .leaflet-container {
   background: #0F0F10;
   font-family: inherit;
+  position: relative;
+  overflow: hidden;
+  /* Leaflet needs a concrete height or tiles never start loading. */
+  height: 100%;
+  width: 100%;
+}
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.leaflet-tile-container img,
+.leaflet-tile {
+  max-width: none !important;
+  width: 256px;
+  height: 256px;
 }
 
 /* Attribution control: tone it down but keep it visible (OSM ToS). */
