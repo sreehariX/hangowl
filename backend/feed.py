@@ -157,7 +157,24 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
             raise HTTPException(status_code=404, detail="Parent post not found")
         insert_data["parent_id"] = body.parent_id
 
-    result = db.table("posts").insert(insert_data).execute()
+    try:
+        result = db.table("posts").insert(insert_data).execute()
+    except Exception as e:
+        msg = str(e)
+        # Graceful fallback when the v10 migration has not been applied yet:
+        # drop the new image_urls column and retry with only the legacy
+        # image_url so single-image posts still work.
+        if "image_urls" in msg and ("does not exist" in msg or "column" in msg.lower()):
+            insert_data.pop("image_urls", None)
+            try:
+                result = db.table("posts").insert(insert_data).execute()
+            except Exception as e2:
+                raise HTTPException(status_code=500, detail=f"Could not save post: {e2}") from e2
+        else:
+            raise HTTPException(status_code=500, detail=f"Could not save post: {e}") from e
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Could not save post")
     post = result.data[0]
 
     if body.parent_id:
