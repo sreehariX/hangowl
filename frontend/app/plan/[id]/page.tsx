@@ -7,8 +7,7 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
-import { LivePresenceMap } from "@/components/LivePresenceMap";
-import { PlanChat } from "@/components/PlanChat";
+import { PlanDock } from "@/components/PlanDock";
 import { Spinner } from "@/components/primitives";
 import {
   ArrowLeftIcon,
@@ -376,21 +375,20 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
-        {!ended && alreadyJoined && (
-          <div className="mt-6 px-4">
-            <LivePresenceMap
-              planId={plan.id}
-              hostId={plan.creator_id}
-              destination={planCoords}
-              destinationLabel={plan.location}
-            />
-          </div>
-        )}
-
-        <div className="mt-6 px-4">
-          <PlanChat planId={plan.id} />
-        </div>
+        {/* Leave vertical room at the bottom so the floating dock never
+         * covers the join / directions actions above. */}
+        <div aria-hidden className="h-28" />
       </div>
+
+      {!ended && (
+        <PlanDock
+          planId={plan.id}
+          hostId={plan.creator_id}
+          destination={planCoords}
+          destinationLabel={plan.location}
+          canSeeMap={alreadyJoined}
+        />
+      )}
     </div>
   );
 }

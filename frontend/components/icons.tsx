@@ -289,6 +289,20 @@ export const NavigationIcon = make(
   <polygon points="3 11 22 2 13 21 11 13 3 11" />,
 );
 
+export const MessageCircleIcon = make(
+  "MessageCircleIcon",
+  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />,
+);
+
+export const MapIcon = make(
+  "MapIcon",
+  <>
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+    <line x1="8" y1="2" x2="8" y2="18" />
+    <line x1="16" y1="6" x2="16" y2="22" />
+  </>,
+);
+
 export const HangoutIcon = make(
   "HangoutIcon",
   <>
