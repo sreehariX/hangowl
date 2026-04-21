@@ -3,36 +3,100 @@
 import { memo, useMemo } from "react";
 
 /*
- * Premium avatar palette — each persona gets a curated duotone gradient
- * (base -> lifted highlight) instead of a flat block. Palette pulls from
- * editorial dark-mode references (Robinhood, Linear, Apple Music) so the
- * set feels like one visual family: warm golds, midnight blues, desaturated
- * greens, terracottas and slate violets.
+ * Generative mesh-gradient avatars.
+ *
+ * Each persona hashes into a deterministic seed that drives:
+ *   - a 3-stop pull from a curated premium palette (warm golds, midnight
+ *     blues, sage, rose clay, violet, teal, terracotta, forest, sand,
+ *     graphite, plum, seafoam);
+ *   - the positions of three soft color blobs, rendered as radial
+ *     gradients on top of a deep base tone;
+ *   - a hue-rotation offset so two adjacent users never share the exact
+ *     same composition.
+ *
+ * Visually inspired by Linear, Vercel's `avatar.vercel.sh`, Loops.so,
+ * Arc browser "spaces" — every avatar is a tiny unique artwork but the
+ * set still feels like one family because the palette is curated.
+ *
+ * Rendered inline as SVG so it sharpens at any size and carries no
+ * network cost.
  */
-const PALETTE: { from: string; to: string; ink: string }[] = [
-  { from: "#4A6BC8", to: "#8AA9F2", ink: "#0B1126" }, // midnight blue
-  { from: "#C58B28", to: "#F6BA3D", ink: "#2A1C00" }, // warm gold
-  { from: "#2F9E7A", to: "#65D3A3", ink: "#052017" }, // sage
-  { from: "#C4475B", to: "#F17E8C", ink: "#2A0A10" }, // rose clay
-  { from: "#6A54C4", to: "#9E89F1", ink: "#130B2A" }, // violet slate
-  { from: "#2F8EA3", to: "#59C5D6", ink: "#041B20" }, // teal
-  { from: "#C26B3A", to: "#EE9F5E", ink: "#2A1204" }, // terracotta
-  { from: "#566578", to: "#8D9CB0", ink: "#0E141C" }, // graphite
-  { from: "#8C7245", to: "#C8A871", ink: "#221704" }, // sand
-  { from: "#3D7D5C", to: "#6EB58C", ink: "#061A10" }, // forest
+
+const STOPS: string[] = [
+  "#F6BA3D", // warm gold
+  "#F17E8C", // rose clay
+  "#9E89F1", // violet slate
+  "#59C5D6", // teal
+  "#65D3A3", // sage
+  "#EE9F5E", // terracotta
+  "#6EB58C", // forest
+  "#8AA9F2", // midnight blue
+  "#C8A871", // sand
+  "#E56B9E", // plum rose
+  "#4FB8A9", // seafoam
+  "#B5C4E0", // silk blue
+  "#FFD05C", // amber light
+  "#7BA1F0", // periwinkle
 ];
 
-function hash(str: string) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
+const BASES: string[] = [
+  "#1A1530", // ink plum
+  "#10212E", // deep teal
+  "#2A1410", // warm espresso
+  "#101A2E", // midnight
+  "#1C1A10", // olive dark
+  "#201028", // aubergine
+];
+
+function hash32(str: string): number {
+  // FNV-1a — small, stable, distributes well across short strings.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pick<T>(arr: readonly T[], rnd: () => number): T {
+  return arr[Math.floor(rnd() * arr.length) % arr.length];
+}
+
+function pickDistinct<T>(arr: readonly T[], n: number, rnd: () => number): T[] {
+  const pool = [...arr];
+  const out: T[] = [];
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(rnd() * pool.length) % pool.length;
+    out.push(pool.splice(idx, 1)[0]);
+  }
+  return out;
 }
 
 function initialsFor(name: string) {
   const trimmed = name.trim();
   if (!trimmed) return "?";
   const parts = trimmed.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  if (parts.length === 1) {
+    // Prefer the first two letters of a single word if they're alphabetic —
+    // "Crimson" -> "CR", matches Apple Music style.
+    const first = parts[0].charAt(0);
+    const second = parts[0].charAt(1);
+    if (second && /[a-zA-Z]/.test(second)) {
+      return (first + second).toUpperCase();
+    }
+    return first.toUpperCase();
+  }
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
@@ -40,17 +104,63 @@ interface AvatarProps {
   name: string;
   size?: number;
   className?: string;
-  ring?: boolean;
+  /** Show a single-letter instead of two when true. Reserved for tight chips. */
+  compact?: boolean;
 }
 
-function AvatarComponent({ name, size = 40, className = "", ring }: AvatarProps) {
-  const { from, to, ink } = useMemo(
-    () => PALETTE[hash(name || "?") % PALETTE.length],
-    [name],
-  );
-  const initials = initialsFor(name);
-  // Slightly tighter letter for two-char initials so it still breathes.
-  const fontSize = size * (initials.length > 1 ? 0.38 : 0.44);
+function AvatarComponent({ name, size = 40, className = "", compact }: AvatarProps) {
+  const seed = useMemo(() => hash32(name || "?"), [name]);
+
+  const composition = useMemo(() => {
+    const rnd = mulberry32(seed);
+    const [c1, c2, c3] = pickDistinct(STOPS, 3, rnd);
+    const base = pick(BASES, rnd);
+
+    // Three soft blobs positioned on a normalized 0..1 canvas. We bias the
+    // first blob toward the top-left so the result reads like a light
+    // source — gives each avatar a subtle sense of depth.
+    const blobs = [
+      {
+        color: c1,
+        cx: 0.18 + rnd() * 0.22,
+        cy: 0.14 + rnd() * 0.22,
+        r: 0.58 + rnd() * 0.18,
+        alpha: 0.95,
+      },
+      {
+        color: c2,
+        cx: 0.62 + rnd() * 0.3,
+        cy: 0.22 + rnd() * 0.45,
+        r: 0.48 + rnd() * 0.22,
+        alpha: 0.85,
+      },
+      {
+        color: c3,
+        cx: 0.28 + rnd() * 0.5,
+        cy: 0.68 + rnd() * 0.24,
+        r: 0.5 + rnd() * 0.22,
+        alpha: 0.8,
+      },
+    ];
+
+    // Small subtle rotation so even the same palette combo reads unique.
+    const rotate = Math.floor(rnd() * 360);
+    return { base, blobs, rotate };
+  }, [seed]);
+
+  const initials = useMemo(() => {
+    const full = initialsFor(name);
+    return compact ? full.charAt(0) : full;
+  }, [name, compact]);
+
+  // Tiny avatars (<=20px) skip the text — they read cleaner as pure gradient
+  // medallions in nav bars and inline chips.
+  const showText = size >= 22;
+  const fontSize = size * (initials.length > 1 ? 0.4 : 0.48);
+
+  // Unique gradient IDs — critical when two avatars render on the same page
+  // and share a palette, otherwise the SVG defs would collide.
+  const uid = useMemo(() => seed.toString(36), [seed]);
 
   return (
     <span
@@ -59,34 +169,68 @@ function AvatarComponent({ name, size = 40, className = "", ring }: AvatarProps)
       style={{
         width: size,
         height: size,
-        background: `radial-gradient(120% 120% at 28% 22%, ${to} 0%, ${from} 60%, ${from} 100%)`,
-        boxShadow: ring
-          ? `inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 0 2px rgba(246,186,61,0.9)`
-          : `inset 0 0 0 1px rgba(255,255,255,0.08)`,
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)",
       }}
     >
-      {/* Subtle top gloss — ~8% white, never banded */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 42%)",
-        }}
-      />
-      <span
-        className="relative tabular-nums"
-        style={{
-          color: ink,
-          fontSize,
-          fontWeight: 650,
-          letterSpacing: "-0.02em",
-          lineHeight: 1,
-          textShadow: "0 1px 0 rgba(255,255,255,0.18)",
-        }}
+      <svg
+        viewBox="0 0 100 100"
+        width={size}
+        height={size}
+        className="absolute inset-0 h-full w-full"
+        preserveAspectRatio="xMidYMid slice"
       >
-        {initials}
-      </span>
+        <defs>
+          {composition.blobs.map((b, i) => (
+            <radialGradient
+              key={i}
+              id={`g-${uid}-${i}`}
+              cx={b.cx}
+              cy={b.cy}
+              r={b.r}
+              fx={b.cx}
+              fy={b.cy}
+            >
+              <stop offset="0%" stopColor={b.color} stopOpacity={b.alpha} />
+              <stop offset="55%" stopColor={b.color} stopOpacity={b.alpha * 0.35} />
+              <stop offset="100%" stopColor={b.color} stopOpacity="0" />
+            </radialGradient>
+          ))}
+          <linearGradient id={`gloss-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <g transform={`rotate(${composition.rotate} 50 50)`}>
+          <rect x="-10" y="-10" width="120" height="120" fill={composition.base} />
+          {composition.blobs.map((_, i) => (
+            <rect
+              key={i}
+              x="-10"
+              y="-10"
+              width="120"
+              height="120"
+              fill={`url(#g-${uid}-${i})`}
+            />
+          ))}
+        </g>
+        <rect x="0" y="0" width="100" height="100" fill={`url(#gloss-${uid})`} />
+      </svg>
+
+      {showText && (
+        <span
+          className="relative select-none"
+          style={{
+            color: "#FFFFFF",
+            fontSize,
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            lineHeight: 1,
+            textShadow: "0 1px 2px rgba(0,0,0,0.35)",
+          }}
+        >
+          {initials}
+        </span>
+      )}
     </span>
   );
 }
