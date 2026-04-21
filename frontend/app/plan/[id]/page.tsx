@@ -16,7 +16,9 @@ import {
   CalendarIcon,
   CheckIcon,
   ClockIcon,
+  CloseIcon,
   MapPinIcon,
+  MessageCircleIcon,
   NavigationIcon,
   ShareIcon,
   UsersIcon,
@@ -71,6 +73,24 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // Lock body scroll while the chat sheet is open — same pattern as
+  // the Post compose screen — so the chat owns the viewport and the
+  // keyboard doesn't fight the outer page.
+  useEffect(() => {
+    if (!chatOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [chatOpen]);
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
@@ -161,13 +181,12 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </button>
         </div>
 
-        {/* Live map + group chat sit directly below the back/title bar
-         * so they're the first things a member sees when opening a
-         * plan. Both are inline (no modal, no FAB) — you just scroll
-         * past them to read the plan details, exactly like how posts
-         * are laid out elsewhere in the app. */}
+        {/* Live map sits directly below the back/title bar so it's the
+         * first thing a member sees when opening a plan. Chat lives
+         * behind a floating button (same pattern as the Post FAB) so
+         * the hangout details stay the primary surface. */}
         {!ended && alreadyJoined && (
-          <div className="space-y-3 px-4 pt-4">
+          <div className="px-4 pt-4">
             <LivePresenceMap
               planId={plan.id}
               hostId={plan.creator_id}
@@ -175,7 +194,6 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               destinationLabel={plan.location}
               variant="card"
             />
-            <PlanChat planId={plan.id} variant="card" />
           </div>
         )}
 
@@ -394,7 +412,42 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
+        {/* Keep a small bottom gap so the floating chat button never
+         * covers the join / leave actions directly above it. */}
+        {!ended && alreadyJoined && (
+          <div aria-hidden className="h-24" />
+        )}
       </div>
+
+      {!ended && alreadyJoined && !chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
+          aria-label="Open group chat"
+        >
+          <MessageCircleIcon size={22} />
+        </button>
+      )}
+
+      {!ended && alreadyJoined && chatOpen && (
+        <div className="fixed inset-0 z-[70] flex animate-fade-in flex-col bg-ink-900">
+          <div className="sticky-bar">
+            <button
+              onClick={() => setChatOpen(false)}
+              className="icon-btn"
+              aria-label="Close"
+            >
+              <CloseIcon size={20} />
+            </button>
+            <span className="text-[17px] font-semibold text-text-primary">
+              Group chat
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <PlanChat planId={plan.id} variant="fill" hideHeader />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
