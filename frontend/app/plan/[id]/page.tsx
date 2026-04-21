@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanDock } from "@/components/PlanDock";
 import { Spinner } from "@/components/primitives";
 import {
@@ -159,6 +160,23 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             <ShareIcon size={18} />
           </button>
         </div>
+
+        {/* Live map sits directly below the back/title bar so it's the
+         * first thing the user sees when they open a plan. Zepto-style
+         * order tracker: glanceable status up top, details below. Only
+         * members see the live map — non-members still get everything
+         * else and the plain "Directions" button. */}
+        {!ended && alreadyJoined && (
+          <div className="px-4 pt-4">
+            <LivePresenceMap
+              planId={plan.id}
+              hostId={plan.creator_id}
+              destination={planCoords}
+              destinationLabel={plan.location}
+              variant="card"
+            />
+          </div>
+        )}
 
         <div className="px-4 pt-4">
           <section className="surface-panel overflow-hidden">
@@ -375,20 +393,12 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
-        {/* Leave vertical room at the bottom so the floating dock never
-         * covers the join / directions actions above. */}
-        <div aria-hidden className="h-28" />
+        {/* Leave room so the floating chat FAB never covers the join /
+         * directions actions directly above it. */}
+        <div aria-hidden className="h-24" />
       </div>
 
-      {!ended && (
-        <PlanDock
-          planId={plan.id}
-          hostId={plan.creator_id}
-          destination={planCoords}
-          destinationLabel={plan.location}
-          canSeeMap={alreadyJoined}
-        />
-      )}
+      {!ended && alreadyJoined && <PlanDock planId={plan.id} />}
     </div>
   );
 }
