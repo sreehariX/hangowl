@@ -162,7 +162,7 @@ export default function PostDetailPage() {
     }
   }
 
-  function handleOptimisticReply(content: string, imageUrl: string | null) {
+  function handleOptimisticReply(content: string, imageUrls: string[]) {
     const tempId = `optimistic-${Date.now()}`;
     optimisticReplyIdRef.current = tempId;
     replyKeysRef.current.set(tempId, tempId);
@@ -170,7 +170,8 @@ export default function PostDetailPage() {
       id: tempId,
       user_id: userId ?? "",
       content,
-      image_url: imageUrl,
+      image_url: imageUrls[0] ?? null,
+      image_urls: imageUrls,
       parent_id: postId,
       likes_count: 0,
       replies_count: 0,
@@ -223,7 +224,7 @@ export default function PostDetailPage() {
   }
 
   const Header = (
-    <div className="sticky-bar">
+    <div className="top-bar">
       <button
         onClick={() =>
           router.push(

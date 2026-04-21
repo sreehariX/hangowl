@@ -74,16 +74,22 @@ function formatFullDate(iso: string) {
   return `${time} · ${date}`;
 }
 
-function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
+function PostImage({
+  src,
+  onOpen,
+}: {
+  src: string;
+  onOpen: () => void;
+}) {
   const [loaded, setLoaded] = useState(false);
   return (
     <button
       type="button"
-      className="relative mt-3 block aspect-[2/1] w-full overflow-hidden rounded-2xl border border-border bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      className="relative block h-full w-full overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-amber"
       onClick={(e) => { e.stopPropagation(); onOpen(); }}
       aria-label="Open image"
     >
-      {!loaded && <div className="skeleton absolute inset-0 rounded-2xl" />}
+      {!loaded && <div className="skeleton absolute inset-0" />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
@@ -95,6 +101,64 @@ function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
         className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </button>
+  );
+}
+
+/*
+ * Grid layout for 1 to 4 images — same visual grammar as Twitter / X.
+ *  1 → single 2:1 hero
+ *  2 → side-by-side split
+ *  3 → left tall + two stacked right
+ *  4 → 2×2 square grid
+ */
+function PostImages({
+  urls,
+  onOpen,
+}: {
+  urls: string[];
+  onOpen: (index: number) => void;
+}) {
+  const n = urls.length;
+  if (n === 0) return null;
+
+  if (n === 1) {
+    return (
+      <div className="mt-3 overflow-hidden rounded-2xl border border-border" style={{ aspectRatio: "2 / 1" }}>
+        <PostImage src={urls[0]} onOpen={() => onOpen(0)} />
+      </div>
+    );
+  }
+
+  const wrap = "mt-3 grid gap-[2px] overflow-hidden rounded-2xl border border-border bg-border";
+
+  if (n === 2) {
+    return (
+      <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "2 / 1" }}>
+        {urls.map((u, i) => (
+          <PostImage key={i} src={u} onOpen={() => onOpen(i)} />
+        ))}
+      </div>
+    );
+  }
+
+  if (n === 3) {
+    return (
+      <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "2 / 1" }}>
+        <div className="row-span-2">
+          <PostImage src={urls[0]} onOpen={() => onOpen(0)} />
+        </div>
+        <PostImage src={urls[1]} onOpen={() => onOpen(1)} />
+        <PostImage src={urls[2]} onOpen={() => onOpen(2)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={wrap} style={{ gridTemplateColumns: "1fr 1fr", aspectRatio: "1 / 1" }}>
+      {urls.slice(0, 4).map((u, i) => (
+        <PostImage key={i} src={u} onOpen={() => onOpen(i)} />
+      ))}
+    </div>
   );
 }
 
@@ -140,7 +204,7 @@ const PostCard = memo(function PostCard({
   const [banDone, setBanDone] = useState<string | null>(null);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [viewsCount, setViewsCount] = useState(post.views_count ?? 0);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const lastTapRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -180,6 +244,14 @@ const PostCard = memo(function PostCard({
   const isAuthor = currentUserId === post.user_id;
   const canDelete = isAuthor || isAdmin;
   const isNavigable = !isDetail;
+
+  // Normalize image sources — support both legacy `image_url` and the new
+  // `image_urls` array. Cap at 4 for layout safety.
+  const imageUrls: string[] = (() => {
+    const many = Array.isArray(post.image_urls) ? post.image_urls.filter(Boolean) : [];
+    if (many.length > 0) return many.slice(0, 4);
+    return post.image_url ? [post.image_url] : [];
+  })();
 
   async function handleLike() {
     if (liking || !currentUserId) return;
@@ -282,61 +354,62 @@ const PostCard = memo(function PostCard({
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-1">
-            <span className="truncate text-[15px] font-semibold leading-snug text-text-primary">
+        <div className="relative min-w-0 flex-1">
+          <div className="flex min-w-0 items-baseline gap-1 pr-8 leading-tight">
+            <span className="truncate text-[15px] font-semibold text-text-primary">
               {personaName}
             </span>
             {!isDetail && (
               <span
-                className="shrink-0 text-caption leading-snug text-text-tertiary"
+                className="shrink-0 text-caption text-text-tertiary"
                 title={formatFullDate(post.created_at)}
               >
                 <span className="mr-1 text-text-muted">·</span>
                 {formatRelativeTime(post.created_at)}
               </span>
             )}
-            {canDelete && !confirmDelete && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                className="ml-auto -mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-hover hover:text-danger"
-                aria-label="Post menu"
-              >
-                <DotsIcon size={15} />
-              </button>
-            )}
-            {canDelete && confirmDelete && (
-              <span
-                className="ml-auto flex shrink-0 items-center gap-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-caption font-medium text-text-tertiary hover:text-text-primary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="text-caption font-semibold text-danger hover:text-danger/80 disabled:opacity-50"
-                >
-                  {deleting ? "…" : "Delete"}
-                </button>
-              </span>
-            )}
           </div>
 
-          <div className="relative" onClick={handleDoubleTap}>
+          {canDelete && !confirmDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+              className="absolute -top-1 right-0 flex h-7 w-7 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-hover hover:text-danger"
+              aria-label="Post menu"
+            >
+              <DotsIcon size={15} />
+            </button>
+          )}
+          {canDelete && confirmDelete && (
+            <span
+              className="absolute right-0 top-0 flex shrink-0 items-center gap-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-caption font-medium text-text-tertiary hover:text-text-primary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-caption font-semibold text-danger hover:text-danger/80 disabled:opacity-50"
+              >
+                {deleting ? "…" : "Delete"}
+              </button>
+            </span>
+          )}
+
+          <div className="relative mt-0.5" onClick={handleDoubleTap}>
             <p
-              className={`whitespace-pre-wrap break-words leading-relaxed text-text-primary ${
-                isDetail ? "mt-2 text-[17px]" : "mt-0.5 text-[15px]"
+              className={`whitespace-pre-wrap break-words leading-[1.4] text-text-primary ${
+                isDetail ? "mt-1 text-[17px]" : "text-[15px]"
               }`}
             >
               {post.content}
             </p>
-            {post.image_url && (
-              <PostImage src={post.image_url} onOpen={() => setLightboxSrc(post.image_url!)} />
+            {imageUrls.length > 0 && (
+              <PostImages urls={imageUrls} onOpen={(i) => setLightboxIndex(i)} />
             )}
             {doubleTapHeart && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -420,8 +493,11 @@ const PostCard = memo(function PostCard({
         </div>
       </div>
 
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      {lightboxIndex !== null && imageUrls[lightboxIndex] && (
+        <ImageLightbox
+          src={imageUrls[lightboxIndex]}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
 
       {isAdmin && !isAuthor && (
