@@ -158,7 +158,12 @@ export const api = {
   getPost: (id: string) =>
     request<{ post: import("./types").Post; replies: import("./types").Post[]; sub_replies: import("./types").Post[] }>(`/feed/${id}`),
 
-  createPost: (data: { content: string; image_url?: string | null; parent_id?: string | null }) =>
+  createPost: (data: {
+    content: string;
+    image_url?: string | null;
+    image_urls?: string[] | null;
+    parent_id?: string | null;
+  }) =>
     request<{ post: import("./types").Post }>("/feed", {
       method: "POST",
       body: JSON.stringify(data),

@@ -1,5 +1,5 @@
-const CACHE_NAME = "hangowl-v2";
-const STATIC_ASSETS = ["/", "/board", "/free", "/leaderboard", "/verify"];
+const CACHE_NAME = "hangowl-v3";
+const STATIC_ASSETS = ["/", "/hangouts", "/ranks", "/verify"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -60,13 +60,13 @@ self.addEventListener("push", (event) => {
       body: data.body || "Someone's making plans!",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: data.url || "/board" },
+      data: { url: data.url || "/" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/board";
+  const url = event.notification.data?.url || "/";
   event.waitUntil(clients.openWindow(url));
 });

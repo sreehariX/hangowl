@@ -69,7 +69,12 @@ export interface Post {
   id: string;
   user_id: string;
   content: string;
+  /**
+   * Legacy single-image field. New posts write both `image_url` (the first
+   * image, for backward-compat) and the full `image_urls` array.
+   */
   image_url: string | null;
+  image_urls?: string[] | null;
   parent_id: string | null;
   likes_count: number;
   replies_count: number;

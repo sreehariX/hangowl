@@ -118,7 +118,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           <ImageLightbox src={plan.image_url} onClose={() => setLightboxOpen(false)} />
         )}
 
-        <div className="sticky-bar">
+        <div className="top-bar">
           <button onClick={() => router.back()} className="icon-btn" aria-label="Back">
             <ArrowLeftIcon size={20} />
           </button>

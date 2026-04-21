@@ -13,9 +13,13 @@ router = APIRouter(prefix="/feed", tags=["feed"])
 PAGE_SIZE = 20
 
 
+MAX_IMAGES_PER_POST = 4
+
+
 class CreatePostRequest(BaseModel):
     content: str
     image_url: Optional[str] = None
+    image_urls: Optional[list[str]] = None
     parent_id: Optional[str] = None
 
 
@@ -23,7 +27,7 @@ class CreatePostRequest(BaseModel):
 async def get_feed(cursor: Optional[str] = None, user_id_filter: Optional[str] = None):
     db = get_supabase()
 
-    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
+    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     query = (
         db.table("posts")
         .select(COLS)
@@ -120,10 +124,24 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
     if len(content) > 500:
         raise HTTPException(status_code=400, detail="Post content too long (max 500 chars)")
 
+    # Merge legacy single-image field with the new array field, dedupe, cap.
+    images: list[str] = []
+    if body.image_urls:
+        images.extend([u for u in body.image_urls if isinstance(u, str) and u])
+    if body.image_url and body.image_url not in images:
+        images.insert(0, body.image_url)
+    images = images[:MAX_IMAGES_PER_POST]
+    if len(body.image_urls or []) > MAX_IMAGES_PER_POST:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A post can have at most {MAX_IMAGES_PER_POST} images",
+        )
+
     insert_data = {
         "user_id": user["sub"],
         "content": content,
-        "image_url": body.image_url,
+        "image_url": images[0] if images else None,
+        "image_urls": images if images else None,
         "is_hidden": False,
     }
 
@@ -163,7 +181,7 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
 @router.get("/my")
 async def get_my_posts(user: dict = Depends(verify_token), cursor: Optional[str] = None):
     db = get_supabase()
-    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
+    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     query = (
         db.table("posts")
         .select(COLS)
@@ -236,7 +254,7 @@ async def record_view(post_id: str, bg: BackgroundTasks):
 async def get_post(post_id: str):
     db = get_supabase()
 
-    COLS = "id, user_id, content, image_url, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
+    COLS = "id, user_id, content, image_url, image_urls, parent_id, likes_count, replies_count, views_count, created_at, users(persona_name)"
     post_result = (
         db.table("posts")
         .select(COLS)

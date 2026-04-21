@@ -1,7 +1,6 @@
 "use client";
 
-import { type HTMLAttributes, type ReactNode } from "react";
-import { ArrowLeftIcon } from "@/components/icons";
+import { type ReactNode } from "react";
 
 export function Spinner({
   size = 20, className = "", tone = "amber",
@@ -31,41 +30,6 @@ export function Spinner({
       role="status"
       aria-label="Loading"
     />
-  );
-}
-
-interface ScreenHeaderProps {
-  title: ReactNode;
-  subtitle?: ReactNode;
-  onBack?: () => void;
-  backHref?: string;
-  trailing?: ReactNode;
-  sticky?: boolean;
-}
-
-export function ScreenHeader({
-  title, subtitle, onBack, trailing, sticky = true,
-}: ScreenHeaderProps) {
-  return (
-    <div className={sticky ? "sticky-bar" : "flex items-center gap-3 px-4 py-3"}>
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="icon-btn"
-          aria-label="Go back"
-        >
-          <ArrowLeftIcon size={20} />
-        </button>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[17px] font-semibold text-text-primary">
-          {title}
-        </div>
-        {subtitle && <div className="truncate text-caption text-text-tertiary">{subtitle}</div>}
-      </div>
-      {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
-    </div>
   );
 }
 
@@ -109,10 +73,3 @@ export function SectionHeading({
   );
 }
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "hero" | "panel" | "glass";
-}
-
-export function Card({ className = "", ...rest }: CardProps) {
-  return <div className={`surface-panel ${className}`} {...rest} />;
-}
