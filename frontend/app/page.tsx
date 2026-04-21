@@ -70,7 +70,12 @@ export default function FeedHomePage() {
         try { localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts)); } catch {}
       }
       setHasMore(data.posts.length >= 20);
-    } catch {}
+    } catch (err) {
+      // Don't swallow silently: a failed /feed call is why the homepage shows
+      // "No posts yet" even when the DB has plenty of posts. Logging here so
+      // the next time this breaks it's visible in devtools instead of silent.
+      console.error("Failed to load feed:", err);
+    }
   }, []);
 
   useEffect(() => {

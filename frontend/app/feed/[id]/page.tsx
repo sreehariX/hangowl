@@ -66,7 +66,12 @@ export default function PostDetailPage() {
         } catch { break; }
       }
       setAncestors(chain);
-    } catch {}
+    } catch (err) {
+      // Don't swallow: a failed /feed/:id is why a post can render with
+      // "No replies yet" when the DB has replies. Log so regressions like
+      // this are visible in devtools instead of silent.
+      console.error("Failed to load post:", err);
+    }
     finally { setLoading(false); }
   }, [postId]);
 
