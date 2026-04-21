@@ -919,85 +919,6 @@
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .safe-area-pt { padding-top: env(safe-area-inset-top, 0px); }
 
-/* ── Chat FAB ──────────────────────────────────────────────────────── */
-/*
- * Circular floating action button for group chat. Mirrors the position
- * grammar of the Post / Create-hangout FAB (bottom-right, above the
- * bottom nav) so the thumb always lands on "the primary action for
- * this screen" no matter which tab you're on. Amber gradient + soft
- * halo to feel premium without competing with the live-map card
- * above the fold.
- */
-.chat-fab {
-  position: fixed;
-  z-index: 40;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 999px;
-  color: #0B0B0F;
-  background:
-    radial-gradient(120% 120% at 30% 20%, #FBD06A 0%, #F6BA3D 55%, #C98B1C 100%);
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.25) inset,
-    0 12px 24px rgba(201, 139, 28, 0.45),
-    0 4px 10px rgba(0, 0, 0, 0.5);
-  transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
-}
-.chat-fab:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.3) inset,
-    0 16px 28px rgba(201, 139, 28, 0.55),
-    0 6px 14px rgba(0, 0, 0, 0.55);
-}
-.chat-fab:active {
-  transform: scale(0.96);
-}
-.chat-fab:focus-visible {
-  outline: 2px solid #FBD06A;
-  outline-offset: 3px;
-}
-
-/* iOS-style red unread pill in the corner of the FAB. */
-.chat-fab-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: #F4212E;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #0B0B0F;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
-}
-
-/* Gentle breathing ring so the FAB reads as "live surface" even at
- * rest — same visual cue Zepto uses on their floating order tracker. */
-.chat-fab-ping {
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  border: 2px solid rgba(246, 186, 61, 0.55);
-  opacity: 0;
-  animation: chat-fab-ping 2.4s ease-out infinite;
-  pointer-events: none;
-}
-@keyframes chat-fab-ping {
-  0%   { transform: scale(0.9);  opacity: 0.55; }
-  80%  { transform: scale(1.35); opacity: 0;    }
-  100% { transform: scale(1.35); opacity: 0;    }
-}
-
 /* ── Live map card (inline, plan page) ───────────────────────────
  *
  * A single clean rectangle holding the Leaflet map, flanked by a
@@ -1084,111 +1005,99 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
-/* ── Share-live-location button (inline, below the map) ─────────── */
-/*
- * Prominent CTA that sits directly below the live map card. Two-line
- * layout with a label + sub-copy — the sub-copy carries the "stays
- * sharing in the background" reassurance so users aren't afraid to
- * tap it. When active it swaps to a calm solid-green state so users
- * never wonder "is this still broadcasting?". Inspired by Zepto's
- * persistent "Track order" button that stays in the same spot across
- * app relaunches.
+/* ── Map action row (inline, below the map) ─────────────────────
+ *
+ * A slim row of pill buttons sitting directly under the map
+ * rectangle. The map is the hero, so the controls are kept compact
+ * — roughly iOS-navbar button height (36px), equal-weight pills
+ * that don't compete with the map for attention.
+ *
+ * Order: [ Share live | Directions ]  — the share-live state on
+ * the left gets the amber fill when off / green pill when on; the
+ * directions button on the right is always a neutral secondary.
  */
-.presence-share-btn {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 12px;
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 16px;
-  text-align: left;
-  transition:
-    transform 160ms var(--ease),
-    box-shadow 200ms var(--ease),
-    background-color 200ms var(--ease);
-  position: relative;
-  overflow: hidden;
+.presence-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
 }
-.presence-share-btn:active { transform: scale(0.99); }
-.presence-share-btn:focus-visible {
+.presence-pill-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  transition:
+    transform 140ms var(--ease),
+    background-color 180ms var(--ease),
+    box-shadow 180ms var(--ease);
+}
+.presence-pill-btn:active { transform: scale(0.97); }
+.presence-pill-btn:focus-visible {
   outline: 2px solid #F6BA3D;
   outline-offset: 2px;
 }
 
-.presence-share-btn--start {
+.presence-pill-btn--start {
   background:
-    radial-gradient(120% 120% at 20% 0%, #FBD06A 0%, #F6BA3D 55%, #C98B1C 100%);
+    radial-gradient(140% 140% at 20% 0%, #FBD06A 0%, #F6BA3D 60%, #D69A25 100%);
   color: #0B0B0F;
   box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.25) inset,
-    0 10px 20px rgba(201, 139, 28, 0.35);
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 6px 14px rgba(201, 139, 28, 0.3);
 }
-.presence-share-btn--start:hover {
+.presence-pill-btn--start:hover {
   box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.3) inset,
-    0 14px 26px rgba(201, 139, 28, 0.45);
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 8px 18px rgba(201, 139, 28, 0.4);
 }
 
-.presence-share-btn--stop {
-  background: linear-gradient(180deg, rgba(52, 217, 159, 0.14) 0%, rgba(52, 217, 159, 0.07) 100%);
+.presence-pill-btn--stop {
+  background: rgba(52, 217, 159, 0.12);
   color: #9DEFC8;
   border: 1px solid rgba(52, 217, 159, 0.45);
-  box-shadow:
-    0 0 0 1px rgba(52, 217, 159, 0.15) inset,
-    0 0 18px rgba(52, 217, 159, 0.18);
-  animation: presence-share-stop-glow 2.4s ease-in-out infinite;
+  box-shadow: 0 0 14px rgba(52, 217, 159, 0.18);
 }
-@keyframes presence-share-stop-glow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(52, 217, 159, 0.15) inset, 0 0 12px rgba(52, 217, 159, 0.18); }
-  50%      { box-shadow: 0 0 0 1px rgba(52, 217, 159, 0.3)  inset, 0 0 24px rgba(52, 217, 159, 0.35); }
+.presence-pill-btn--stop:hover {
+  background: rgba(52, 217, 159, 0.18);
 }
 
-.presence-share-btn-icon {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: rgba(11, 11, 15, 0.15);
-  color: inherit;
+.presence-pill-btn--directions {
+  background: rgba(241, 242, 245, 0.04);
+  color: #F1F2F5;
+  border: 1px solid rgba(36, 36, 43, 0.9);
+}
+.presence-pill-btn--directions:hover {
+  background: rgba(241, 242, 245, 0.08);
 }
 
-.presence-share-btn-dot {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: center;
-  justify-self: center;
-  width: 14px;
-  height: 14px;
+/* Tiny pulsing dot inside the "Stop sharing" pill so the user has a
+ * constant visual confirmation that their broadcast is still live. */
+.presence-pill-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: #34D99F;
   box-shadow:
-    0 0 0 4px rgba(52, 217, 159, 0.22),
-    0 0 12px rgba(52, 217, 159, 0.5);
+    0 0 0 3px rgba(52, 217, 159, 0.25),
+    0 0 8px rgba(52, 217, 159, 0.55);
   animation: presence-live-dot-blink 1.1s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
-.presence-share-btn-label {
-  grid-column: 2;
-  grid-row: 1;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.15;
-}
-.presence-share-btn-sub {
-  grid-column: 2;
-  grid-row: 2;
-  font-size: 11.5px;
+/* Secondary meta (e.g. GPS accuracy) tucked inside the stop pill. */
+.presence-pill-meta {
+  margin-left: 6px;
+  font-size: 11px;
   font-weight: 500;
-  line-height: 1.3;
-  opacity: 0.78;
-  margin-top: 2px;
+  opacity: 0.75;
 }
 
 @media (prefers-reduced-motion: reduce) {
