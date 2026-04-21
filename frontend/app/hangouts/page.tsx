@@ -16,7 +16,6 @@ import {
   CompassIcon,
   ImageIcon,
   PlusIcon,
-  SparkleIcon,
 } from "@/components/icons";
 import { ACTIVITIES, LOCATIONS, ACTIVITY_EMOJI, type Activity, type Plan } from "@/lib/types";
 import { compressImage } from "@/lib/compress-image";
@@ -34,32 +33,17 @@ const DURATIONS = [
 function getISTParts() {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(new Date());
   return Object.fromEntries(parts.map((p) => [p.type, p.value]));
 }
-
-function todayIST() {
-  const { year, month, day } = getISTParts();
-  return `${year}-${month}-${day}`;
-}
-
-function nowTimeIST() {
-  const { hour, minute } = getISTParts();
-  return `${hour}:${minute}`;
-}
+function todayIST() { const { year, month, day } = getISTParts(); return `${year}-${month}-${day}`; }
+function nowTimeIST() { const { hour, minute } = getISTParts(); return `${hour}:${minute}`; }
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
+    hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
   });
 }
 
@@ -74,9 +58,9 @@ function PastPlanCard({ plan }: { plan: Plan }) {
   return (
     <Link
       href={`/plan/${plan.id}`}
-      className="list-row border border-border/50 bg-surface/60"
+      className="list-row border border-border"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-hover text-lg">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-hover text-lg">
         {emoji}
       </span>
       <div className="min-w-0 flex-1">
@@ -121,7 +105,6 @@ export default function HangoutsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const descRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -134,11 +117,8 @@ export default function HangoutsPage() {
       if (filterActivity !== "all") params.activity = filterActivity;
       const data = await api.getPlans(params);
       setPlans(data.plans);
-    } catch {
-      /* silent */
-    } finally {
-      setLoadingPlans(false);
-    }
+    } catch {}
+    finally { setLoadingPlans(false); }
   }, [filterActivity]);
 
   const fetchMyPlans = useCallback(async () => {
@@ -146,11 +126,8 @@ export default function HangoutsPage() {
       const data = await api.getMyPlans();
       setLivePlans(data.live);
       setPastPlans(data.past);
-    } catch {
-      /* silent */
-    } finally {
-      setLoadingMyPlans(false);
-    }
+    } catch {}
+    finally { setLoadingMyPlans(false); }
   }, []);
 
   const debouncedFetch = useCallback(() => {
@@ -189,23 +166,14 @@ export default function HangoutsPage() {
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setCreateError("Only images allowed");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      setCreateError("Image must be under 20MB");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { setCreateError("Only images allowed"); return; }
+    if (file.size > 20 * 1024 * 1024) { setCreateError("Image must be under 20MB"); return; }
     setUploading(true);
     setCreateError("");
     try {
       setUploadLabel("Optimizing…");
       const compressed = await compressImage(file, {
-        maxWidth: 1280,
-        maxHeight: 720,
-        quality: 0.85,
-        maxSizeMB: 2,
+        maxWidth: 1280, maxHeight: 720, quality: 0.85, maxSizeMB: 2,
       });
       setUploadLabel("Uploading…");
       const result = await api.uploadImage(compressed);
@@ -218,7 +186,7 @@ export default function HangoutsPage() {
     }
   }
 
-  const handleCreate = async () => {
+  async function handleCreate() {
     if (submitting) return;
     if (!resolvedActivity || !resolvedLocation || !description.trim()) {
       setCreateError("Pick an activity, a location, and add a quick description.");
@@ -247,7 +215,7 @@ export default function HangoutsPage() {
       setCreateError(err instanceof Error ? err.message : "Failed to create plan");
       setSubmitting(false);
     }
-  };
+  }
 
   function resetForm() {
     setActivity("");
@@ -266,44 +234,37 @@ export default function HangoutsPage() {
 
   if (authLoading) {
     return (
-      <div className="app-shell pt-6">
+      <div className="app-shell pt-0">
         <div className="app-content">
-          <PlanListSkeleton count={4} />
+          <div className="sticky-bar"><h1 className="text-[17px] font-semibold">Hangouts</h1></div>
+          <div className="px-4 pt-4"><PlanListSkeleton count={4} /></div>
         </div>
       </div>
     );
   }
-
   if (!isAuthenticated) return null;
 
   return (
-    <div className="app-shell pt-5">
+    <div className="app-shell pt-0">
       <div className="app-content">
-        <header className="mb-5 flex items-end justify-between gap-3">
-          <div>
-            <h1 className="text-title-lg font-semibold tracking-tight text-text-primary">
-              Hangouts
-            </h1>
-            <p className="text-caption text-text-tertiary">
-              Discover what&apos;s happening — or host your own.
-            </p>
-          </div>
+        <header className="sticky-bar">
+          <h1 className="text-[17px] font-semibold text-text-primary">Hangouts</h1>
           <button
             onClick={() => setShowCreate(true)}
-            className="btn-primary btn-sm gap-1.5"
+            className="btn-primary btn-xs ml-auto gap-1 px-3"
           >
             <PlusIcon size={14} />
-            New plan
+            New
           </button>
         </header>
 
-        <div className="mb-5">
+        <div className="px-4 pt-4">
           <SegmentedControl tabs={TABS} active={tab} onChange={setTab} />
         </div>
 
         {tab === 0 ? (
           <>
-            <div className="mb-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:-mx-5 md:px-5 scrollbar-hide">
+            <div className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
               <button
                 onClick={() => setFilterActivity("all")}
                 className={`chip shrink-0 ${filterActivity === "all" ? "chip-active" : ""}`}
@@ -322,69 +283,41 @@ export default function HangoutsPage() {
               ))}
             </div>
 
-            {loadingPlans ? (
-              <PlanListSkeleton count={4} />
-            ) : plans.length === 0 ? (
-              <div className="surface-panel">
+            <div className="px-4 pb-4">
+              {loadingPlans ? (
+                <PlanListSkeleton count={4} />
+              ) : plans.length === 0 ? (
                 <EmptyState
-                  icon={<CompassIcon size={26} />}
+                  icon={<CompassIcon size={22} />}
                   title="No plans right now"
-                  description="Be the first to host one — it takes under a minute."
+                  description="Be the first to host one."
                   action={
-                    <button
-                      onClick={() => setShowCreate(true)}
-                      className="btn-primary btn-sm"
-                    >
+                    <button onClick={() => setShowCreate(true)} className="btn-primary btn-sm">
                       Create a plan
                     </button>
                   }
                 />
-              </div>
-            ) : (
-              <>
+              ) : (
                 <div className="space-y-3">
                   {plans.map((plan) => (
                     <PlanCard key={plan.id} plan={plan} onJoined={fetchPlans} />
                   ))}
                 </div>
-                <button
-                  onClick={() => setShowCreate(true)}
-                  className="surface-panel mt-4 flex w-full flex-col items-center gap-1 rounded-2xl py-5 text-center transition-all hover:border-amber/30 hover:shadow-glass active:scale-[0.99]"
-                >
-                  <p className="text-body text-text-tertiary">
-                    Didn&apos;t find something that fits?
-                  </p>
-                  <p className="flex items-center gap-1.5 text-body font-semibold text-amber">
-                    <SparkleIcon size={14} />
-                    Create your own plan and let others join
-                  </p>
-                </button>
-              </>
-            )}
+              )}
+            </div>
           </>
         ) : (
-          <div>
+          <div className="px-4 pt-4 pb-4">
             {loadingMyPlans ? (
               <PlanListSkeleton count={3} />
             ) : (
               <>
-                <section className="mb-8">
+                <section className="mb-6">
                   <SectionHeading>Live · {livePlans.length}</SectionHeading>
                   {livePlans.length === 0 ? (
-                    <div className="surface-panel">
-                      <EmptyState
-                        title="No live plans"
-                        description="Host a plan to see it here."
-                        action={
-                          <button
-                            onClick={() => setShowCreate(true)}
-                            className="btn-primary btn-sm"
-                          >
-                            Create a plan
-                          </button>
-                        }
-                      />
-                    </div>
+                    <p className="py-4 text-center text-caption text-text-tertiary">
+                      No live plans
+                    </p>
                   ) : (
                     <div className="space-y-3">
                       {livePlans.map((plan) => (
@@ -417,7 +350,7 @@ export default function HangoutsPage() {
       {!showCreate && (
         <button
           onClick={() => setShowCreate(true)}
-          className="fab bottom-28 right-4 md:right-[calc(50%-260px+8px)]"
+          className="fab bottom-24 right-4 md:right-[calc(50%-300px+16px)]"
           aria-label="Create hangout"
         >
           <PlusIcon size={24} />
@@ -425,50 +358,72 @@ export default function HangoutsPage() {
       )}
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 animate-fade-in overflow-y-auto bg-ink-950/85 backdrop-blur-xl">
+        <div className="fixed inset-0 z-50 animate-fade-in overflow-y-auto bg-black">
           <div className="sticky-bar">
             <button
-              onClick={() => {
-                if (!submitting) {
-                  setShowCreate(false);
-                  resetForm();
-                }
-              }}
+              onClick={() => { if (!submitting) { setShowCreate(false); resetForm(); } }}
               disabled={submitting}
               className="icon-btn"
               aria-label="Close"
             >
               <CloseIcon size={20} />
             </button>
-            <span className="flex-1 text-center text-[15px] font-semibold text-text-primary">
+            <span className="text-[17px] font-semibold text-text-primary">
               New hangout
             </span>
             <button
               onClick={handleCreate}
-              disabled={
-                submitting ||
-                !resolvedActivity ||
-                !resolvedLocation ||
-                !description.trim()
-              }
-              className="btn-primary btn-xs px-4"
+              disabled={submitting || !resolvedActivity || !resolvedLocation || !description.trim()}
+              className="btn-primary btn-xs ml-auto px-4"
             >
               {submitting ? <Spinner size={14} tone="ink" /> : "Post"}
             </button>
           </div>
 
-          {createError && (
-            <div className="app-content px-4 pt-3">
-              <p className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-center text-caption text-danger">
+          <div className="app-content px-4 py-4">
+            {createError && (
+              <p className="mb-4 rounded-lg bg-danger/10 px-3 py-2 text-caption text-danger">
                 {createError}
               </p>
-            </div>
-          )}
+            )}
 
-          <div className="app-content px-4 py-5">
-            <div className="surface-hero space-y-6 p-5">
+            <div className="space-y-5">
+              {/* Cover photo — prominent, first */}
               <div>
-                <p className="mb-2 section-eyebrow">Activity</p>
+                <p className="section-eyebrow mb-2">Cover photo</p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImagePick}
+                  className="hidden"
+                />
+                {imageUrl ? (
+                  <ImagePreview src={imageUrl} onRemove={() => setImageUrl(null)} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="flex h-32 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border text-caption text-text-tertiary transition-colors hover:border-text-tertiary hover:text-text-secondary disabled:opacity-40"
+                  >
+                    {uploading ? (
+                      <>
+                        <Spinner size={14} />
+                        {uploadLabel}
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={18} />
+                        Add a photo (optional)
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <p className="section-eyebrow mb-2">Activity</p>
                 <div className="flex flex-wrap gap-2">
                   {ACTIVITIES.map((a) => (
                     <button
@@ -496,7 +451,7 @@ export default function HangoutsPage() {
               </div>
 
               <div>
-                <p className="mb-2 section-eyebrow">Location</p>
+                <p className="section-eyebrow mb-2">Location</p>
                 <div className="flex flex-wrap gap-2">
                   {LOCATIONS.map((loc) => (
                     <button
@@ -523,15 +478,14 @@ export default function HangoutsPage() {
               </div>
 
               <div>
-                <p className="mb-2 section-eyebrow">Description</p>
+                <p className="section-eyebrow mb-2">Description</p>
                 <textarea
-                  ref={descRef}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={200}
                   rows={2}
-                  placeholder="What's the plan? e.g. Late-night maggi run at H15 dhaba."
-                  className="input resize-none py-3 text-sm"
+                  placeholder="What's the plan?"
+                  className="input resize-none text-sm"
                 />
                 <p className="mt-1 text-right text-[11px] text-text-muted">
                   {description.length}/200
@@ -540,7 +494,7 @@ export default function HangoutsPage() {
 
               <div className="flex flex-wrap gap-4">
                 <div className="min-w-[200px] flex-1">
-                  <p className="mb-2 section-eyebrow">When</p>
+                  <p className="section-eyebrow mb-2">When</p>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <CalendarIcon
@@ -565,17 +519,17 @@ export default function HangoutsPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 section-eyebrow">Duration</p>
+                  <p className="section-eyebrow mb-2">Duration</p>
                   <div className="flex gap-1.5">
                     {DURATIONS.map((d) => (
                       <button
                         key={d.minutes}
                         type="button"
                         onClick={() => setDuration(d.minutes)}
-                        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                           duration === d.minutes
-                            ? "border-amber/40 bg-amber/15 text-amber"
-                            : "border-border/60 bg-ink-850/60 text-text-tertiary hover:text-text-primary"
+                            ? "border-amber bg-amber/10 text-amber"
+                            : "border-border text-text-tertiary hover:text-text-primary"
                         }`}
                       >
                         {d.label}
@@ -588,7 +542,7 @@ export default function HangoutsPage() {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="section-eyebrow">Max people</p>
-                  <span className="text-body font-bold tabular-nums text-amber">
+                  <span className="text-body font-semibold tabular-nums text-amber">
                     {maxPeople}
                   </span>
                 </div>
@@ -600,36 +554,6 @@ export default function HangoutsPage() {
                   onChange={(e) => setMaxPeople(Number(e.target.value))}
                   className="w-full accent-amber"
                 />
-              </div>
-
-              <div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImagePick}
-                  className="hidden"
-                />
-                {imageUrl ? (
-                  <ImagePreview src={imageUrl} onRemove={() => setImageUrl(null)} />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 px-4 py-3 text-caption text-text-tertiary transition-colors hover:border-amber/40 hover:text-amber disabled:opacity-40"
-                  >
-                    <ImageIcon size={16} />
-                    {uploading ? (
-                      <span className="flex items-center gap-1.5">
-                        <Spinner size={12} />
-                        {uploadLabel}
-                      </span>
-                    ) : (
-                      "Add a cover photo (optional)"
-                    )}
-                  </button>
-                )}
               </div>
             </div>
           </div>
