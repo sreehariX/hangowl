@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import type { LatLng } from "@/lib/maps";
 import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanChat } from "@/components/PlanChat";
@@ -52,6 +53,7 @@ export function PlanDock({
   destinationLabel,
   canSeeMap,
 }: PlanDockProps) {
+  const { userId } = useAuth();
   const [open, setOpen] = useState(false);
   const [rawTab, setRawTab] = useState<Tab>(canSeeMap ? "map" : "chat");
   // Non-members can never land on the map tab, even if a stale state
@@ -67,6 +69,11 @@ export function PlanDock({
    *  chip. Read from the same presence channel the map itself uses so
    *  both surfaces stay in sync. */
   const [liveCount, setLiveCount] = useState(0);
+  /** Whether the viewer themselves is broadcasting. When true we flip
+   *  the Map chip to a distinct LIVE-green state even while the sheet is
+   *  closed — a reassurance signal so the user never wonders "is my
+   *  location actually still being shared?" after they minimise. */
+  const [iAmLive, setIAmLive] = useState(false);
 
   // Refs so the realtime callback always sees the latest open/tab without
   // resubscribing on every render.
@@ -116,8 +123,10 @@ export function PlanDock({
   }, [planId]);
 
   /* Peek at the same Supabase Presence channel the map uses, just to know
-   *  how many people are live. Keeps the dock chip honest ("3 live") even
-   *  before the user opens the map. */
+   *  how many people are live AND whether the viewer themselves is
+   *  broadcasting. Keeps the dock chip honest ("3 live") even before the
+   *  user opens the map, and lets the Map chip flip to its LIVE-green
+   *  state the moment the user starts sharing. */
   useEffect(() => {
     if (!planId || !canSeeMap) return;
     const channel = supabase.channel(`plan-presence-${planId}`, {
@@ -125,22 +134,34 @@ export function PlanDock({
     });
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState();
-      // Each key is one user; count distinct keys that actually carry a
-      // lat/lng payload (someone may be subscribed without sharing).
       let n = 0;
+      let selfLive = false;
       for (const key of Object.keys(state)) {
-        const arr = state[key] as Array<{ lat?: number; lng?: number }>;
-        if (arr?.some((p) => typeof p.lat === "number" && typeof p.lng === "number")) {
-          n += 1;
+        const arr = state[key] as Array<{
+          lat?: number;
+          lng?: number;
+          userId?: string;
+        }>;
+        const hasFix = arr?.some(
+          (p) => typeof p.lat === "number" && typeof p.lng === "number",
+        );
+        if (hasFix) n += 1;
+        if (
+          hasFix &&
+          userId &&
+          arr.some((p) => p.userId === userId)
+        ) {
+          selfLive = true;
         }
       }
       setLiveCount(n);
+      setIAmLive(selfLive);
     });
     channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [planId, canSeeMap]);
+  }, [planId, canSeeMap, userId]);
 
   const openDock = useCallback(
     (nextTab?: Tab) => {
@@ -182,10 +203,13 @@ export function PlanDock({
     ? `${unreadChat} new ${unreadChat === 1 ? "message" : "messages"}`
     : "Say hi to everyone going";
 
-  const mapSubline =
-    liveCount > 0
-      ? `${liveCount} sharing live`
-      : "See who's on the way";
+  const mapSubline = iAmLive
+    ? liveCount > 1
+      ? `You + ${liveCount - 1} broadcasting`
+      : "Broadcasting your spot"
+    : liveCount > 0
+    ? `${liveCount} sharing live`
+    : "See who's on the way";
 
   return (
     <>
@@ -207,10 +231,17 @@ export function PlanDock({
               <button
                 type="button"
                 onClick={() => openDock("map")}
-                className="plan-dock-chip"
-                aria-label="Open live map"
+                className={`plan-dock-chip ${iAmLive ? "is-live" : ""}`}
+                aria-label={
+                  iAmLive ? "You are live — open live map" : "Open live map"
+                }
               >
-                <span className="plan-dock-chip-icon plan-dock-chip-icon--map" aria-hidden>
+                <span
+                  className={`plan-dock-chip-icon plan-dock-chip-icon--map ${
+                    iAmLive ? "is-live" : ""
+                  }`}
+                  aria-hidden
+                >
                   <MapIcon size={14} />
                   {liveCount > 0 && (
                     <span className="plan-dock-live-dot" aria-hidden>
@@ -219,7 +250,16 @@ export function PlanDock({
                   )}
                 </span>
                 <span className="plan-dock-chip-text">
-                  <span className="plan-dock-chip-label">Map</span>
+                  <span className="plan-dock-chip-label">
+                    {iAmLive ? (
+                      <>
+                        Map
+                        <span className="plan-dock-live-tag">LIVE</span>
+                      </>
+                    ) : (
+                      "Map"
+                    )}
+                  </span>
                   <span className="plan-dock-chip-sub">{mapSubline}</span>
                 </span>
               </button>
