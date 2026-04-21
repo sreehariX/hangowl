@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   readGeoPermission,
   watchLocation,
+  type GeoFix,
   type GeoPermissionState,
 } from "@/lib/geolocation";
 import { CAMPUS_CENTER, openDirections, type LatLng } from "@/lib/maps";
@@ -56,10 +57,31 @@ interface Presence {
   lng: number;
   /** Epoch ms of the last fix; stale dots fade. */
   at: number;
+  /** Radius of 68%-confidence circle in metres from the device's GPS
+   *  (optional — peers from older clients won't have it). Broadcast so
+   *  viewers can see "Sameer — live · ±6m" as a trust signal. */
+  accuracyM?: number;
 }
 
 const STALE_MS = 60_000;
 const FRESH_MS = 10_000;
+
+/**
+ * Human-readable "N ago" for a millisecond epoch. Keeps the strings
+ * tight (Twitter / iMessage style) so the peer bubbles stay compact.
+ * Distinguishes "just now" (< 5s) from the rest because "0s ago" feels
+ * oddly mechanical.
+ */
+function formatAgo(ms: number, now: number): string {
+  const delta = Math.max(0, now - ms);
+  if (delta < 5_000) return "just now";
+  const s = Math.floor(delta / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
 
 /**
  * Wait for a DOM node to actually have non-zero pixel dimensions. Leaflet
@@ -130,10 +152,14 @@ export function LivePresenceMap({
 
   const [permission, setPermission] = useState<GeoPermissionState>("unknown");
   const [sharing, setSharing] = useState(false);
-  const [myPos, setMyPos] = useState<LatLng | null>(null);
+  const [myFix, setMyFix] = useState<GeoFix | null>(null);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  /** Monotonic ticker for rendering relative timestamps ("4s ago"). Updated
+   *  every second while the sheet is mounted so the ages visibly tick up —
+   *  that tick IS the trust signal. If it stops, something's wrong. */
+  const [now, setNow] = useState<number>(() => Date.now());
 
   /* ── Check permission state on mount ────────────────────────────────── */
 
@@ -145,6 +171,15 @@ export function LivePresenceMap({
     return () => {
       active = false;
     };
+  }, []);
+
+  /* 1s ticker for relative-time labels. This is what lets friends see
+   *  "3s ago → 4s ago → 5s ago" counting up in real time — the cheapest,
+   *  most human trust signal we can ship. If it ever froze they'd know
+   *  the stream had died; while it's ticking they know the pins are fresh. */
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   /* ── Leaflet bootstrap ──────────────────────────────────────────────── */
@@ -307,20 +342,23 @@ export function LivePresenceMap({
   /* ── Start / stop sharing my own location ───────────────────────────── */
 
   const pushPresence = useCallback(
-    (pos: LatLng) => {
+    (fix: GeoFix) => {
       const ch = channelRef.current;
       if (!ch || !userId) return;
-      const now = Date.now();
-      if (now - lastPushRef.current < 1_500) return;
-      lastPushRef.current = now;
+      const pushedAt = Date.now();
+      if (pushedAt - lastPushRef.current < 1_500) return;
+      lastPushRef.current = pushedAt;
 
       const payload: Presence = {
         userId,
         personaName: personaName ?? "Anonymous",
         role: myRole,
-        lat: Math.round(pos.lat * 1e5) / 1e5,
-        lng: Math.round(pos.lng * 1e5) / 1e5,
-        at: now,
+        lat: Math.round(fix.lat * 1e5) / 1e5,
+        lng: Math.round(fix.lng * 1e5) / 1e5,
+        at: pushedAt,
+        accuracyM: Number.isFinite(fix.accuracyM)
+          ? Math.round(fix.accuracyM)
+          : undefined,
       };
       ch.track(payload);
     },
@@ -342,9 +380,9 @@ export function LivePresenceMap({
     setError(null);
     setSharing(true);
     watchStopRef.current = watchLocation(
-      (pos) => {
-        setMyPos(pos);
-        pushPresence(pos);
+      (fix) => {
+        setMyFix(fix);
+        pushPresence(fix);
         // watchPosition succeeding is the strongest signal that permission
         // was granted — re-read it so the UI flips out of "prompt" copy.
         if (permission !== "granted") setPermission("granted");
@@ -362,7 +400,7 @@ export function LivePresenceMap({
     setSharing(false);
     watchStopRef.current?.();
     watchStopRef.current = null;
-    setMyPos(null);
+    setMyFix(null);
     const ch = channelRef.current;
     if (ch) {
       ch.untrack();
@@ -390,7 +428,6 @@ export function LivePresenceMap({
       if (cancelled || !mapRef.current) return;
 
       const seen = new Set<string>();
-      const now = Date.now();
 
       for (const p of peers) {
         const isMe = p.userId === userId;
@@ -399,6 +436,9 @@ export function LivePresenceMap({
 
         const stale = now - p.at > STALE_MS;
         const fresh = now - p.at < FRESH_MS;
+        // "Live" = still sending fresh fixes. This is the trust signal —
+        // a green pulsing ring that only appears while data is flowing.
+        const live = fresh && !stale;
         // A peer may have joined before we shipped the `role` field; treat
         // anyone matching the host id as host regardless of payload shape.
         const isHostDot = p.role === "host" || p.userId === hostId;
@@ -414,6 +454,7 @@ export function LivePresenceMap({
         const roleClass = isHostDot ? "is-host" : "is-joiner";
         const meClass = isMe ? "is-me" : "";
         const staleClass = stale ? "is-stale" : "";
+        const liveClass = live ? "is-live" : "";
         const hostBadge = isHostDot
           ? '<span class="presence-host-badge" aria-label="Host">★</span>'
           : "";
@@ -423,14 +464,28 @@ export function LivePresenceMap({
         const hostTag = isHostDot && !isMe
           ? '<span class="presence-host-tag">Host</span>'
           : "";
+        // Freshness caption. Renders under the name on every bubble — the
+        // number visibly ticks up when viewers are watching, which is the
+        // single clearest "this is actually live" indicator.
+        const ageLabel = live ? "live" : formatAgo(p.at, now);
+        const accuracyLabel =
+          typeof p.accuracyM === "number"
+            ? ` · ±${p.accuracyM}m`
+            : "";
+        const liveBadge = live
+          ? '<span class="presence-live-badge"><span class="presence-live-dot"></span>LIVE</span>'
+          : "";
 
         const html = `
-          <div class="presence-marker ${roleClass} ${meClass} ${staleClass}">
+          <div class="presence-marker ${roleClass} ${meClass} ${staleClass} ${liveClass}">
             <div class="presence-bubble">
-              ${escapeHtml(p.personaName)}${youTag}${hostTag}
+              ${escapeHtml(p.personaName)}${youTag}${hostTag}${liveBadge}
+            </div>
+            <div class="presence-meta-chip">
+              ${escapeHtml(ageLabel)}${escapeHtml(accuracyLabel)}
             </div>
             <div class="presence-dot">
-              ${fresh && !stale ? '<span class="presence-pulse"></span>' : ""}
+              ${live ? '<span class="presence-pulse"></span>' : ""}
               <span class="presence-initials">${escapeHtml(initial)}</span>
               ${hostBadge}
             </div>
@@ -480,7 +535,7 @@ export function LivePresenceMap({
     return () => {
       cancelled = true;
     };
-  }, [peers, mapReady, userId, hostId, sharing, destination]);
+  }, [peers, mapReady, userId, hostId, sharing, destination, now]);
 
   /* ── Derived state for status + CTAs ────────────────────────────────── */
 
@@ -494,10 +549,17 @@ export function LivePresenceMap({
   );
 
   const statusLine = (() => {
-    if (sharing) {
+    if (sharing && myFix) {
+      const ago = formatAgo(myFix.at, now);
+      const acc = typeof myFix.accuracyM === "number"
+        ? ` · ±${Math.round(myFix.accuracyM)}m`
+        : "";
       return othersSharing > 0
-        ? `You + ${othersSharing} sharing live`
-        : "Sharing your spot · nobody else is yet";
+        ? `Live · updated ${ago}${acc} · you + ${othersSharing}`
+        : `Live · updated ${ago}${acc}`;
+    }
+    if (sharing) {
+      return "Getting your first fix…";
     }
     if (othersSharing > 0) {
       if (!isHost && hostIsSharing) {
@@ -532,6 +594,16 @@ export function LivePresenceMap({
   const deniedOrUnsupported =
     permission === "denied" || permission === "unsupported";
 
+  // ── LIVE status derived values ────────────────────────────────────────
+  const myAgeSec = myFix ? Math.max(0, Math.floor((now - myFix.at) / 1000)) : 0;
+  const myAccuracy = myFix?.accuracyM;
+  /** "LIVE" means both: the watch gave us a fix AND that fix is fresh
+   *  enough to be believable. If the browser paused our tab (common on
+   *  Android Chrome) the ticker keeps counting but myAgeSec will climb
+   *  past the freshness threshold and we downgrade to "reconnecting". */
+  const isLiveNow = sharing && !!myFix && myAgeSec < 15;
+  const isReconnecting = sharing && (!myFix || myAgeSec >= 15);
+
   if (variant === "fill") {
     // Full-bleed layout used inside the PlanDock sheet. The map fills the
     // whole viewport; a compact floating status chip sits at the top and
@@ -547,55 +619,97 @@ export function LivePresenceMap({
           </div>
         )}
 
-        {/* Top status card. Single full-width pill so nothing truncates
-         * and the destination label + live presence state read as one
-         * sentence ("H7 · Main Gate — 3 live"). Near-opaque dark surface
-         * — Voyager tiles are light, so the usual semi-transparent glass
-         * reads muddy; a solid fill with a subtle amber outline keeps
-         * the text crisp and unmistakably part of the app chrome. */}
-        <div className="pointer-events-none absolute inset-x-3 top-3 z-[400]">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-amber/30 bg-[rgba(11,11,15,0.96)] px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
-            {destinationLabel && (
-              <>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
-                  <NavigationIcon size={12} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-text-primary">
-                  {destinationLabel}
-                </span>
-              </>
-            )}
-            {!destinationLabel && (
-              <span className="text-[13px] font-semibold text-text-primary">
-                Live map
-              </span>
-            )}
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ink-800/90 px-2 py-1 text-[11px] font-semibold text-text-secondary">
+        {/* Top status card. When sharing, we swap to a prominent LIVE
+         * banner with a recording-style red dot, the updated-Xs-ago
+         * ticker and the current GPS accuracy so the SHARER has zero
+         * doubt that they're actually broadcasting. When not sharing,
+         * we fall back to the destination-label chip so the viewer still
+         * sees where they're heading. */}
+        {isLiveNow || isReconnecting ? (
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-[400]">
+            <div
+              className={`pointer-events-auto flex items-center gap-2.5 rounded-2xl border px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.6)] ${
+                isLiveNow
+                  ? "border-success/45 bg-[rgba(8,14,12,0.97)]"
+                  : "border-amber/45 bg-[rgba(14,12,8,0.97)]"
+              }`}
+            >
               <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                  sharing
-                    ? "bg-success animate-pulse"
-                    : othersSharing > 0
-                    ? "bg-amber"
-                    : "bg-text-muted"
+                className={`presence-banner-dot ${
+                  isLiveNow ? "is-live" : "is-reconnecting"
                 }`}
+                aria-hidden
               />
-              <span>
-                {sharing
-                  ? othersSharing > 0
-                    ? `you + ${othersSharing}`
-                    : "sharing"
-                  : othersSharing > 0
-                  ? `${othersSharing} live`
-                  : "offline"}
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-[11px] font-bold uppercase tracking-[0.14em] ${
+                    isLiveNow ? "text-success" : "text-amber"
+                  }`}
+                >
+                  {isLiveNow ? "You are live" : "Reconnecting…"}
+                </p>
+                <p className="truncate text-[12px] font-medium text-text-secondary">
+                  {isLiveNow && myFix ? (
+                    <>
+                      Updated{" "}
+                      <span className="tabular-nums text-text-primary">
+                        {formatAgo(myFix.at, now)}
+                      </span>
+                      {typeof myAccuracy === "number" && (
+                        <>
+                          {" · "}
+                          <span className="tabular-nums text-text-primary">
+                            ±{Math.round(myAccuracy)}m
+                          </span>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    "Waiting for your next GPS fix"
+                  )}
+                </p>
+              </div>
+              <span className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-ink-900/85 px-2 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-text-tertiary">
+                {othersSharing > 0 ? `+${othersSharing}` : "solo"}
               </span>
-            </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-[400]">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-amber/30 bg-[rgba(11,11,15,0.96)] px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+              {destinationLabel ? (
+                <>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
+                    <NavigationIcon size={12} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-text-primary">
+                    {destinationLabel}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[13px] font-semibold text-text-primary">
+                  Live map
+                </span>
+              )}
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ink-800/90 px-2 py-1 text-[11px] font-semibold text-text-secondary">
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                    othersSharing > 0 ? "bg-success animate-pulse" : "bg-text-muted"
+                  }`}
+                />
+                <span>
+                  {othersSharing > 0
+                    ? `${othersSharing} ${othersSharing === 1 ? "person" : "people"} live`
+                    : "nobody live yet"}
+                </span>
+              </span>
+            </div>
+          </div>
+        )}
 
-        {sharing && !myPos && (
-          <div className="pointer-events-none absolute left-3 top-16 z-[400] rounded-full border border-border bg-[rgba(11,11,15,0.96)] px-3 py-1.5 text-[11px] font-medium text-text-secondary shadow-[0_4px_14px_rgba(0,0,0,0.5)]">
-            Getting your location…
+        {sharing && !myFix && (
+          <div className="pointer-events-none absolute left-3 top-[72px] z-[400] rounded-full border border-border bg-[rgba(11,11,15,0.96)] px-3 py-1.5 text-[11px] font-medium text-text-secondary shadow-[0_4px_14px_rgba(0,0,0,0.5)]">
+            Getting your first fix…
           </div>
         )}
 
@@ -659,8 +773,13 @@ export function LivePresenceMap({
                     <button
                       type="button"
                       onClick={stopSharing}
-                      className="btn-secondary btn-sm flex-1"
+                      className="btn-secondary btn-sm flex-1 gap-1.5 ring-1 ring-success/40"
+                      aria-label="Stop sharing your live location"
                     >
+                      <span
+                        className="presence-banner-dot is-live !h-1.5 !w-1.5 !shrink-0"
+                        aria-hidden
+                      />
                       Stop sharing
                     </button>
                   ) : isAuthenticated && canShare ? (
@@ -729,7 +848,7 @@ export function LivePresenceMap({
           </div>
         )}
 
-        {sharing && !myPos && (
+        {sharing && !myFix && (
           <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-ink-900/85 px-3 py-1.5 text-[11px] text-text-secondary backdrop-blur">
             Getting your location…
           </div>
