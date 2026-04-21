@@ -19,7 +19,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Single mutable object - updated SYNCHRONOUSLY before setState so touch handlers
+  // Single mutable object, updated SYNCHRONOUSLY before setState so touch handlers
   // always read current values (no stale-closure bug with useEffect-synced refs)
   const g = useRef({
     zoom: 1,
@@ -71,7 +71,7 @@ export function ImageLightbox({ src, onClose }: ImageLightboxProps) {
       e.preventDefault();
 
       if (e.touches.length === 2) {
-        // Start pinch - snapshot current state so each move calculates from baseline
+        // Start pinch; snapshot current state so each move calculates from baseline
         state.pinchStartDist = dist(e.touches);
         state.pinchStartZoom = state.zoom;
         state.dragging = false;

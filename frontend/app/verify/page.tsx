@@ -106,7 +106,7 @@ export default function VerifyPage() {
             Enter the feed
           </button>
           <p className="mt-3 text-[11px] text-text-tertiary">
-            Keep this name - it&apos;s how people will know you.
+            Keep this name. It&apos;s how people will know you.
           </p>
         </div>
       </div>

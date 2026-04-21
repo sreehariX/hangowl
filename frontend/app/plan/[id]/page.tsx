@@ -94,9 +94,9 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
 
   async function handleShare() {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const time = `${formatTimeIST(plan.starts_at)} - ${formatTimeIST(plan.ends_at)}`;
+    const time = `${formatTimeIST(plan.starts_at)} to ${formatTimeIST(plan.ends_at)}`;
     const text = `${plan.activity} at ${plan.location} (${time} IST)${
-      plan.description ? ` - "${plan.description}"` : ""
+      plan.description ? `. "${plan.description}"` : ""
     }. Join on HangOwl:`;
     try {
       if (navigator.share) {
@@ -170,8 +170,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           <div className="mb-5 flex items-stretch justify-between gap-2 rounded-xl border border-border p-3">
             <Stat
               icon={<CalendarIcon size={16} />}
-              value={plan.plan_date ? formatDateIST(plan.plan_date) : "-"}
-              label={`${formatTimeIST(plan.starts_at)} - ${formatTimeIST(plan.ends_at)}`}
+              value={plan.plan_date ? formatDateIST(plan.plan_date) : "TBD"}
+              label={`${formatTimeIST(plan.starts_at)} to ${formatTimeIST(plan.ends_at)}`}
             />
             <div className="w-px bg-border" />
             <Stat

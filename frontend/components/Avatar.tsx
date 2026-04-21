@@ -15,7 +15,7 @@ import { memo, useMemo } from "react";
  *     same composition.
  *
  * Visually inspired by Linear, Vercel's `avatar.vercel.sh`, Loops.so,
- * Arc browser "spaces" - every avatar is a tiny unique artwork but the
+ * Arc browser "spaces": every avatar is a tiny unique artwork but the
  * set still feels like one family because the palette is curated.
  *
  * Rendered inline as SVG so it sharpens at any size and carries no
@@ -49,7 +49,7 @@ const BASES: string[] = [
 ];
 
 function hash32(str: string): number {
-  // FNV-1a - small, stable, distributes well across short strings.
+  // FNV-1a: small, stable, distributes well across short strings.
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     h ^= str.charCodeAt(i);
@@ -84,7 +84,7 @@ function pickDistinct<T>(arr: readonly T[], n: number, rnd: () => number): T[] {
 }
 
 function initialsFor(name: string) {
-  // Personas look like "BlushRaven#5763" - drop the numeric suffix and any
+  // Personas look like "BlushRaven#5763": drop the numeric suffix and any
   // non-letter decoration before picking initials.
   const trimmed = name.split("#")[0].trim();
   if (!trimmed) return "?";
@@ -101,7 +101,7 @@ function initialsFor(name: string) {
     return (camel[0].charAt(0) + camel[1].charAt(0)).toUpperCase();
   }
 
-  // Single token - fall back to the first two alphabetic chars.
+  // Single token: fall back to the first two alphabetic chars.
   const letters = trimmed.replace(/[^a-zA-Z]/g, "");
   return (letters.slice(0, 2) || letters.charAt(0) || "?").toUpperCase();
 }
@@ -124,7 +124,7 @@ function AvatarComponent({ name, size = 40, className = "", compact }: AvatarPro
 
     // Three soft blobs positioned on a normalized 0..1 canvas. We bias the
     // first blob toward the top-left so the result reads like a light
-    // source - gives each avatar a subtle sense of depth.
+    // source; gives each avatar a subtle sense of depth.
     const blobs = [
       {
         color: c1,
@@ -159,12 +159,12 @@ function AvatarComponent({ name, size = 40, className = "", compact }: AvatarPro
     return compact ? full.charAt(0) : full;
   }, [name, compact]);
 
-  // Tiny avatars (<=20px) skip the text - they read cleaner as pure gradient
+  // Tiny avatars (<=20px) skip the text; they read cleaner as pure gradient
   // medallions in nav bars and inline chips.
   const showText = size >= 22;
   const fontSize = size * (initials.length > 1 ? 0.4 : 0.48);
 
-  // Unique gradient IDs - critical when two avatars render on the same page
+  // Unique gradient IDs; critical when two avatars render on the same page
   // and share a palette, otherwise the SVG defs would collide.
   const uid = useMemo(() => seed.toString(36), [seed]);
 

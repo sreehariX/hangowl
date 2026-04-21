@@ -388,7 +388,7 @@ export default function HangoutsPage() {
             )}
 
             <div className="space-y-5">
-              {/* Cover photo - prominent, first */}
+              {/* Cover photo: prominent, first */}
               <div>
                 <p className="section-eyebrow mb-2">Cover photo</p>
                 <input

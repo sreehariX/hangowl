@@ -77,7 +77,7 @@ function DesktopLink({
 }
 
 /*
- * Scroll direction hook - the bottom nav softens and fades while scrolling
+ * Scroll direction hook. The bottom nav softens and fades while scrolling
  * down, then restores its opaque state when the user scrolls up. Mimics
  * Twitter/X and Instagram's primary bars on mobile.
  */
@@ -198,7 +198,7 @@ export const Nav = memo(function Nav() {
         </div>
       </nav>
 
-      {/* Desktop top nav - premium, centred, compact */}
+      {/* Desktop top nav: premium, centred, compact */}
       <nav
         aria-label="Primary"
         className="desktop-nav hidden md:flex"

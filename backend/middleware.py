@@ -34,7 +34,7 @@ async def verify_token(request: Request) -> dict:
     cached = _ban_cache.get(user_id)
 
     if cached is None or now_ts > cached[1]:
-        # Cache miss or expired - query DB
+        # Cache miss or expired. Query DB.
         try:
             db = get_supabase()
             now_iso = datetime.now(timezone.utc).isoformat()

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Central icon set - every glyph uses the same 24x24 viewBox, 2px stroke,
+ * Central icon set: every glyph uses the same 24x24 viewBox, 2px stroke,
  * round caps/joins, and inherits `currentColor`. One source of truth so
  * the UI feels stamped from the same mould.
  */

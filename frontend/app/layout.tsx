@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HangOwl - Who's free at IIT-B?",
+  title: "HangOwl · Who's free at IIT-B?",
   description:
     "Anonymous campus hangout board for IIT Bombay. Find people free right now, drop in on plans, stay private.",
   manifest: "/manifest.json",
