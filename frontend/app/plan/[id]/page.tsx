@@ -75,6 +75,10 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const members = plan.plan_members ?? [];
   const ended = new Date(plan.ends_at) < new Date();
+  const planCoords =
+    typeof plan.latitude === "number" && typeof plan.longitude === "number"
+      ? { lat: plan.latitude, lng: plan.longitude }
+      : null;
   const isCreator = userId === plan.creator_id;
   const alreadyJoined = members.some((m) => m.user_id === userId);
 
@@ -191,7 +195,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               </h1>
               <button
                 type="button"
-                onClick={() => openDirections(plan.location)}
+                onClick={() => openDirections(plan.location, planCoords)}
                 className="group mt-1.5 flex items-center gap-1.5 text-body text-text-secondary transition-colors hover:text-text-primary"
                 aria-label={`Open directions to ${plan.location} in Google Maps`}
               >
@@ -297,7 +301,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => openDirections(plan.location)}
+                  onClick={() => openDirections(plan.location, planCoords)}
                   className="btn-secondary btn-lg flex-1 gap-2"
                   aria-label="Open directions in Google Maps"
                 >

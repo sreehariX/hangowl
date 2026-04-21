@@ -43,6 +43,10 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
 
   const memberCount = plan.plan_members?.[0]?.count ?? 0;
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
+  const planCoords =
+    typeof plan.latitude === "number" && typeof plan.longitude === "number"
+      ? { lat: plan.latitude, lng: plan.longitude }
+      : null;
   const creatorName = plan.users?.persona_name ?? "Anonymous";
   const ended = new Date(plan.ends_at) < new Date();
   const spotsLeft = plan.max_people - memberCount;
@@ -105,7 +109,7 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  openDirections(plan.location);
+                  openDirections(plan.location, planCoords);
                 }}
                 className="inline-flex items-center gap-0.5 truncate transition-colors hover:text-text-secondary"
                 aria-label={`Directions to ${plan.location}`}

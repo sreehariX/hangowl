@@ -120,6 +120,8 @@ export const api = {
     starts_at: string;
     ends_at: string;
     image_url?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   }) =>
     request<{ plan: import("./types").Plan }>("/plans", {
       method: "POST",

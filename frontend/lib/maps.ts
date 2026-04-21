@@ -51,18 +51,26 @@ function normalizeKey(loc: string): string {
 
 /**
  * Build a free Google Maps directions URL that navigates the user from their
- * current location to the given plan location.
+ * current location to the given destination.
  *
- * We prefer `lat,lng` when we have a known pin for the landmark so the app
- * lands on the right spot even if the label is ambiguous (e.g. "H7" matches
- * many places worldwide). Otherwise we pass a text query scoped to campus.
+ * Priority:
+ *   1. Explicit `coords` (creator pinned the exact spot when making the plan)
+ *   2. Campus landmark lookup from the label (e.g. "H7" -> known hostel pin)
+ *   3. Text query scoped to campus
  */
-export function buildDirectionsUrl(location: string): string {
-  const key = normalizeKey(location);
-  const pin = IITB_CAMPUS_PINS[key];
-
+export function buildDirectionsUrl(
+  location: string,
+  coords?: LatLng | null,
+): string {
   const base = "https://www.google.com/maps/dir/?api=1&travelmode=walking";
 
+  if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+    const dest = `${coords.lat},${coords.lng}`;
+    return `${base}&destination=${encodeURIComponent(dest)}`;
+  }
+
+  const key = normalizeKey(location);
+  const pin = IITB_CAMPUS_PINS[key];
   if (pin) {
     const dest = `${pin.lat},${pin.lng}`;
     return `${base}&destination=${encodeURIComponent(dest)}`;
@@ -81,8 +89,18 @@ export function buildDirectionsUrl(location: string): string {
  * Maps or Apple Maps app (via universal links) instead of navigating away
  * from HangOwl.
  */
-export function openDirections(location: string): void {
+export function openDirections(
+  location: string,
+  coords?: LatLng | null,
+): void {
   if (typeof window === "undefined") return;
-  const url = buildDirectionsUrl(location);
+  const url = buildDirectionsUrl(location, coords);
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+/**
+ * Default map center when we don't yet have a user location (bang in the
+ * middle of IIT Bombay campus).
+ */
+export const CAMPUS_CENTER: LatLng = { lat: 19.1334, lng: 72.9133 };
+export type { LatLng };

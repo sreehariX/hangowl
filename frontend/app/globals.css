@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Leaflet CSS for the location picker. We pin to the same version as the
+ * installed `leaflet` package so tile clipping + marker shadows line up
+ * correctly. Loaded from unpkg to keep our bundle small — the file is ~15KB
+ * gzipped and only fetched on the /hangouts route when the picker opens.
+ */
+@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+
+/* Leaflet's default .leaflet-container has a light background; make it
+ * blend with our dark theme until the tiles load. */
+.leaflet-container {
+  background: #0F0F10;
+  font-family: inherit;
+}
+
+/* Attribution control: tone it down but keep it visible (OSM ToS). */
+.leaflet-control-attribution {
+  background: rgba(11, 11, 15, 0.75) !important;
+  color: #8b8b91 !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: #b0b0b6 !important;
+}
+
+/* Default zoom buttons. Square -> round, dark theme. */
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: rgba(11, 11, 15, 0.85) !important;
+  color: #F1F2F5 !important;
+  border-color: #24242B !important;
+}
+.leaflet-bar {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
 @layer base {
   :root {
     color-scheme: dark;

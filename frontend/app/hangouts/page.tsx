@@ -9,14 +9,19 @@ import { PlanCard } from "@/components/PlanCard";
 import { PlanListSkeleton } from "@/components/Skeleton";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { ImagePreview } from "@/components/ImagePreview";
+import { LocationPicker } from "@/components/LocationPicker";
 import { EmptyState, SectionHeading, Spinner } from "@/components/primitives";
 import {
   CalendarIcon,
+  CheckIcon,
   CloseIcon,
   CompassIcon,
   ImageIcon,
+  MapPinIcon,
+  NavigationIcon,
   PlusIcon,
 } from "@/components/icons";
+import type { LatLng } from "@/lib/maps";
 import { ACTIVITIES, LOCATIONS, ACTIVITY_EMOJI, type Activity, type Plan } from "@/lib/types";
 import { compressImage } from "@/lib/compress-image";
 import Link from "next/link";
@@ -100,6 +105,8 @@ export default function HangoutsPage() {
   const [startTime, setStartTime] = useState(nowTimeIST());
   const [duration, setDuration] = useState(60);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [pinCoords, setPinCoords] = useState<LatLng | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadLabel, setUploadLabel] = useState("Uploading…");
   const [submitting, setSubmitting] = useState(false);
@@ -207,6 +214,8 @@ export default function HangoutsPage() {
         starts_at: startDate.toISOString(),
         ends_at: endDate.toISOString(),
         image_url: imageUrl,
+        latitude: pinCoords?.lat ?? null,
+        longitude: pinCoords?.lng ?? null,
       });
       resetForm();
       setShowCreate(false);
@@ -228,6 +237,8 @@ export default function HangoutsPage() {
     setStartTime(nowTimeIST());
     setDuration(60);
     setImageUrl(null);
+    setPinCoords(null);
+    setShowLocationPicker(false);
     setCreateError("");
     setSubmitting(false);
   }
@@ -475,6 +486,63 @@ export default function HangoutsPage() {
                     autoFocus
                   />
                 )}
+
+                {/*
+                 * Optional exact pin. Encourages Uber-style precision: the
+                 * label ("H7") gets you close, the pin gets you to the
+                 * specific door.
+                 */}
+                <div className="mt-3">
+                  {pinCoords ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-success/35 bg-success/10 px-3 py-2.5">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/20 text-success">
+                        <CheckIcon size={14} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-caption font-semibold text-success">
+                          Exact spot pinned
+                        </p>
+                        <p className="truncate font-mono text-[11px] text-text-tertiary">
+                          {pinCoords.lat.toFixed(5)}, {pinCoords.lng.toFixed(5)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLocationPicker(true)}
+                        className="btn-secondary btn-xs"
+                      >
+                        Adjust
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPinCoords(null)}
+                        className="icon-btn h-8 w-8"
+                        aria-label="Remove pin"
+                      >
+                        <CloseIcon size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowLocationPicker(true)}
+                      className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-left text-caption text-text-tertiary transition-colors hover:border-text-tertiary hover:text-text-secondary"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-hover text-text-tertiary">
+                        <MapPinIcon size={14} />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="font-semibold text-text-secondary">
+                          Pin the exact spot
+                        </span>
+                        <span className="truncate text-[11px] text-text-muted">
+                          Drop a map marker so friends navigate right to the door
+                        </span>
+                      </span>
+                      <NavigationIcon size={14} className="text-text-tertiary" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -558,6 +626,18 @@ export default function HangoutsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showLocationPicker && (
+        <LocationPicker
+          initial={pinCoords}
+          label={resolvedLocation || undefined}
+          onCancel={() => setShowLocationPicker(false)}
+          onConfirm={(coords) => {
+            setPinCoords(coords);
+            setShowLocationPicker(false);
+          }}
+        />
       )}
     </div>
   );
