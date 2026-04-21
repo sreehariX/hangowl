@@ -16,20 +16,13 @@ import { api } from "@/lib/api";
 import { postCache } from "@/lib/post-cache";
 import type { Post } from "@/lib/types";
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                     */
-/* -------------------------------------------------------------------------- */
-
 const VIEWS_KEY = "ho_viewed_v2";
 const VIEWS_TTL = 24 * 60 * 60 * 1000;
-const THREAD_COLOR = "rgba(91, 131, 212, 0.24)";
+const THREAD_COLOR = "#2F2F33";
 
 function getViewedStore(): Record<string, number> {
-  try {
-    return JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}");
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}"); }
+  catch { return {}; }
 }
 function hasViewed(id: string) {
   const s = getViewedStore();
@@ -65,9 +58,7 @@ function formatRelativeTime(iso: string) {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d`;
   return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "Asia/Kolkata",
+    month: "short", day: "numeric", timeZone: "Asia/Kolkata",
     ...(d > 365 ? { year: "numeric" } : {}),
   });
 }
@@ -75,34 +66,21 @@ function formatRelativeTime(iso: string) {
 function formatFullDate(iso: string) {
   const d = new Date(iso);
   const time = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
   });
   const date = d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
+    month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Kolkata",
   });
   return `${time} · ${date}`;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Image                                                                       */
-/* -------------------------------------------------------------------------- */
 
 function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <button
       type="button"
-      className="group relative mt-3 block aspect-[2/1] w-full overflow-hidden rounded-2xl border border-border/60 bg-ink-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen();
-      }}
+      className="relative mt-3 block aspect-[2/1] w-full overflow-hidden rounded-2xl border border-border bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      onClick={(e) => { e.stopPropagation(); onOpen(); }}
       aria-label="Open image"
     >
       {!loaded && <div className="skeleton absolute inset-0 rounded-2xl" />}
@@ -114,17 +92,11 @@ function PostImage({ src, onOpen }: { src: string; onOpen: () => void }) {
         loading="lazy"
         decoding="async"
         onLoad={() => setLoaded(true)}
-        className={`h-full w-full object-cover transition-all duration-500 ease-out ${
-          loaded ? "scale-100 opacity-100" : "scale-[1.02] opacity-0"
-        } group-hover:scale-[1.015]`}
+        className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </button>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Main                                                                        */
-/* -------------------------------------------------------------------------- */
 
 const BAN_OPTIONS = [
   { type: "1_week", label: "1 week" },
@@ -249,11 +221,8 @@ const PostCard = memo(function PostCard({
       await api.banUser(post.user_id, banType);
       setBanDone(banType);
       setShowBanMenu(false);
-    } catch {
-      /* silent */
-    } finally {
-      setBanning(false);
-    }
+    } catch {}
+    finally { setBanning(false); }
   }
 
   function handleDoubleTap(e: React.MouseEvent | React.TouchEvent) {
@@ -275,13 +244,12 @@ const PostCard = memo(function PostCard({
     else navigator.clipboard.writeText(url).catch(() => {});
   }
 
-  const pt = "pt-4";
-  const pbBorder = showThreadLine ? "pb-0" : "border-b border-border/60 pb-4";
+  const pbBorder = showThreadLine ? "pb-0" : "border-b border-border pb-3";
 
   return (
     <div
       ref={cardRef}
-      className={`relative px-4 transition-colors duration-200 ${pt} ${pbBorder} ${
+      className={`relative px-4 pt-3 transition-colors ${pbBorder} ${
         isNavigable ? "cursor-pointer select-none hover:bg-surface-hover/40" : ""
       }`}
       onClick={
@@ -294,31 +262,29 @@ const PostCard = memo(function PostCard({
       }
     >
       <div className="flex gap-3">
-        {/* Avatar column with thread line */}
         <div className="relative flex shrink-0 flex-col items-center">
           {seamless && (
             <div
-              className="absolute left-1/2 w-[2px] -translate-x-1/2"
-              style={{ background: THREAD_COLOR, top: -16, height: 36 }}
+              className="absolute left-1/2 w-px -translate-x-1/2"
+              style={{ background: THREAD_COLOR, top: -12, height: 28 }}
             />
           )}
           <Avatar
             name={personaName}
             size={40}
-            className={`relative z-[1] ${seamless ? "mt-0" : "mt-0.5"}`}
+            className="relative z-[1]"
           />
           {showThreadLine && (
             <div
-              className="absolute left-1/2 w-[2px] -translate-x-1/2"
-              style={{ background: THREAD_COLOR, top: seamless ? 40 : 42, bottom: -1 }}
+              className="absolute left-1/2 w-px -translate-x-1/2"
+              style={{ background: THREAD_COLOR, top: 44, bottom: -1 }}
             />
           )}
         </div>
 
         <div className="min-w-0 flex-1">
-          {/* Name · time */}
           <div className="flex min-w-0 items-center">
-            <span className="truncate text-[15px] font-semibold tracking-tight text-text-primary">
+            <span className="truncate text-[15px] font-semibold text-text-primary">
               {personaName}
             </span>
             {!isDetail && (
@@ -334,14 +300,11 @@ const PostCard = memo(function PostCard({
             )}
             {canDelete && !confirmDelete && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmDelete(true);
-                }}
-                className="icon-btn ml-auto shrink-0 h-7 w-7 hover:text-danger"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+                className="ml-auto -mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-hover hover:text-danger"
                 aria-label="Post menu"
               >
-                <DotsIcon size={16} />
+                <DotsIcon size={15} />
               </button>
             )}
             {canDelete && confirmDelete && (
@@ -366,7 +329,6 @@ const PostCard = memo(function PostCard({
             )}
           </div>
 
-          {/* Content + image */}
           <div className="relative" onClick={handleDoubleTap}>
             <p
               className={`whitespace-pre-wrap break-words leading-relaxed text-text-primary ${
@@ -383,32 +345,26 @@ const PostCard = memo(function PostCard({
                 <HeartIcon
                   filled
                   size={64}
-                  className="animate-like-pop text-danger opacity-90 drop-shadow-lg"
+                  className="animate-like-pop text-danger opacity-90"
                 />
               </div>
             )}
           </div>
 
           {isDetail && (
-            <p className="mt-3 text-body text-text-tertiary">{formatFullDate(post.created_at)}</p>
+            <p className="mt-2 text-caption text-text-tertiary">{formatFullDate(post.created_at)}</p>
           )}
 
-          {/* Action bar */}
           <div
-            className={`mt-3 flex items-center gap-5 text-caption ${
-              isDetail ? "border-t border-border/60 pt-3" : ""
+            className={`mt-2 flex items-center gap-5 text-caption ${
+              isDetail ? "border-t border-border pt-2.5" : ""
             }`}
           >
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLike();
-              }}
+              onClick={(e) => { e.stopPropagation(); handleLike(); }}
               disabled={!currentUserId}
-              className={`group flex items-center gap-1.5 rounded-full px-1 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
-                liked
-                  ? "text-danger"
-                  : "text-text-tertiary hover:text-danger"
+              className={`group flex items-center gap-1 rounded-full py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                liked ? "text-danger" : "text-text-tertiary hover:text-danger"
               }`}
               aria-label="Like"
               aria-pressed={liked}
@@ -418,22 +374,19 @@ const PostCard = memo(function PostCard({
                   liked ? "bg-danger/10" : "group-hover:bg-danger/10"
                 }`}
               >
-                <HeartIcon size={17} filled={liked} className={likeAnim ? "animate-like-pop" : ""} />
+                <HeartIcon size={16} filled={liked} className={likeAnim ? "animate-like-pop" : ""} />
               </span>
               <span className="tabular-nums">{likesCount}</span>
             </button>
 
             {onReply ? (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReply();
-                }}
-                className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-brand-400"
+                onClick={(e) => { e.stopPropagation(); onReply(); }}
+                className="group flex items-center gap-1 rounded-full py-1 text-text-tertiary transition-colors hover:text-brand-400"
                 aria-label="Reply"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-brand-500/10">
-                  <ReplyIcon size={17} />
+                <span className="flex h-7 w-7 items-center justify-center rounded-full transition-colors group-hover:bg-brand-500/10">
+                  <ReplyIcon size={16} />
                 </span>
                 <span className="tabular-nums">{post.replies_count}</span>
               </button>
@@ -441,31 +394,28 @@ const PostCard = memo(function PostCard({
               <Link
                 href={`/feed/${post.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-brand-400"
+                className="group flex items-center gap-1 rounded-full py-1 text-text-tertiary transition-colors hover:text-brand-400"
                 aria-label="Reply"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-brand-500/10">
-                  <ReplyIcon size={17} />
+                <span className="flex h-7 w-7 items-center justify-center rounded-full transition-colors group-hover:bg-brand-500/10">
+                  <ReplyIcon size={16} />
                 </span>
                 <span className="tabular-nums">{post.replies_count}</span>
               </Link>
             )}
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleShare();
-              }}
-              className="group flex items-center gap-1.5 rounded-full px-1 py-1 text-text-tertiary transition-colors duration-200 hover:text-amber"
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              className="group flex items-center rounded-full py-1 text-text-tertiary transition-colors hover:text-amber"
               aria-label="Share"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full group-hover:bg-amber/10">
-                <ShareIcon size={17} />
+              <span className="flex h-7 w-7 items-center justify-center rounded-full transition-colors group-hover:bg-amber/10">
+                <ShareIcon size={16} />
               </span>
             </button>
 
-            <span className="ml-auto flex items-center gap-1.5 text-text-tertiary">
-              <BarChartIcon size={15} />
+            <span className="ml-auto flex items-center gap-1 text-text-tertiary">
+              <BarChartIcon size={14} />
               <span className="tabular-nums">{formatViewCount(viewsCount)}</span>
             </span>
           </div>

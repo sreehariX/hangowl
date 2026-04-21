@@ -14,14 +14,14 @@ export function ImagePreview({ src, onRemove }: ImagePreviewProps) {
       <ProgressiveImage
         src={src}
         alt="Attachment preview"
-        className="max-h-56 rounded-2xl border border-border/60 object-cover"
-        skeletonClassName="h-36 w-56 rounded-2xl"
+        className="max-h-56 rounded-xl border border-border object-cover"
+        skeletonClassName="h-36 w-56 rounded-xl"
       />
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove image"
-        className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-ink-900 text-text-primary shadow-soft transition-transform hover:scale-105 active:scale-95"
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/80 text-white transition-opacity hover:opacity-90"
       >
         <CloseIcon size={14} />
       </button>

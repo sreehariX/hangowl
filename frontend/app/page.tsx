@@ -44,10 +44,8 @@ export default function FeedHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(() => {
     if (typeof window === "undefined") return true;
-    try {
-      return !localStorage.getItem(FEED_CACHE_KEY);
-    } catch {}
-    return true;
+    try { return !localStorage.getItem(FEED_CACHE_KEY); }
+    catch { return true; }
   });
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -65,31 +63,23 @@ export default function FeedHomePage() {
       if (cursor) {
         setPosts((prev) => {
           const ids = new Set(prev.map((p) => p.id));
-          const newPosts = data.posts.filter((p) => !ids.has(p.id));
-          return [...prev, ...newPosts];
+          return [...prev, ...data.posts.filter((p) => !ids.has(p.id))];
         });
       } else {
         setPosts(data.posts);
-        try {
-          localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts));
-        } catch {}
+        try { localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data.posts)); } catch {}
       }
       setHasMore(data.posts.length >= 20);
-    } catch {
-      /* silent */
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
     let active = true;
-    async function load() {
+    (async () => {
       await fetchFeed();
       if (active) setLoading(false);
-    }
-    load();
-    return () => {
-      active = false;
-    };
+    })();
+    return () => { active = false; };
   }, [fetchFeed]);
 
   useEffect(() => {
@@ -99,15 +89,11 @@ export default function FeedHomePage() {
       try {
         const data = await api.getStats();
         if (active) setStats(data);
-      } catch {
-        /* silent */
-      }
+      } catch {}
     }
     loadStats();
     const si = setInterval(loadStats, 60000);
-    const onVisible = () => {
-      if (!document.hidden) loadStats();
-    };
+    const onVisible = () => { if (!document.hidden) loadStats(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
@@ -119,7 +105,7 @@ export default function FeedHomePage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     let active = true;
-    async function loadUserData() {
+    (async () => {
       try {
         const [likesData, adminData] = await Promise.all([
           api.getMyLikedPostIds(),
@@ -129,14 +115,9 @@ export default function FeedHomePage() {
           setLikedIds(new Set(likesData.post_ids));
           setIsAdmin(adminData.is_admin);
         }
-      } catch {
-        /* silent */
-      }
-    }
-    loadUserData();
-    return () => {
-      active = false;
-    };
+      } catch {}
+    })();
+    return () => { active = false; };
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -151,12 +132,7 @@ export default function FeedHomePage() {
       .channel("feed-realtime")
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "posts",
-          filter: "parent_id=is.null",
-        },
+        { event: "INSERT", schema: "public", table: "posts", filter: "parent_id=is.null" },
         (payload) => {
           const newPost = payload.new as Post;
           if (newPost.user_id === userId) return;
@@ -166,10 +142,7 @@ export default function FeedHomePage() {
         },
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
   useEffect(() => {
@@ -177,15 +150,10 @@ export default function FeedHomePage() {
     const target = observerRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMore &&
-          !loadingMore &&
-          posts.length > 0
-        ) {
-          const lastPost = posts[posts.length - 1];
+        if (entries[0].isIntersecting && hasMore && !loadingMore && posts.length > 0) {
+          const last = posts[posts.length - 1];
           setLoadingMore(true);
-          fetchFeed(lastPost.created_at).finally(() => setLoadingMore(false));
+          fetchFeed(last.created_at).finally(() => setLoadingMore(false));
         }
       },
       { threshold: 0.1 },
@@ -214,142 +182,105 @@ export default function FeedHomePage() {
   }
 
   return (
-    <div className="app-shell pt-5">
+    <div className="app-shell pt-0">
       <div className="app-content relative">
-        {/* Top bar */}
-        <header className="mb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-title-lg font-semibold tracking-tight text-text-primary">
-              HangOwl
-            </h1>
-            <p className="text-caption text-text-tertiary">
-              Campus social, designed for clarity.
-            </p>
-          </div>
+        <header className="sticky-bar">
+          <h1 className="text-[17px] font-semibold text-text-primary">Feed</h1>
           {stats && (
-            <div className="surface-glass flex items-center gap-3 px-3.5 py-2">
-              <span className="text-[11px] font-medium tabular-nums text-text-tertiary">
-                {stats.total_users} students
+            <span className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-text-tertiary">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-70 animate-pulse" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
               </span>
-              <span className="h-3.5 w-px bg-border" />
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-                </span>
-                <span className="tabular-nums text-success">{stats.free_now}</span>
-                <span className="text-text-tertiary">free</span>
-              </span>
-            </div>
+              <span className="tabular-nums text-success">{stats.free_now}</span>
+              free now
+            </span>
           )}
         </header>
 
-        {/* Trust text */}
-        {!authLoading && (
-          <p className="mb-4 flex items-center gap-1.5 text-[11px] text-text-tertiary">
-            <SparkleIcon size={12} className="text-amber" />
-            Every student is verified with their IITB email. Completely anonymous.
-          </p>
-        )}
-
-        {/* Logged-out hero */}
         {!authLoading && !isAuthenticated && (
-          <section className="surface-hero mb-6 overflow-hidden p-7 text-center">
-            <div
-              aria-hidden
-              className="absolute -top-16 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-amber/15 blur-3xl"
-            />
-            <div className="relative">
-              <div className="mb-3 text-4xl">🦉</div>
-              <h2 className="mb-2 text-title font-semibold tracking-tight text-text-primary">
-                Find your people at IIT Bombay
-              </h2>
-              <p className="mx-auto mb-5 max-w-[360px] text-body text-text-secondary">
-                Every student is verified with their IITB email. Your identity stays
-                completely anonymous.
-              </p>
-              {stats && (
-                <p className="mb-4 text-caption text-text-tertiary">
-                  <span className="font-semibold tabular-nums text-amber">
-                    {stats.total_users}
-                  </span>{" "}
-                  students already here
-                </p>
-              )}
-              <Link href="/verify" className="btn-primary btn-lg btn-block">
-                Join with IIT-B email
-              </Link>
+          <section className="border-b border-border px-4 py-10 text-center">
+            <div className="mb-3 text-3xl">🦉</div>
+            <h2 className="mb-1.5 text-title font-semibold text-text-primary">
+              Find your people at IIT Bombay
+            </h2>
+            <p className="mx-auto mb-5 max-w-[360px] text-body text-text-secondary">
+              Verified IITB students, completely anonymous.
+            </p>
+            <Link href="/verify" className="btn-primary btn-lg inline-flex">
+              Sign in with IIT-B email
+            </Link>
+            {stats && (
               <p className="mt-3 text-[11px] text-text-tertiary">
-                No signup. No password. Just a one-time code.
+                <span className="font-semibold tabular-nums text-text-secondary">
+                  {stats.total_users}
+                </span>{" "}
+                students already here
               </p>
-            </div>
+            )}
           </section>
         )}
 
-        {/* Live hangouts nudge */}
         {stats && stats.active_plans > 0 && (
           <Link
             href="/hangouts"
-            className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber/20 bg-gradient-to-r from-amber/10 to-amber/5 px-4 py-3 transition-all duration-200 hover:border-amber/40 hover:from-amber/15 active:scale-[0.99]"
+            className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface-hover/50"
           >
-            <span className="flex items-center gap-2 text-caption font-semibold text-amber">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-amber">
-                <span className="animate-ping absolute h-1.5 w-1.5 rounded-full bg-amber" />
+            <span className="flex items-center gap-2 text-caption font-medium text-text-primary">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-amber opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber" />
               </span>
               {stats.active_plans} hangout
               {stats.active_plans !== 1 ? "s" : ""} happening now
             </span>
-            <ChevronRightIcon size={14} className="text-amber" />
+            <ChevronRightIcon size={14} className="text-text-tertiary" />
           </Link>
         )}
 
-        {/* New posts pill */}
         {queuedPosts.length > 0 && (
-          <button
-            onClick={showQueuedPosts}
-            className="sticky left-0 right-0 top-3 z-40 mx-auto mb-3 flex w-fit animate-slide-down-in items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-2 text-xs font-semibold text-white shadow-glow-brand transition-all duration-200 hover:scale-105 active:scale-95"
-          >
-            <ChevronUpIcon size={14} />
-            Show {queuedPosts.length} new post{queuedPosts.length !== 1 ? "s" : ""}
-          </button>
+          <div className="flex justify-center py-2">
+            <button
+              onClick={showQueuedPosts}
+              className="flex animate-slide-down-in items-center gap-1.5 rounded-full bg-amber px-4 py-1.5 text-xs font-semibold text-ink-950 transition-opacity hover:opacity-90"
+            >
+              <ChevronUpIcon size={14} />
+              Show {queuedPosts.length} new post{queuedPosts.length !== 1 ? "s" : ""}
+            </button>
+          </div>
         )}
 
-        {/* Feed */}
         {loading ? (
           <FeedSkeleton />
         ) : posts.length === 0 ? (
-          <div className="surface-panel">
-            <EmptyState
-              icon={<SparkleIcon size={26} />}
-              title="No posts yet"
-              description="Be the first to share something on campus."
-            />
-          </div>
+          <EmptyState
+            icon={<SparkleIcon size={22} />}
+            title="No posts yet"
+            description="Be the first to share something on campus."
+          />
         ) : (
           <>
-            <div className="surface-panel overflow-hidden">
-              {posts.map((post) => (
-                <Fragment key={post.id}>
+            {posts.map((post) => (
+              <Fragment key={post.id}>
+                <PostCard
+                  post={post}
+                  liked={likedIds.has(post.id)}
+                  currentUserId={userId}
+                  isAdmin={isAdmin}
+                  onDeleted={() => handlePostDeleted(post.id)}
+                  showThreadLine={!!post.top_reply}
+                />
+                {post.top_reply && (
                   <PostCard
-                    post={post}
-                    liked={likedIds.has(post.id)}
+                    post={post.top_reply}
+                    liked={likedIds.has(post.top_reply.id)}
                     currentUserId={userId}
                     isAdmin={isAdmin}
-                    onDeleted={() => handlePostDeleted(post.id)}
-                    showThreadLine={!!post.top_reply}
+                    seamless
                   />
-                  {post.top_reply && (
-                    <PostCard
-                      post={post.top_reply}
-                      liked={likedIds.has(post.top_reply.id)}
-                      currentUserId={userId}
-                      isAdmin={isAdmin}
-                      seamless
-                    />
-                  )}
-                </Fragment>
-              ))}
-            </div>
+                )}
+              </Fragment>
+            ))}
             <div ref={observerRef} className="h-4" />
             {loadingMore && (
               <div className="flex justify-center py-4">
@@ -359,11 +290,10 @@ export default function FeedHomePage() {
           </>
         )}
 
-        {/* Compose FAB + Modal */}
         {isAuthenticated && !showCompose && (
           <button
             onClick={() => setShowCompose(true)}
-            className="fab bottom-28 right-4 md:right-[calc(50%-260px+8px)]"
+            className="fab bottom-24 right-4 md:right-[calc(50%-300px+16px)]"
             aria-label="New post"
           >
             <PlusIcon size={24} />
@@ -371,7 +301,7 @@ export default function FeedHomePage() {
         )}
 
         {showCompose && (
-          <div className="fixed inset-0 z-50 animate-fade-in bg-ink-950/85 backdrop-blur-xl">
+          <div className="fixed inset-0 z-50 animate-fade-in bg-black">
             <div className="sticky-bar">
               <button
                 onClick={() => setShowCompose(false)}
@@ -380,10 +310,9 @@ export default function FeedHomePage() {
               >
                 <CloseIcon size={20} />
               </button>
-              <span className="flex-1 text-center text-[15px] font-semibold text-text-primary">
+              <span className="text-[17px] font-semibold text-text-primary">
                 New post
               </span>
-              <div className="h-9 w-9" aria-hidden />
             </div>
             <div className="app-content px-4 pt-4">
               <ComposeBox
