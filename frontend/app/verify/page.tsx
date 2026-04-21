@@ -88,7 +88,7 @@ export default function VerifyPage() {
   if (step === "welcome") {
     return (
       <div className="app-shell pt-12">
-        <div className="mx-auto flex max-w-sm flex-col items-center text-center">
+        <div className="mx-auto flex max-w-sm flex-col items-center px-4 text-center">
           <Avatar name={persona} size={88} />
           <h1 className="mt-5 text-title font-semibold text-text-primary">
             {isNew ? "Welcome to HangOwl" : "Welcome back"}
@@ -115,7 +115,7 @@ export default function VerifyPage() {
 
   return (
     <div className="app-shell pt-12">
-      <div className="mx-auto flex max-w-sm flex-col">
+      <div className="mx-auto flex max-w-sm flex-col px-4">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 text-4xl">🦉</div>
           <h1 className="text-title font-semibold text-text-primary">

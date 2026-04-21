@@ -187,13 +187,22 @@ export default function FeedHomePage() {
         <header className="sticky-bar">
           <h1 className="text-[17px] font-semibold text-text-primary">Feed</h1>
           {stats && (
-            <span className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-text-tertiary">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-70 animate-pulse" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+            <span className="ml-auto flex items-center gap-2 text-[11px] font-medium text-text-tertiary">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-70 animate-pulse" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+                </span>
+                <span className="tabular-nums text-success">{stats.free_now}</span>
+                <span>online</span>
               </span>
-              <span className="tabular-nums text-success">{stats.free_now}</span>
-              free now
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className="inline-flex items-center gap-1">
+                <span className="tabular-nums text-text-secondary">
+                  {stats.total_users}
+                </span>
+                <span>students</span>
+              </span>
             </span>
           )}
         </header>
@@ -204,20 +213,25 @@ export default function FeedHomePage() {
             <h2 className="mb-1.5 text-title font-semibold text-text-primary">
               Find your people at IIT Bombay
             </h2>
-            <p className="mx-auto mb-5 max-w-[360px] text-body text-text-secondary">
-              Verified IITB students, completely anonymous.
+            <p className="mx-auto mb-2 max-w-[360px] text-body text-text-secondary">
+              Verified IIT-B students. Everyone here went through @iitb.ac.in
+              — but every name on HangOwl is anonymous.
             </p>
-            <Link href="/verify" className="btn-primary btn-lg inline-flex">
-              Sign in with IIT-B email
-            </Link>
             {stats && (
-              <p className="mt-3 text-[11px] text-text-tertiary">
+              <p className="mx-auto mb-5 text-caption text-text-tertiary">
                 <span className="font-semibold tabular-nums text-text-secondary">
                   {stats.total_users}
                 </span>{" "}
-                students already here
+                students joined ·{" "}
+                <span className="font-semibold tabular-nums text-success">
+                  {stats.free_now}
+                </span>{" "}
+                online now
               </p>
             )}
+            <Link href="/verify" className="btn-primary btn-lg inline-flex">
+              Sign in with IIT-B email
+            </Link>
           </section>
         )}
 
@@ -301,7 +315,7 @@ export default function FeedHomePage() {
         )}
 
         {showCompose && (
-          <div className="fixed inset-0 z-50 animate-fade-in bg-black">
+          <div className="fixed inset-0 z-[70] animate-fade-in bg-ink-900">
             <div className="sticky-bar">
               <button
                 onClick={() => setShowCompose(false)}

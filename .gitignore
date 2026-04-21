@@ -37,3 +37,6 @@ build/
 # Misc
 *.log
 npm-debug.log*
+
+# stray next build output from root-level invocations
+/.next/

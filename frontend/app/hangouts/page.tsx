@@ -264,7 +264,7 @@ export default function HangoutsPage() {
 
         {tab === 0 ? (
           <>
-            <div className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+            <div className="mt-3 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
               <button
                 onClick={() => setFilterActivity("all")}
                 className={`chip shrink-0 ${filterActivity === "all" ? "chip-active" : ""}`}
@@ -358,7 +358,7 @@ export default function HangoutsPage() {
       )}
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 animate-fade-in overflow-y-auto bg-black">
+        <div className="fixed inset-0 z-[70] animate-fade-in overflow-y-auto bg-ink-900">
           <div className="sticky-bar">
             <button
               onClick={() => { if (!submitting) { setShowCreate(false); resetForm(); } }}
@@ -380,7 +380,7 @@ export default function HangoutsPage() {
             </button>
           </div>
 
-          <div className="app-content px-4 py-4">
+          <div className="app-content px-4 py-4 pb-[env(safe-area-inset-bottom)]" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 56px)" }}>
             {createError && (
               <p className="mb-4 rounded-lg bg-danger/10 px-3 py-2 text-caption text-danger">
                 {createError}

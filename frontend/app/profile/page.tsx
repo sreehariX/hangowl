@@ -105,13 +105,13 @@ export default function ProfilePage() {
           <h1 className="text-[17px] font-semibold text-text-primary">Profile</h1>
         </div>
 
-        <section className="flex flex-col items-center border-b border-border px-4 py-8">
-          <Avatar name={personaName || ""} size={80} />
-          <h2 className="mt-3 text-title font-semibold text-text-primary">
+        <section className="flex flex-col items-center border-b border-border px-4 py-10">
+          <Avatar name={personaName || ""} size={84} />
+          <h2 className="mt-4 text-title-lg font-semibold tracking-tight text-text-primary">
             {personaName}
           </h2>
           <p className="mt-1 text-caption text-text-tertiary">
-            Anonymous identity
+            Your anonymous identity on HangOwl
           </p>
         </section>
 
