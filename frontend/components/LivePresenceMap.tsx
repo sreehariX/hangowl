@@ -137,7 +137,6 @@ export function LivePresenceMap({
   variant = "card",
 }: LivePresenceMapProps) {
   const { userId, isAuthenticated } = useAuth();
-  const isHost = !!userId && userId === hostId;
 
   // Sharing is owned by the app-wide <LocationSharingProvider> so the
   // stream survives tab close, re-open, and navigation away from the
@@ -514,46 +513,6 @@ export function LivePresenceMap({
     () => peers.filter((p) => p.userId !== userId).length,
     [peers, userId],
   );
-  const hostIsSharing = useMemo(
-    () => peers.some((p) => p.userId === hostId),
-    [peers, hostId],
-  );
-
-  const statusLine = (() => {
-    if (sharing && myFix) {
-      const ago = formatAgo(myFix.at, now);
-      const acc = typeof myFix.accuracyM === "number"
-        ? ` · ±${Math.round(myFix.accuracyM)}m`
-        : "";
-      return othersSharing > 0
-        ? `Live · updated ${ago}${acc} · you + ${othersSharing}`
-        : `Live · updated ${ago}${acc}`;
-    }
-    if (sharing) {
-      return "Getting your first fix…";
-    }
-    if (othersSharing > 0) {
-      if (!isHost && hostIsSharing) {
-        return `Host is sharing · ${othersSharing} ${othersSharing === 1 ? "person" : "people"} live`;
-      }
-      return `${othersSharing} ${othersSharing === 1 ? "person" : "people"} sharing live`;
-    }
-    switch (permission) {
-      case "unsupported":
-        return "Live map isn't available on this device — use Directions above.";
-      case "denied":
-        return "Location is blocked — use Directions above, or enable in browser settings.";
-      case "granted":
-        return isHost
-          ? "Share live so people coming to your spot can see you."
-          : "Tap Share live so the host can see you approaching.";
-      case "prompt":
-      default:
-        return isHost
-          ? "Share live and your guests will see you moving on this map."
-          : "Tap Share live — we'll ask for location, then everyone will see you moving.";
-    }
-  })();
 
   /* ── Render ─────────────────────────────────────────────────────────── */
 
@@ -772,57 +731,132 @@ export function LivePresenceMap({
     );
   }
 
-  return (
-    <section className="surface-panel overflow-hidden presence-card">
-      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber/15 text-amber">
-          <NavigationIcon size={14} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="flex items-center gap-2 text-body font-semibold text-text-primary">
-            Live map
-            {sharing && (
-              <span className="presence-card-live-chip" aria-hidden>
-                <span className="presence-card-live-dot" />
-                LIVE
-              </span>
-            )}
-            {isHost && !sharing && (
-              <span className="rounded-full bg-amber/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber">
-                YOU&apos;RE HOSTING
-              </span>
-            )}
-          </h3>
-          <p className="text-[11px] text-text-tertiary">{statusLine}</p>
-        </div>
-      </div>
+  /*
+   * Inline card variant.
+   *
+   * Single clean rectangle — no header bar, no legend footer. The map
+   * itself carries whatever chrome it needs as floating chips (Zepto
+   * order tracker / Uber rider-sheet visual language):
+   *   - Top-left: destination label OR live-status banner.
+   *   - Top-right: small "N live" counter when anyone is broadcasting.
+   *   - Bottom error / permission messages overlay when needed.
+   * Directly below the map sits one primary action: Share live
+   * location ↔ Stop sharing. Nothing else competes for attention.
+   */
+  const showDenied = !sharing && deniedOrUnsupported;
 
-      <div className="relative">
-        <div ref={containerRef} className="h-72 w-full" />
+  return (
+    <section className="presence-card-v2">
+      <div className="presence-map-frame">
+        <div ref={containerRef} className="absolute inset-0" />
 
         {!mapReady && (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink-900/60">
+          <div className="absolute inset-0 flex items-center justify-center bg-ink-900/70">
             <Spinner size={18} />
           </div>
         )}
 
+        {/* Top-left chip: LIVE banner while sharing, otherwise the
+         * destination label. Replaces the old header bar so nothing
+         * lives above the map. */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-[400] flex items-start justify-between gap-2">
+          {isLiveNow || isReconnecting ? (
+            <div
+              className={`presence-top-chip ${
+                isLiveNow ? "is-live" : "is-reconnecting"
+              }`}
+            >
+              <span
+                className={`presence-banner-dot ${
+                  isLiveNow ? "is-live" : "is-reconnecting"
+                }`}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-[10.5px] font-bold uppercase tracking-[0.14em] ${
+                    isLiveNow ? "text-success" : "text-amber"
+                  }`}
+                >
+                  {isLiveNow ? "You are live" : "Reconnecting…"}
+                </p>
+                <p className="truncate text-[11.5px] font-medium text-text-secondary">
+                  {isLiveNow && myFix ? (
+                    <>
+                      Updated{" "}
+                      <span className="tabular-nums text-text-primary">
+                        {formatAgo(myFix.at, now)}
+                      </span>
+                      {typeof myAccuracy === "number" && (
+                        <>
+                          {" · "}
+                          <span className="tabular-nums text-text-primary">
+                            ±{Math.round(myAccuracy)}m
+                          </span>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    "Waiting for your next GPS fix"
+                  )}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="presence-top-chip is-idle">
+              {destinationLabel ? (
+                <>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
+                    <NavigationIcon size={12} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-text-primary">
+                    {destinationLabel}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[12.5px] font-semibold text-text-primary">
+                  Live map
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="presence-count-chip">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                othersSharing > 0 || sharing
+                  ? "bg-success animate-pulse"
+                  : "bg-text-muted"
+              }`}
+              aria-hidden
+            />
+            <span className="tabular-nums">
+              {sharing
+                ? othersSharing > 0
+                  ? `You + ${othersSharing}`
+                  : "Only you"
+                : othersSharing > 0
+                ? `${othersSharing} live`
+                : "Nobody live"}
+            </span>
+          </div>
+        </div>
+
         {sharing && !myFix && (
-          <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-ink-900/85 px-3 py-1.5 text-[11px] text-text-secondary backdrop-blur">
-            Getting your location…
+          <div className="pointer-events-none absolute left-3 top-[76px] z-[400] rounded-full border border-border bg-[rgba(11,11,15,0.96)] px-3 py-1.5 text-[11px] font-medium text-text-secondary shadow-[0_4px_14px_rgba(0,0,0,0.5)]">
+            Getting your first fix…
           </div>
         )}
 
-        {!sharing && deniedOrUnsupported && (
-          <div className="pointer-events-auto absolute inset-x-3 bottom-3 rounded-xl border border-border bg-ink-900/90 p-3 text-caption text-text-secondary backdrop-blur">
+        {showDenied && (
+          <div className="pointer-events-auto absolute inset-x-3 bottom-3 z-[400] rounded-xl border border-border bg-ink-900/95 p-3 text-caption text-text-secondary backdrop-blur">
             <p className="font-semibold text-text-primary">
               {permission === "denied"
                 ? "Location is blocked for this site."
                 : "Live location isn't supported on this device."}
             </p>
             <p className="mt-0.5 text-[11px] text-text-tertiary">
-              {permission === "denied"
-                ? "No worries — open directions in Google Maps and navigate like usual."
-                : "Open directions in Google Maps to navigate like usual."}
+              Open directions in Google Maps to navigate like usual.
             </p>
             <button
               type="button"
@@ -838,18 +872,15 @@ export function LivePresenceMap({
         )}
 
         {error && !deniedOrUnsupported && (
-          <div className="pointer-events-auto absolute inset-x-3 bottom-3 rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
+          <div className="pointer-events-auto absolute inset-x-3 bottom-3 z-[400] rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
             {error}
           </div>
         )}
       </div>
 
-      {/* Primary action card — lives directly below the map, Zepto
-       * order-tracker style. Big CTA so "share my live location" is a
-       * one-tap decision, and it's unmistakably where the user looks
-       * after seeing where everyone is. */}
+      {/* Single primary action below the map. */}
       {isAuthenticated && !deniedOrUnsupported && (
-        <div className="border-t border-border px-4 py-3">
+        <div className="mt-3">
           {sharing ? (
             <button
               type="button"
@@ -862,7 +893,7 @@ export function LivePresenceMap({
                 Stop sharing live location
               </span>
               <span className="presence-share-btn-sub">
-                Your spot stays private until you tap this
+                Broadcasting{myFix ? ` · ±${Math.round(myFix.accuracyM)}m` : ""} — tap to stop
               </span>
             </button>
           ) : canShare ? (
@@ -885,21 +916,6 @@ export function LivePresenceMap({
           ) : null}
         </div>
       )}
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-text-tertiary">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="presence-legend-dot is-host" />
-          Host
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="presence-legend-dot is-joiner" />
-          Joined
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="presence-legend-dot is-me" />
-          You
-        </span>
-      </div>
     </section>
   );
 }
