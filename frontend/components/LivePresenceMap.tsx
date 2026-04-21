@@ -5,7 +5,12 @@ import type {
   Map as LeafletMap,
   Marker as LeafletMarker,
   LatLngBounds,
+  TileLayer,
 } from "leaflet";
+// Bundle Leaflet's stylesheet from the package. Importing from a CDN leaves
+// a window where tiles render at container width (Tailwind's image reset
+// wins), producing the "one tile in a black void" bug.
+import "leaflet/dist/leaflet.css";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -47,6 +52,36 @@ interface Presence {
 
 const STALE_MS = 60_000;
 const FRESH_MS = 10_000;
+
+/**
+ * Wait for a DOM node to actually have non-zero pixel dimensions. Leaflet
+ * measures its container at construction time; a 0×0 container produces a
+ * map that only ever requests the single centre tile.
+ */
+function waitForDimensions(el: HTMLElement, timeoutMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    if (el.clientWidth > 0 && el.clientHeight > 0) {
+      resolve();
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      ro?.disconnect();
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            if (el.clientWidth > 0 && el.clientHeight > 0) finish();
+          })
+        : null;
+    ro?.observe(el);
+    const timeout = window.setTimeout(finish, timeoutMs);
+  });
+}
 
 /**
  * Live "Uber-style" map that shows every hangout member moving toward the
@@ -109,27 +144,50 @@ export function LivePresenceMap({
     let cancelled = false;
     (async () => {
       const L = (await import("leaflet")).default;
-      if (cancelled || !containerRef.current) return;
+      const container = containerRef.current;
+      if (cancelled || !container) return;
+
+      // Wait for real pixel dimensions so Leaflet never mounts at 0×0.
+      await waitForDimensions(container);
+      if (cancelled) return;
 
       const start = destination ?? CAMPUS_CENTER;
-      const map = L.map(containerRef.current, {
+      const map = L.map(container, {
         center: [start.lat, start.lng],
         zoom: 17,
         zoomControl: false,
         attributionControl: true,
       });
       L.control.zoom({ position: "topright" }).addTo(map);
-      // Dark-themed tiles so the map blends into the app's midnight palette.
-      // CartoDB Dark Matter is free, no API key, still attributed to OSM.
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      // Primary tile layer: CartoDB Voyager — colourful, high-contrast,
+      // reads like Google Maps. Free, no API key, OSM-attributed.
+      const voyager = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
         {
           maxZoom: 20,
           subdomains: "abcd",
+          crossOrigin: true,
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         },
-      ).addTo(map);
+      ) as TileLayer;
+      voyager.addTo(map);
+      // Fallback to canonical OSM if Voyager errors out repeatedly.
+      let tileErrors = 0;
+      let swapped = false;
+      voyager.on("tileerror", () => {
+        tileErrors += 1;
+        if (!swapped && tileErrors >= 3) {
+          swapped = true;
+          voyager.remove();
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            crossOrigin: true,
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          }).addTo(map);
+        }
+      });
 
       if (destination) {
         const iconBase = "https://unpkg.com/leaflet@1.9.4/dist/images";
