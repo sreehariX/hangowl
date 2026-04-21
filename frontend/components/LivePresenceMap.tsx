@@ -878,44 +878,51 @@ export function LivePresenceMap({
         )}
       </div>
 
-      {/* Single primary action below the map. */}
-      {isAuthenticated && !deniedOrUnsupported && (
-        <div className="mt-3">
-          {sharing ? (
-            <button
-              type="button"
-              onClick={stopSharing}
-              className="presence-share-btn presence-share-btn--stop"
-              aria-label="Stop sharing your live location"
-            >
-              <span className="presence-share-btn-dot" aria-hidden />
-              <span className="presence-share-btn-label">
-                Stop sharing live location
-              </span>
-              <span className="presence-share-btn-sub">
-                Broadcasting{myFix ? ` · ±${Math.round(myFix.accuracyM)}m` : ""} — tap to stop
-              </span>
-            </button>
-          ) : canShare ? (
-            <button
-              type="button"
-              onClick={startSharing}
-              className="presence-share-btn presence-share-btn--start"
-              aria-label="Share your live location with everyone in this plan"
-            >
-              <span className="presence-share-btn-icon" aria-hidden>
-                <NavigationIcon size={16} />
-              </span>
-              <span className="presence-share-btn-label">
-                Share live location
-              </span>
-              <span className="presence-share-btn-sub">
-                Keeps sharing in the background — even if you close the app
-              </span>
-            </button>
-          ) : null}
-        </div>
-      )}
+      {/* Compact action row below the map. Share live | Directions
+       * sit side-by-side as small pills so they don't swallow the
+       * screen — the map is the hero, the buttons are just controls. */}
+      <div className="presence-action-row">
+        {isAuthenticated && !deniedOrUnsupported && sharing && (
+          <button
+            type="button"
+            onClick={stopSharing}
+            className="presence-pill-btn presence-pill-btn--stop"
+            aria-label="Stop sharing your live location"
+          >
+            <span className="presence-pill-dot" aria-hidden />
+            <span>
+              Stop sharing
+              {myFix ? (
+                <span className="presence-pill-meta tabular-nums">
+                  ±{Math.round(myFix.accuracyM)}m
+                </span>
+              ) : null}
+            </span>
+          </button>
+        )}
+        {isAuthenticated && !deniedOrUnsupported && !sharing && canShare && (
+          <button
+            type="button"
+            onClick={startSharing}
+            className="presence-pill-btn presence-pill-btn--start"
+            aria-label="Share your live location"
+          >
+            <NavigationIcon size={14} />
+            <span>Share live</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() =>
+            openDirections(destinationLabel ?? "", destination ?? null)
+          }
+          className="presence-pill-btn presence-pill-btn--directions"
+          aria-label="Open directions in Google Maps"
+        >
+          <NavigationIcon size={14} />
+          <span>Directions</span>
+        </button>
+      </div>
     </section>
   );
 }

@@ -8,7 +8,7 @@ import { ACTIVITY_EMOJI, type PlanDetail } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { LivePresenceMap } from "@/components/LivePresenceMap";
-import { PlanDock } from "@/components/PlanDock";
+import { PlanChat } from "@/components/PlanChat";
 import { Spinner } from "@/components/primitives";
 import {
   ArrowLeftIcon,
@@ -161,13 +161,13 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           </button>
         </div>
 
-        {/* Live map sits directly below the back/title bar so it's the
-         * first thing the user sees when they open a plan. Zepto-style
-         * order tracker: glanceable status up top, details below. Only
-         * members see the live map — non-members still get everything
-         * else and the plain "Directions" button. */}
+        {/* Live map + group chat sit directly below the back/title bar
+         * so they're the first things a member sees when opening a
+         * plan. Both are inline (no modal, no FAB) — you just scroll
+         * past them to read the plan details, exactly like how posts
+         * are laid out elsewhere in the app. */}
         {!ended && alreadyJoined && (
-          <div className="px-4 pt-4">
+          <div className="space-y-3 px-4 pt-4">
             <LivePresenceMap
               planId={plan.id}
               hostId={plan.creator_id}
@@ -175,6 +175,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               destinationLabel={plan.location}
               variant="card"
             />
+            <PlanChat planId={plan.id} variant="card" />
           </div>
         )}
 
@@ -393,12 +394,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
         </div>
 
-        {/* Leave room so the floating chat FAB never covers the join /
-         * directions actions directly above it. */}
-        <div aria-hidden className="h-24" />
       </div>
-
-      {!ended && alreadyJoined && <PlanDock planId={plan.id} />}
     </div>
   );
 }
