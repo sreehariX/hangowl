@@ -16,10 +16,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import {
   readGeoPermission,
-  watchLocation,
-  type GeoFix,
   type GeoPermissionState,
 } from "@/lib/geolocation";
+import { useLocationSharing } from "@/lib/location-sharing-context";
 import { CAMPUS_CENTER, openDirections, type LatLng } from "@/lib/maps";
 import { NavigationIcon } from "@/components/icons";
 import { Spinner } from "@/components/primitives";
@@ -137,22 +136,32 @@ export function LivePresenceMap({
   destinationLabel,
   variant = "card",
 }: LivePresenceMapProps) {
-  const { userId, personaName, isAuthenticated } = useAuth();
+  const { userId, isAuthenticated } = useAuth();
   const isHost = !!userId && userId === hostId;
-  const myRole: "host" | "joiner" = isHost ? "host" : "joiner";
+
+  // Sharing is owned by the app-wide <LocationSharingProvider> so the
+  // stream survives tab close, re-open, and navigation away from the
+  // plan page. This component is just the *viewer* — it subscribes
+  // read-only to the same presence channel and renders everyone it
+  // sees, including the current user (their own dot appears when the
+  // provider is broadcasting).
+  const {
+    isSharing: isSharingPlan,
+    myFix,
+    error: sharingError,
+    start: startSharingProvider,
+    stop: stopSharingProvider,
+  } = useLocationSharing();
+  const sharing = isSharingPlan(planId);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const destMarkerRef = useRef<LeafletMarker | null>(null);
   const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const watchStopRef = useRef<(() => void) | null>(null);
-  const lastPushRef = useRef(0);
   const autoFitDoneRef = useRef(false);
 
   const [permission, setPermission] = useState<GeoPermissionState>("unknown");
-  const [sharing, setSharing] = useState(false);
-  const [myFix, setMyFix] = useState<GeoFix | null>(null);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -303,14 +312,19 @@ export function LivePresenceMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planId]);
 
-  /* ── Subscribe to the presence channel ──────────────────────────────── */
-
+  /* ── Subscribe to the presence channel (read-only viewer) ───────────
+   * The app-wide <LocationSharingProvider> owns the broadcasting side
+   * of this channel. Here we just connect with a random presence key
+   * so we see everyone — including ourselves while we're sharing —
+   * without clobbering the provider's track payload. */
   useEffect(() => {
     if (!userId) return;
 
     const channel = supabase.channel(`plan-presence-${planId}`, {
       config: {
-        presence: { key: userId },
+        presence: {
+          key: `viewer-${Math.random().toString(36).slice(2, 10)}`,
+        },
         broadcast: { self: false },
       },
     });
@@ -339,32 +353,14 @@ export function LivePresenceMap({
     };
   }, [planId, userId]);
 
-  /* ── Start / stop sharing my own location ───────────────────────────── */
+  // Surface geolocation errors from the provider inside the map chrome.
+  useEffect(() => {
+    if (sharingError) setError(sharingError);
+  }, [sharingError]);
 
-  const pushPresence = useCallback(
-    (fix: GeoFix) => {
-      const ch = channelRef.current;
-      if (!ch || !userId) return;
-      const pushedAt = Date.now();
-      if (pushedAt - lastPushRef.current < 1_500) return;
-      lastPushRef.current = pushedAt;
-
-      const payload: Presence = {
-        userId,
-        personaName: personaName ?? "Anonymous",
-        role: myRole,
-        lat: Math.round(fix.lat * 1e5) / 1e5,
-        lng: Math.round(fix.lng * 1e5) / 1e5,
-        at: pushedAt,
-        accuracyM: Number.isFinite(fix.accuracyM)
-          ? Math.round(fix.accuracyM)
-          : undefined,
-      };
-      ch.track(payload);
-    },
-    [userId, personaName, myRole],
-  );
-
+  /* ── Start / stop sharing my own location ───────────────────────────
+   * Delegated to the app-wide provider so broadcasting persists when
+   * the user navigates away or closes the tab. */
   const startSharing = useCallback(() => {
     if (sharing) return;
     if (permission === "unsupported") {
@@ -378,42 +374,17 @@ export function LivePresenceMap({
       return;
     }
     setError(null);
-    setSharing(true);
-    watchStopRef.current = watchLocation(
-      (fix) => {
-        setMyFix(fix);
-        pushPresence(fix);
-        // watchPosition succeeding is the strongest signal that permission
-        // was granted — re-read it so the UI flips out of "prompt" copy.
-        if (permission !== "granted") setPermission("granted");
-      },
-      (err) => {
-        setError(err.message || "Couldn't get your location");
-        setSharing(false);
-        // Re-check so the UI can surface the denied state explicitly.
-        readGeoPermission().then(setPermission);
-      },
-    );
-  }, [sharing, permission, pushPresence]);
+    startSharingProvider({ planId, hostId });
+    // Re-check permission shortly after — if the OS prompt resolved,
+    // the UI can flip out of "prompt" copy.
+    window.setTimeout(() => {
+      readGeoPermission().then(setPermission);
+    }, 2500);
+  }, [sharing, permission, startSharingProvider, planId, hostId]);
 
   const stopSharing = useCallback(() => {
-    setSharing(false);
-    watchStopRef.current?.();
-    watchStopRef.current = null;
-    setMyFix(null);
-    const ch = channelRef.current;
-    if (ch) {
-      ch.untrack();
-    }
-  }, []);
-
-  // Cleanup on unmount (user navigated away from the plan page).
-  useEffect(() => {
-    return () => {
-      watchStopRef.current?.();
-      watchStopRef.current = null;
-    };
-  }, []);
+    stopSharingProvider();
+  }, [stopSharingProvider]);
 
   /* ── Render / diff markers ─────────────────────────────────────────── */
 
@@ -802,15 +773,21 @@ export function LivePresenceMap({
   }
 
   return (
-    <section className="surface-panel overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber/15 text-amber">
-          <NavigationIcon size={13} />
+    <section className="surface-panel overflow-hidden presence-card">
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber/15 text-amber">
+          <NavigationIcon size={14} />
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="flex items-center gap-2 text-body font-semibold text-text-primary">
             Live map
-            {isHost && (
+            {sharing && (
+              <span className="presence-card-live-chip" aria-hidden>
+                <span className="presence-card-live-dot" />
+                LIVE
+              </span>
+            )}
+            {isHost && !sharing && (
               <span className="rounded-full bg-amber/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber">
                 YOU&apos;RE HOSTING
               </span>
@@ -818,25 +795,6 @@ export function LivePresenceMap({
           </h3>
           <p className="text-[11px] text-text-tertiary">{statusLine}</p>
         </div>
-
-        {isAuthenticated &&
-          (sharing ? (
-            <button
-              type="button"
-              onClick={stopSharing}
-              className="btn-secondary btn-xs"
-            >
-              Stop
-            </button>
-          ) : canShare ? (
-            <button
-              type="button"
-              onClick={startSharing}
-              className="btn-primary btn-xs"
-            >
-              Share live
-            </button>
-          ) : null)}
       </div>
 
       <div className="relative">
@@ -885,6 +843,48 @@ export function LivePresenceMap({
           </div>
         )}
       </div>
+
+      {/* Primary action card — lives directly below the map, Zepto
+       * order-tracker style. Big CTA so "share my live location" is a
+       * one-tap decision, and it's unmistakably where the user looks
+       * after seeing where everyone is. */}
+      {isAuthenticated && !deniedOrUnsupported && (
+        <div className="border-t border-border px-4 py-3">
+          {sharing ? (
+            <button
+              type="button"
+              onClick={stopSharing}
+              className="presence-share-btn presence-share-btn--stop"
+              aria-label="Stop sharing your live location"
+            >
+              <span className="presence-share-btn-dot" aria-hidden />
+              <span className="presence-share-btn-label">
+                Stop sharing live location
+              </span>
+              <span className="presence-share-btn-sub">
+                Your spot stays private until you tap this
+              </span>
+            </button>
+          ) : canShare ? (
+            <button
+              type="button"
+              onClick={startSharing}
+              className="presence-share-btn presence-share-btn--start"
+              aria-label="Share your live location with everyone in this plan"
+            >
+              <span className="presence-share-btn-icon" aria-hidden>
+                <NavigationIcon size={16} />
+              </span>
+              <span className="presence-share-btn-label">
+                Share live location
+              </span>
+              <span className="presence-share-btn-sub">
+                Keeps sharing in the background — even if you close the app
+              </span>
+            </button>
+          ) : null}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-text-tertiary">
         <span className="inline-flex items-center gap-1.5">

@@ -3,92 +3,51 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import type { LatLng } from "@/lib/maps";
-import { LivePresenceMap } from "@/components/LivePresenceMap";
 import { PlanChat } from "@/components/PlanChat";
 import {
   CloseIcon,
-  MapIcon,
   MessageCircleIcon,
 } from "@/components/icons";
 
 interface PlanDockProps {
   planId: string;
-  hostId: string;
-  destination?: LatLng | null;
-  destinationLabel?: string;
-  /** Whether the viewer has joined the plan. Non-members don't get the map
-   *  tab (no presence to show) but still see the chat. */
-  canSeeMap: boolean;
 }
 
-type Tab = "map" | "chat";
-
 /**
- * Zepto-style bottom dock that unifies the live map and the group chat.
+ * Plan page chat launcher.
  *
- * Design:
- *  - Collapsed: a compact pill sits at the bottom of the plan page. It
- *    carries the plan's live pulse — "3 people sharing live · 2 new
- *    messages" — and a preview glimpse of the latest message. No nested
- *    scroller, so the outer page scrolls freely when the user's thumb
- *    rests over it.
- *  - Expanded: a full-screen sheet slides up (iOS Live Activity /
- *    Uber driver-sheet / Zepto order-tracker pattern). Segmented Map /
- *    Chat tabs let the user pick which one fills the entire viewport.
- *    The map gets the whole screen (finally visible). The chat gets the
- *    whole screen (finally scrollable without fighting the page).
- *  - Escape, tap on backdrop, and the close button all collapse back
- *    down. Body scroll is locked while the sheet is open — no more
- *    scroll-trap confusion.
+ * Collapsed: a circular FAB pinned to the bottom-right of the plan
+ *   page — identical position grammar to the "Create hangout" / "New
+ *   post" buttons elsewhere in the app, so the tap target lives where
+ *   thumbs expect it. It carries a small LIVE dot when unread
+ *   messages have arrived, Zepto / WhatsApp style.
  *
- * This single component replaces the two inline sections on the plan
- * page (each with their own fixed-height scroller) so the user only ever
- * has ONE scroller interacting with the page at a time.
+ * Expanded: the full-screen chat sheet slides up. Backdrop tap,
+ *   close button, and Escape all collapse it back. Body scroll is
+ *   locked while open so the chat gets the whole viewport with no
+ *   outer-page scroll fighting the inner list.
+ *
+ * The live map is now a first-class inline card at the top of the
+ * plan page, not a tab inside this dock — keeps the chat FAB simple
+ * and the map glanceable without having to open anything.
  */
-export function PlanDock({
-  planId,
-  hostId,
-  destination,
-  destinationLabel,
-  canSeeMap,
-}: PlanDockProps) {
+export function PlanDock({ planId }: PlanDockProps) {
   const { userId } = useAuth();
   const [open, setOpen] = useState(false);
-  const [rawTab, setRawTab] = useState<Tab>(canSeeMap ? "map" : "chat");
-  // Non-members can never land on the map tab, even if a stale state
-  // value says otherwise — derive rather than sync in an effect.
-  const tab: Tab = !canSeeMap ? "chat" : rawTab;
   const [unreadChat, setUnreadChat] = useState(0);
   const [latestPreview, setLatestPreview] = useState<{
     name: string;
     text: string;
   } | null>(null);
-  /** How many people are currently sharing their live location on this
-   *  plan, including this user. Powers the "3 live" copy under the Map
-   *  chip. Read from the same presence channel the map itself uses so
-   *  both surfaces stay in sync. */
-  const [liveCount, setLiveCount] = useState(0);
-  /** Whether the viewer themselves is broadcasting. When true we flip
-   *  the Map chip to a distinct LIVE-green state even while the sheet is
-   *  closed — a reassurance signal so the user never wonders "is my
-   *  location actually still being shared?" after they minimise. */
-  const [iAmLive, setIAmLive] = useState(false);
 
-  // Refs so the realtime callback always sees the latest open/tab without
-  // resubscribing on every render.
   const openRef = useRef(open);
-  const tabRef = useRef<Tab>(tab);
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-  useEffect(() => {
-    tabRef.current = tab;
-  }, [tab]);
 
-  /* Live unread + preview for the collapsed pill. Subscribes to the same
-   * postgres INSERT stream the chat uses so the dock feels alive before
-   * the sheet is even opened. */
+  /* Live unread + preview for the collapsed FAB. Subscribes to the
+   * same postgres INSERT stream the chat uses so the dot lights up
+   * immediately, even before the user opens the sheet. */
   useEffect(() => {
     if (!planId) return;
     const channel = supabase
@@ -103,15 +62,16 @@ export function PlanDock({
         },
         (payload) => {
           const row = payload.new as {
+            user_id?: string;
             message: string;
             users?: { persona_name?: string | null } | null;
           };
+          // Ignore the echo of our own message.
+          if (userId && row.user_id === userId) return;
           const name = row.users?.persona_name ?? "Someone";
           const text = (row.message ?? "").slice(0, 80);
           setLatestPreview({ name, text });
-          // Don't bump the unread counter while the sheet is open on chat
-          // — the user is already looking at it.
-          if (!(openRef.current && tabRef.current === "chat")) {
+          if (!openRef.current) {
             setUnreadChat((n) => n + 1);
           }
         },
@@ -120,66 +80,15 @@ export function PlanDock({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [planId]);
+  }, [planId, userId]);
 
-  /* Peek at the same Supabase Presence channel the map uses, just to know
-   *  how many people are live AND whether the viewer themselves is
-   *  broadcasting. Keeps the dock chip honest ("3 live") even before the
-   *  user opens the map, and lets the Map chip flip to its LIVE-green
-   *  state the moment the user starts sharing. */
-  useEffect(() => {
-    if (!planId || !canSeeMap) return;
-    const channel = supabase.channel(`plan-presence-${planId}`, {
-      config: { presence: { key: `dock-peek-${Math.random().toString(36).slice(2, 8)}` } },
-    });
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      let n = 0;
-      let selfLive = false;
-      for (const key of Object.keys(state)) {
-        const arr = state[key] as Array<{
-          lat?: number;
-          lng?: number;
-          userId?: string;
-        }>;
-        const hasFix = arr?.some(
-          (p) => typeof p.lat === "number" && typeof p.lng === "number",
-        );
-        if (hasFix) n += 1;
-        if (
-          hasFix &&
-          userId &&
-          arr.some((p) => p.userId === userId)
-        ) {
-          selfLive = true;
-        }
-      }
-      setLiveCount(n);
-      setIAmLive(selfLive);
-    });
-    channel.subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [planId, canSeeMap, userId]);
-
-  const openDock = useCallback(
-    (nextTab?: Tab) => {
-      if (nextTab) setRawTab(nextTab);
-      setOpen(true);
-      // Opening the dock acknowledges whatever the user was going to see.
-      setUnreadChat(0);
-    },
-    [],
-  );
+  const openDock = useCallback(() => {
+    setOpen(true);
+    setUnreadChat(0);
+  }, []);
 
   const closeDock = useCallback(() => {
     setOpen(false);
-  }, []);
-
-  const selectTab = useCallback((next: Tab) => {
-    setRawTab(next);
-    if (next === "chat") setUnreadChat(0);
   }, []);
 
   /* Lock body scroll + ESC-to-close while the sheet is open. */
@@ -197,104 +106,37 @@ export function PlanDock({
     };
   }, [open, closeDock]);
 
-  const chatSubline = latestPreview
+  const subline = latestPreview
     ? `${latestPreview.name}: ${latestPreview.text}`
-    : unreadChat > 0
-    ? `${unreadChat} new ${unreadChat === 1 ? "message" : "messages"}`
-    : "Say hi to everyone going";
-
-  const mapSubline = iAmLive
-    ? liveCount > 1
-      ? `You + ${liveCount - 1} broadcasting`
-      : "Broadcasting your spot"
-    : liveCount > 0
-    ? `${liveCount} sharing live`
-    : "See who's on the way";
+    : "Open group chat";
 
   return (
     <>
-      {/* Collapsed dock. Two chips (Map + Chat) fused into one pill so the
-       * user can see at a glance that *both* surfaces exist. Each chip is
-       * its own tap target that opens the sheet on the matching tab.
-       * Sticky to the viewport bottom above the bottom nav, iOS Live
-       * Activity proportions. */}
-      <div className="plan-dock-rail pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-3">
-        <div
-          className="plan-dock-pill pointer-events-auto"
-          role="group"
-          aria-label="Live hangout dock"
-        >
-          <span className="plan-dock-pill-glow" aria-hidden />
-
-          {canSeeMap && (
-            <>
-              <button
-                type="button"
-                onClick={() => openDock("map")}
-                className={`plan-dock-chip ${iAmLive ? "is-live" : ""}`}
-                aria-label={
-                  iAmLive ? "You are live — open live map" : "Open live map"
-                }
-              >
-                <span
-                  className={`plan-dock-chip-icon plan-dock-chip-icon--map ${
-                    iAmLive ? "is-live" : ""
-                  }`}
-                  aria-hidden
-                >
-                  <MapIcon size={14} />
-                  {liveCount > 0 && (
-                    <span className="plan-dock-live-dot" aria-hidden>
-                      <span className="plan-dock-live-pulse" />
-                    </span>
-                  )}
-                </span>
-                <span className="plan-dock-chip-text">
-                  <span className="plan-dock-chip-label">
-                    {iAmLive ? (
-                      <>
-                        Map
-                        <span className="plan-dock-live-tag">LIVE</span>
-                      </>
-                    ) : (
-                      "Map"
-                    )}
-                  </span>
-                  <span className="plan-dock-chip-sub">{mapSubline}</span>
-                </span>
-              </button>
-              <span className="plan-dock-divider" aria-hidden />
-            </>
-          )}
-
-          <button
-            type="button"
-            onClick={() => openDock("chat")}
-            className="plan-dock-chip plan-dock-chip--chat"
-            aria-label="Open group chat"
+      {/* Collapsed FAB. Bottom-right, above the bottom nav; mirrors
+       * the Post FAB's position grammar so the thumb always lands on
+       * the right action. */}
+      <button
+        type="button"
+        onClick={openDock}
+        className="chat-fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
+        aria-label={
+          unreadChat > 0
+            ? `Open group chat, ${unreadChat} unread`
+            : "Open group chat"
+        }
+        title={subline}
+      >
+        <MessageCircleIcon size={22} />
+        {unreadChat > 0 && (
+          <span
+            className="chat-fab-badge tabular-nums"
+            aria-hidden
           >
-            <span className="plan-dock-chip-icon plan-dock-chip-icon--chat" aria-hidden>
-              <MessageCircleIcon size={14} />
-              {unreadChat > 0 && (
-                <span className="plan-dock-chip-badge tabular-nums" aria-hidden>
-                  {unreadChat > 9 ? "9+" : unreadChat}
-                </span>
-              )}
-            </span>
-            <span className="plan-dock-chip-text">
-              <span className="plan-dock-chip-label">
-                Chat
-                {unreadChat > 0 && (
-                  <span className="plan-dock-chip-count tabular-nums">
-                    · {unreadChat > 99 ? "99+" : unreadChat}
-                  </span>
-                )}
-              </span>
-              <span className="plan-dock-chip-sub">{chatSubline}</span>
-            </span>
-          </button>
-        </div>
-      </div>
+            {unreadChat > 9 ? "9+" : unreadChat}
+          </span>
+        )}
+        <span className="chat-fab-ping" aria-hidden />
+      </button>
 
       {/* Expanded full-screen sheet. */}
       {open && (
@@ -302,7 +144,7 @@ export function PlanDock({
           className="fixed inset-0 z-[90] flex flex-col bg-ink-900/80 backdrop-blur"
           role="dialog"
           aria-modal="true"
-          aria-label="Live hangout"
+          aria-label="Group chat"
           onClick={closeDock}
         >
           <div
@@ -318,68 +160,19 @@ export function PlanDock({
               >
                 <CloseIcon size={20} />
               </button>
-
-              <div className="mx-auto flex rounded-full bg-surface-hover p-1">
-                {canSeeMap && (
-                  <button
-                    type="button"
-                    onClick={() => selectTab("map")}
-                    className={`plan-dock-tab ${
-                      tab === "map" ? "is-active" : ""
-                    }`}
-                    aria-pressed={tab === "map"}
-                  >
-                    <MapIcon size={14} />
-                    Map
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => selectTab("chat")}
-                  className={`plan-dock-tab ${
-                    tab === "chat" ? "is-active" : ""
-                  }`}
-                  aria-pressed={tab === "chat"}
-                >
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber/15 text-amber">
                   <MessageCircleIcon size={14} />
-                  Chat
-                  {unreadChat > 0 && (
-                    <span className="plan-dock-tab-badge tabular-nums">
-                      {unreadChat > 99 ? "99+" : unreadChat}
-                    </span>
-                  )}
-                </button>
+                </span>
+                <span className="text-[15px] font-semibold text-text-primary">
+                  Group chat
+                </span>
               </div>
-
               <span className="w-9" />
             </div>
 
-            {/* Keep both panels mounted so realtime stays subscribed and
-             * switching tabs is instant. Hidden one has its height zeroed
-             * so it can't grab scroll. */}
             <div className="relative flex-1 min-h-0">
-              {canSeeMap && (
-                <div
-                  className={`absolute inset-0 ${
-                    tab === "map" ? "" : "invisible pointer-events-none"
-                  }`}
-                  aria-hidden={tab !== "map"}
-                >
-                  <LivePresenceMap
-                    planId={planId}
-                    hostId={hostId}
-                    destination={destination}
-                    destinationLabel={destinationLabel}
-                    variant="fill"
-                  />
-                </div>
-              )}
-              <div
-                className={`absolute inset-0 ${
-                  tab === "chat" ? "" : "invisible pointer-events-none"
-                }`}
-                aria-hidden={tab !== "chat"}
-              >
+              <div className="absolute inset-0">
                 <PlanChat planId={planId} variant="fill" hideHeader />
               </div>
             </div>
