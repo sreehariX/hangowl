@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from config import get_settings
 from database import get_supabase
 from middleware import verify_token
+from rate_limit import RateLimit, enforce
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
@@ -14,6 +15,24 @@ PAGE_SIZE = 20
 
 
 MAX_IMAGES_PER_POST = 4
+
+# 60 posts/hour/user is way more than a real user posts and trivially
+# catches automated spamming. 120 uploads/hour caps our Supabase storage bill.
+_POST_CREATE_PER_USER = RateLimit(limit=60, window_s=3600)
+_UPLOAD_PER_USER = RateLimit(limit=120, window_s=3600)
+_LIKE_PER_USER = RateLimit(limit=120, window_s=60)  # 2/s bursts are fine, above that is a bot
+
+# Mime + magic-byte whitelist. SVGs are explicitly excluded because they
+# can embed executable JS when served from a public bucket.
+_ALLOWED_IMAGE_MIME = {
+    "image/jpeg": ("jpg", [b"\xff\xd8\xff"]),
+    "image/jpg":  ("jpg", [b"\xff\xd8\xff"]),
+    "image/png":  ("png", [b"\x89PNG\r\n\x1a\n"]),
+    "image/webp": ("webp", [b"RIFF"]),  # WEBP has "RIFF....WEBP" header; we check the 4-byte prefix.
+    "image/gif":  ("gif", [b"GIF87a", b"GIF89a"]),
+    "image/heic": ("heic", [b"ftypheic", b"ftypheix", b"ftyphevc", b"ftypmif1"]),
+    "image/heif": ("heic", [b"ftypheic", b"ftypmif1"]),
+}
 
 
 # True once we have confirmed the `image_urls` column exists. Stays None until
@@ -161,6 +180,8 @@ def _notify_reply(parent_post_id: str, actor_id: str, parent_owner_id: str) -> N
 
 @router.post("")
 async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict = Depends(verify_token)):
+    enforce("post.create", _POST_CREATE_PER_USER, identifier=user["sub"])
+
     db = get_supabase()
 
     content = body.content.strip()
@@ -181,6 +202,22 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
             status_code=400,
             detail=f"A post can have at most {MAX_IMAGES_PER_POST} images",
         )
+
+    # Don't let clients smuggle arbitrary URLs into the DB. The only image
+    # source we trust is our own Supabase storage bucket; anything else
+    # would let an attacker inline-hotlink to malicious content or turn
+    # the app into a Referer-leak oracle. Validate the prefix AFTER the
+    # dedupe/cap step so the allowed-shape error message is consistent.
+    settings = get_settings()
+    allowed_image_prefix = (
+        f"{settings.supabase_url.rstrip('/')}/storage/v1/object/public/post-images/"
+    )
+    for url in images:
+        if not isinstance(url, str) or not url.startswith(allowed_image_prefix):
+            raise HTTPException(
+                status_code=400,
+                detail="Image URLs must come from the HangOwl uploader",
+            )
 
     global _image_urls_column_present
 
@@ -215,18 +252,26 @@ async def create_post(body: CreatePostRequest, bg: BackgroundTasks, user: dict =
     except Exception as e:
         # Graceful fallback when the schema_v10 migration has not been applied
         # yet: drop the new image_urls column and retry with only the legacy
-        # image_url so single-image posts still work. Multi-image posts will
-        # only keep the first URL on disk, but the response still echoes the
-        # full list so the client can optimistically render all thumbnails.
+        # image_url so single-image posts still work.
         if _is_missing_image_urls_error(e):
             _image_urls_column_present = False
             insert_data.pop("image_urls", None)
             try:
                 result = db.table("posts").insert(insert_data).execute()
             except Exception as e2:
-                raise HTTPException(status_code=500, detail=f"Could not save post: {e2}") from e2
+                # Never leak raw driver errors to the client — they sometimes
+                # include connection strings, SQL fragments, and internal
+                # column names. The real trace is still in the server log
+                # via the global exception handler / `from`-chain.
+                raise HTTPException(
+                    status_code=500,
+                    detail="Could not save post, please try again",
+                ) from e2
         else:
-            raise HTTPException(status_code=500, detail=f"Could not save post: {e}") from e
+            raise HTTPException(
+                status_code=500,
+                detail="Could not save post, please try again",
+            ) from e
 
     if not result.data:
         raise HTTPException(status_code=500, detail="Could not save post")
@@ -291,21 +336,47 @@ async def get_liked_post_ids(user: dict = Depends(verify_token)):
 
 @router.post("/upload")
 async def upload_image(file: UploadFile = File(...), user: dict = Depends(verify_token)):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    # Hard cap how many uploads a user can fire per hour; protects Supabase
+    # storage bill from runaway clients and compromised accounts.
+    enforce("feed.upload", _UPLOAD_PER_USER, identifier=user["sub"])
+
+    mime = (file.content_type or "").lower()
+    if mime not in _ALLOWED_IMAGE_MIME:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, WebP, GIF, or HEIC images are allowed",
+        )
 
     contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image must be under 10MB")
+    if len(contents) < 16:
+        raise HTTPException(status_code=400, detail="That doesn't look like an image")
 
-    ext = (file.filename or "img.jpg").rsplit(".", 1)[-1] if file.filename else "jpg"
-    path = f"{uuid.uuid4().hex}.{ext}"
+    expected_ext, magic_bytes_set = _ALLOWED_IMAGE_MIME[mime]
+    # Magic-byte sniff so a hostile client can't lie via Content-Type.
+    # WebP's prefix is just "RIFF" — good enough to prove it's not an SVG
+    # or HTML file disguised as image/webp.
+    head = contents[:12]
+    if not any(head.startswith(prefix) for prefix in magic_bytes_set):
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file doesn't look like the declared image type",
+        )
+
+    # Path derives ONLY from a server-generated UUID + whitelisted extension.
+    # Never from the client-supplied filename, which could be e.g.
+    # "../evil.svg" or anything else we don't want.
+    path = f"{uuid.uuid4().hex}.{expected_ext}"
 
     try:
         db = get_supabase()
-        db.storage.from_("post-images").upload(path, contents, {"content-type": file.content_type})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
+        db.storage.from_("post-images").upload(path, contents, {"content-type": mime})
+    except Exception:
+        # Never leak raw storage errors: they sometimes include internal
+        # paths, S3 error strings, etc. Log server-side, return a generic
+        # message to the client.
+        raise HTTPException(status_code=500, detail="Upload failed, please try again")
 
     settings = get_settings()
     public_url = f"{settings.supabase_url}/storage/v1/object/public/post-images/{path}"
@@ -414,6 +485,7 @@ def _notify_like(post_id: str, actor_id: str, post_owner_id: str) -> None:
 
 @router.post("/{post_id}/like")
 async def toggle_like(post_id: str, bg: BackgroundTasks, user: dict = Depends(verify_token)):
+    enforce("feed.like", _LIKE_PER_USER, identifier=user["sub"])
     db = get_supabase()
 
     post_result = (

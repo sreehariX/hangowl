@@ -1,13 +1,22 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
+from config import get_settings
 from database import get_supabase
 from middleware import verify_token
+from rate_limit import RateLimit, enforce
 
 router = APIRouter(prefix="/plans", tags=["plans"])
+
+# Soft rate limits to keep individual users from spamming. These are roomy
+# enough that the worst a real user will notice is a blocked accidental
+# double-tap.
+_PLAN_CREATE_PER_USER = RateLimit(limit=6, window_s=300)      # 6 / 5 min
+_CHAT_SEND_PER_USER = RateLimit(limit=20, window_s=60)         # 20 / minute
+_JOIN_PER_USER = RateLimit(limit=30, window_s=60)              # 30 joins/min
 
 
 class CreatePlanRequest(BaseModel):
@@ -145,18 +154,48 @@ async def get_messages(plan_id: str):
 async def send_message(plan_id: str, body: SendMessageRequest, user: dict = Depends(verify_token)):
     db = get_supabase()
 
-    if not body.message.strip():
+    message = body.message.strip()
+    if not message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    if len(body.message) > 500:
+    if len(message) > 500:
         raise HTTPException(status_code=400, detail="Message too long (max 500 chars)")
+
+    # Cap chat spam per user (20 messages/minute is well above polite chat
+    # speed but stops obvious flooding).
+    enforce("chat.send", _CHAT_SEND_PER_USER, identifier=user["sub"])
+
+    # Only members of a plan should be able to post in its chat.
+    membership = (
+        db.table("plan_members")
+        .select("id")
+        .eq("plan_id", plan_id)
+        .eq("user_id", user["sub"])
+        .limit(1)
+        .execute()
+    )
+    if not membership.data:
+        # Also allow the creator (they're auto-inserted into plan_members
+        # on create, but we're paranoid about data drift).
+        creator = (
+            db.table("plans")
+            .select("creator_id")
+            .eq("id", plan_id)
+            .limit(1)
+            .execute()
+        )
+        if not creator.data or creator.data[0]["creator_id"] != user["sub"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Join this hangout before chatting in it.",
+            )
 
     result = (
         db.table("plan_messages")
         .insert({
             "plan_id": plan_id,
             "user_id": user["sub"],
-            "message": body.message.strip(),
+            "message": message,
         })
         .execute()
     )
@@ -168,17 +207,56 @@ async def send_message(plan_id: str, body: SendMessageRequest, user: dict = Depe
 async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token)):
     db = get_supabase()
 
-    if not body.activity or len(body.activity) > 50:
-        raise HTTPException(status_code=400, detail="Activity is required (max 50 chars)")
+    # Rate-limit plan creation per user: spammy plans clog everyone else's
+    # feed, and the most likely "bug" that generates them is a client
+    # double-submit. 6 plans / 5 minutes leaves headroom for genuine rapid
+    # planning sprees.
+    enforce("plan.create", _PLAN_CREATE_PER_USER, identifier=user["sub"])
+
+    activity = (body.activity or "").strip()
+    location = (body.location or "").strip()
+    description = (body.description or "").strip()
+
+    if not activity:
+        raise HTTPException(status_code=400, detail="Activity is required")
+    if len(activity) > 50:
+        raise HTTPException(status_code=400, detail="Activity is too long (max 50 chars)")
+
+    if not location:
+        raise HTTPException(status_code=400, detail="Location is required")
+    if len(location) > 80:
+        raise HTTPException(status_code=400, detail="Location is too long (max 80 chars)")
+
+    if len(description) > 500:
+        raise HTTPException(status_code=400, detail="Description is too long (max 500 chars)")
 
     if body.max_people < 2 or body.max_people > 50:
         raise HTTPException(status_code=400, detail="Max people must be between 2 and 50")
 
+    # Dates must be parseable AND form a sane interval. Without this a
+    # client could POST ends_at < starts_at, or ends_at years from now.
+    try:
+        starts_dt = datetime.fromisoformat(body.starts_at.replace("Z", "+00:00"))
+        ends_dt = datetime.fromisoformat(body.ends_at.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    if ends_dt <= starts_dt:
+        raise HTTPException(status_code=400, detail="End time must be after start time")
+
+    now = datetime.now(timezone.utc)
+    if ends_dt < now - timedelta(minutes=5):
+        raise HTTPException(status_code=400, detail="Cannot create a plan in the past")
+    if starts_dt > now + timedelta(days=90):
+        raise HTTPException(status_code=400, detail="Plans can't start more than 90 days out")
+    if (ends_dt - starts_dt) > timedelta(hours=24):
+        raise HTTPException(status_code=400, detail="Plans can last at most 24 hours")
+
     insert_data = {
         "creator_id": user["sub"],
-        "activity": body.activity,
-        "location": body.location,
-        "description": body.description,
+        "activity": activity,
+        "location": location,
+        "description": description,
         "max_people": body.max_people,
         "plan_date": body.plan_date,
         "starts_at": body.starts_at,
@@ -188,6 +266,17 @@ async def create_plan(body: CreatePlanRequest, user: dict = Depends(verify_token
         "is_hidden": False,
     }
     if body.image_url:
+        # Mirror feed.create_post: only accept URLs that came from our own
+        # uploader. Prevents arbitrary-link smuggling into the plan card.
+        settings = get_settings()
+        allowed_prefix = (
+            f"{settings.supabase_url.rstrip('/')}/storage/v1/object/public/post-images/"
+        )
+        if not body.image_url.startswith(allowed_prefix):
+            raise HTTPException(
+                status_code=400,
+                detail="Image URL must come from the HangOwl uploader",
+            )
         insert_data["image_url"] = body.image_url
 
     result = (
@@ -299,6 +388,10 @@ def _notify_plan_join(plan_id: str, actor_id: str, creator_id: str) -> None:
 
 @router.post("/{plan_id}/join")
 async def join_plan(plan_id: str, bg: BackgroundTasks, user: dict = Depends(verify_token)):
+    # Cap how fast one user can fire join attempts: otherwise a script could
+    # pump the creator's notification feed by join/leave thrashing.
+    enforce("plan.join", _JOIN_PER_USER, identifier=user["sub"])
+
     db = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
 

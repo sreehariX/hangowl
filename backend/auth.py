@@ -10,6 +10,20 @@ from pydantic import BaseModel, EmailStr
 
 from config import get_settings
 from database import get_supabase
+from rate_limit import RateLimit, enforce
+
+# Rate limit rules live at module scope so the RateLimit instances are
+# stable across warm invocations.
+# - OTP send: 3 / minute / ip AND 5 / hour / email. Two dimensions so
+#   neither a single IP spamming lots of addresses nor a distributed botnet
+#   hammering one address can run up our Resend bill.
+# - OTP verify: 10 / 10 minutes / ip+email. The bucket is per (email), so a
+#   brute-forcer would need ~90k different sessions, each capped at 10
+#   guesses per 10 minutes, before the code expires — makes 900k-space
+#   guessing comfortably infeasible.
+_OTP_SEND_BY_IP = RateLimit(limit=3, window_s=60)
+_OTP_SEND_BY_EMAIL = RateLimit(limit=5, window_s=3600)
+_OTP_VERIFY_BY_EMAIL = RateLimit(limit=10, window_s=600)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -122,11 +136,14 @@ async def refresh_token(request: Request, response: Response):
 
 
 @router.post("/send-otp")
-async def send_otp(body: SendOTPRequest):
+async def send_otp(body: SendOTPRequest, request: Request):
     email = body.email.lower().strip()
 
     if not email.endswith("@iitb.ac.in"):
         raise HTTPException(status_code=400, detail="Only @iitb.ac.in emails are allowed")
+
+    enforce("otp.send", _OTP_SEND_BY_IP, request=request)
+    enforce("otp.send.email", _OTP_SEND_BY_EMAIL, identifier=email)
 
     settings = get_settings()
     db = get_supabase()
@@ -159,11 +176,16 @@ async def send_otp(body: SendOTPRequest):
 
 
 @router.post("/verify-otp")
-async def verify_otp(body: VerifyOTPRequest, response: Response):
+async def verify_otp(body: VerifyOTPRequest, request: Request, response: Response):
     email = body.email.lower().strip()
 
     if not email.endswith("@iitb.ac.in"):
         raise HTTPException(status_code=400, detail="Only @iitb.ac.in emails are allowed")
+
+    # Bucket by email (not IP alone) so a residential NAT doesn't accidentally
+    # lock out roommates, but brute-force against a single address still caps
+    # at 10 guesses per 10 minutes.
+    enforce("otp.verify", _OTP_VERIFY_BY_EMAIL, identifier=email)
 
     db = get_supabase()
 
