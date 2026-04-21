@@ -16,9 +16,11 @@ import {
   CheckIcon,
   ClockIcon,
   MapPinIcon,
+  NavigationIcon,
   ShareIcon,
   UsersIcon,
 } from "@/components/icons";
+import { openDirections } from "@/lib/maps";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -187,10 +189,18 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               <h1 className="text-title-lg font-semibold text-text-primary">
                 {plan.activity}
               </h1>
-              <p className="mt-1.5 flex items-center gap-1.5 text-body text-text-secondary">
+              <button
+                type="button"
+                onClick={() => openDirections(plan.location)}
+                className="group mt-1.5 flex items-center gap-1.5 text-body text-text-secondary transition-colors hover:text-text-primary"
+                aria-label={`Open directions to ${plan.location} in Google Maps`}
+              >
                 <MapPinIcon size={14} className="text-text-tertiary" />
-                {plan.location}
-              </p>
+                <span className="underline decoration-text-muted decoration-dotted underline-offset-4 group-hover:decoration-text-secondary">
+                  {plan.location}
+                </span>
+                <NavigationIcon size={12} className="text-text-tertiary" />
+              </button>
 
               {plan.description && (
                 <p className="mt-3 whitespace-pre-wrap text-body text-text-secondary">
@@ -286,6 +296,14 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               </button>
 
               <div className="flex gap-2">
+                <button
+                  onClick={() => openDirections(plan.location)}
+                  className="btn-secondary btn-lg flex-1 gap-2"
+                  aria-label="Open directions in Google Maps"
+                >
+                  <NavigationIcon size={16} />
+                  Directions
+                </button>
                 <button onClick={handleShare} className="btn-secondary btn-lg flex-1 gap-2">
                   <ShareIcon size={16} />
                   Share

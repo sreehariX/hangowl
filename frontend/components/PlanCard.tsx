@@ -8,7 +8,8 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { Spinner } from "@/components/primitives";
-import { BarChartIcon, CheckIcon, ClockIcon, MapPinIcon } from "@/components/icons";
+import { BarChartIcon, CheckIcon, ClockIcon, MapPinIcon, NavigationIcon } from "@/components/icons";
+import { openDirections } from "@/lib/maps";
 
 function formatTimeIST(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -99,9 +100,19 @@ const PlanCard = memo(function PlanCard({ plan, onJoined }: PlanCardProps) {
               <Avatar name={creatorName} size={14} />
               <span className="truncate">{creatorName}</span>
               <span className="text-text-muted">·</span>
-              <span className="inline-flex items-center gap-0.5 truncate">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDirections(plan.location);
+                }}
+                className="inline-flex items-center gap-0.5 truncate transition-colors hover:text-text-secondary"
+                aria-label={`Directions to ${plan.location}`}
+              >
                 <MapPinIcon size={11} /> {plan.location}
-              </span>
+                <NavigationIcon size={9} className="ml-0.5 text-text-muted" />
+              </button>
             </div>
           </div>
           <span className="badge-amber shrink-0">
