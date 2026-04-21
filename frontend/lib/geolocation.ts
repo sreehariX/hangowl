@@ -85,11 +85,24 @@ export function getCurrentLocation(
 }
 
 /**
+ * A single position update. Includes accuracy (metres, 1-sigma) so the UI
+ * can surface "±8m" precision to friends watching you broadcast — a
+ * tangible trust signal that this is a real GPS fix, not a cached guess.
+ */
+export interface GeoFix extends LatLng {
+  /** Radius of 68% confidence circle in metres, per the Geolocation API. */
+  accuracyM: number;
+  /** Epoch ms when the fix was taken. */
+  at: number;
+}
+
+/**
  * Live-watch the user's position. Returns an unsubscribe function.
- * Used inside the picker so the blue "you are here" dot keeps updating.
+ * Used inside the picker so the blue "you are here" dot keeps updating,
+ * and by the live presence map so peers see you move in real time.
  */
 export function watchLocation(
-  onUpdate: (pos: LatLng) => void,
+  onUpdate: (fix: GeoFix) => void,
   onError?: (err: Error) => void,
 ): () => void {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -97,7 +110,13 @@ export function watchLocation(
     return () => {};
   }
   const id = navigator.geolocation.watchPosition(
-    (pos) => onUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    (pos) =>
+      onUpdate({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracyM: pos.coords.accuracy,
+        at: pos.timestamp || Date.now(),
+      }),
     (err) => onError?.(new Error(err.message || "Location error")),
     { enableHighAccuracy: true, timeout: 15_000, maximumAge: 10_000 },
   );
