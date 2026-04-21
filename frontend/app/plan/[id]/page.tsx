@@ -356,7 +356,7 @@ export default function PlanPage() {
   if (error || !plan) {
     return (
       <div className="app-shell pt-16">
-        <div className="mx-auto max-w-sm text-center">
+        <div className="mx-auto max-w-sm px-4 text-center">
           <div className="mb-3 text-3xl">🦉</div>
           <h1 className="mb-2 text-title font-semibold text-text-primary">
             Plan not found

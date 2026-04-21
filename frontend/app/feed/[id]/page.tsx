@@ -33,8 +33,8 @@ export default function PostDetailPage() {
   const [isClosingReplySheet, setIsClosingReplySheet] = useState(false);
   const replySheetAfterClose = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [showAncestors, setShowAncestors] = useState(false);
   const focusedPostRef = useRef<HTMLDivElement>(null);
+  const pinnedForPostRef = useRef<string | null>(null);
 
   const subRepliesMap = useMemo(() => {
     const map: Record<string, Post[]> = {};
@@ -87,24 +87,28 @@ export default function PostDetailPage() {
     };
   }, []);
 
-  useEffect(() => { setShowAncestors(false); }, [postId]);
+  useEffect(() => {
+    pinnedForPostRef.current = null;
+    window.scrollTo(0, 0);
+  }, [postId]);
 
+  // Pin the focused post to the top — even when ancestors are rendered above —
+  // so the user never sees the thread "push down" what they clicked.
+  // We run this in a layout effect before paint so there is no visible flicker.
   useLayoutEffect(() => {
     if (loading) return;
+    if (pinnedForPostRef.current === postId) return;
     if (ancestors.length === 0) {
       window.scrollTo(0, 0);
-      return;
-    }
-    if (!showAncestors) {
-      window.scrollTo(0, 0);
-      setShowAncestors(true);
+      pinnedForPostRef.current = postId;
       return;
     }
     const el = focusedPostRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.pageYOffset - 48;
+    const top = el.getBoundingClientRect().top + window.pageYOffset - 44;
     window.scrollTo(0, Math.max(0, top));
-  }, [loading, ancestors.length, showAncestors]);
+    pinnedForPostRef.current = postId;
+  }, [loading, ancestors, postId]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -278,7 +282,7 @@ export default function PostDetailPage() {
       <div className="app-content">
         {Header}
 
-        {showAncestors && ancestors.map((ancestor) => (
+        {ancestors.map((ancestor) => (
           <PostCard
             key={ancestor.id}
             post={ancestor}
@@ -296,7 +300,7 @@ export default function PostDetailPage() {
             currentUserId={userId}
             isAdmin={isAdmin}
             isDetail
-            seamless={showAncestors && ancestors.length > 0}
+            seamless={ancestors.length > 0}
             onDeleted={handlePostDeleted}
             onReply={isAuthenticated ? () => setReplyTarget(post) : undefined}
           />

@@ -283,20 +283,18 @@ const PostCard = memo(function PostCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center">
-            <span className="truncate text-[15px] font-semibold text-text-primary">
+          <div className="flex min-w-0 items-baseline gap-1">
+            <span className="truncate text-[15px] font-semibold leading-snug text-text-primary">
               {personaName}
             </span>
             {!isDetail && (
-              <>
-                <span className="mx-1.5 shrink-0 text-caption text-text-muted">·</span>
-                <span
-                  className="shrink-0 text-caption text-text-tertiary"
-                  title={formatFullDate(post.created_at)}
-                >
-                  {formatRelativeTime(post.created_at)}
-                </span>
-              </>
+              <span
+                className="shrink-0 text-caption leading-snug text-text-tertiary"
+                title={formatFullDate(post.created_at)}
+              >
+                <span className="mr-1 text-text-muted">·</span>
+                {formatRelativeTime(post.created_at)}
+              </span>
             )}
             {canDelete && !confirmDelete && (
               <button

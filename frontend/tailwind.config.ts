@@ -9,16 +9,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: { DEFAULT: "#000", light: "#0A0A0A", lighter: "#111113" },
+        /*
+         * Premium ink palette — warm charcoal base, editorial gold accent.
+         * Inspired by Apple Music, Robinhood, NYT Cooking in dark mode.
+         * We avoid pure #000 so surfaces have depth and text doesn't vibrate.
+         */
+        navy: { DEFAULT: "#0A0A0D", light: "#111116", lighter: "#17171D" },
         ink: {
-          950: "#000000",
-          900: "#050506",
-          850: "#0A0A0B",
-          800: "#111113",
-          750: "#17171A",
-          700: "#1D1D20",
-          600: "#26262A",
-          500: "#2F2F33",
+          950: "#09090C",
+          900: "#0B0B0F",
+          850: "#111116",
+          800: "#17171D",
+          750: "#1D1D24",
+          700: "#23232B",
+          600: "#2C2C35",
+          500: "#34343E",
         },
         amber: {
           DEFAULT: "#F6BA3D",
@@ -42,21 +47,21 @@ const config: Config = {
           700: "#2E4A8C",
         },
         surface: {
-          DEFAULT: "#0A0A0B",
-          raised: "#111113",
-          hover: "#17171A",
-          muted: "#050506",
+          DEFAULT: "#0B0B0F",
+          raised: "#111116",
+          hover: "#17171D",
+          muted: "#09090C",
         },
         text: {
-          primary: "#E7E9EE",
-          secondary: "#AEB3BD",
-          tertiary: "#797F8B",
-          muted: "#55595F",
+          primary: "#F1F2F5",
+          secondary: "#B0B3BB",
+          tertiary: "#7B7F88",
+          muted: "#52565E",
         },
         border: {
-          DEFAULT: "#222226",
-          subtle: "#17171A",
-          strong: "#2F2F33",
+          DEFAULT: "#24242B",
+          subtle: "#17171D",
+          strong: "#33333C",
         },
         success: { DEFAULT: "#34D99F", soft: "rgba(52, 217, 159, 0.14)" },
         warning: { DEFAULT: "#F6BA3D" },
