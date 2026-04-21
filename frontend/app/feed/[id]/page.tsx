@@ -390,7 +390,7 @@ export default function PostDetailPage() {
                     <p className="text-body font-semibold text-text-primary">
                       {replyTarget.users?.persona_name ?? "Anonymous"}
                     </p>
-                    <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-body text-text-secondary">
+                    <p className="post-content mt-0.5 line-clamp-4 whitespace-pre-wrap break-words text-body text-text-secondary">
                       {replyTarget.content}
                     </p>
                   </div>
