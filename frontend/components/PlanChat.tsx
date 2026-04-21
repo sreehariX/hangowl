@@ -15,6 +15,18 @@ import type { PlanMessage } from "@/lib/types";
 
 interface PlanChatProps {
   planId: string;
+  /**
+   * Layout variant.
+   *  - "card"  (default): self-contained rounded panel with header + fixed
+   *    scroller height. Used standalone on /plan/[id].
+   *  - "fill": fills the parent's height. The scroller grows to take
+   *    whatever the parent gives it (used inside PlanDock's full-screen
+   *    sheet so the chat gets the entire viewport — finally scrollable
+   *    without fighting the outer page scroll).
+   */
+  variant?: "card" | "fill";
+  /** Hide the internal header. The dock renders its own chrome. */
+  hideHeader?: boolean;
 }
 
 interface UiMessage extends PlanMessage {
@@ -208,7 +220,7 @@ function TypingIndicator({ names }: { names: string[] }) {
 
 /* ── Component ───────────────────────────────────────────────────────── */
 
-export function PlanChat({ planId }: PlanChatProps) {
+export function PlanChat({ planId, variant = "card", hideHeader = false }: PlanChatProps) {
   const { isAuthenticated, userId, personaName } = useAuth();
 
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -558,32 +570,42 @@ export function PlanChat({ planId }: PlanChatProps) {
     [typingUsers],
   );
 
+  const isFill = variant === "fill";
+  const sectionClass = isFill
+    ? "chat-panel chat-panel-fill h-full"
+    : "surface-panel overflow-hidden chat-panel";
+  const scrollerClass = isFill
+    ? "chat-scroller chat-scroller-fill relative flex-1 min-h-0 overflow-y-auto px-3 py-3"
+    : "chat-scroller relative overflow-y-auto px-3 py-3";
+
   return (
-    <section className="surface-panel overflow-hidden chat-panel">
-      <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber/15 text-amber">
-          <SendIcon size={14} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-body font-semibold text-text-primary">
-            Group chat
-          </h3>
-          <p className="text-[11px] text-text-tertiary">
-            {typingNames.length > 0
-              ? typingNames.length === 1
-                ? `${typingNames[0]} is typing…`
-                : `${typingNames.length} people typing…`
-              : messages.length > 0
-              ? `${messages.length} message${messages.length === 1 ? "" : "s"}`
-              : "Say hi to everyone going"}
-          </p>
-        </div>
-      </header>
+    <section className={sectionClass}>
+      {!hideHeader && (
+        <header className="flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber/15 text-amber">
+            <SendIcon size={14} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-body font-semibold text-text-primary">
+              Group chat
+            </h3>
+            <p className="text-[11px] text-text-tertiary">
+              {typingNames.length > 0
+                ? typingNames.length === 1
+                  ? `${typingNames[0]} is typing…`
+                  : `${typingNames.length} people typing…`
+                : messages.length > 0
+                ? `${messages.length} message${messages.length === 1 ? "" : "s"}`
+                : "Say hi to everyone going"}
+            </p>
+          </div>
+        </header>
+      )}
 
       <div
         ref={scrollerRef}
         onScroll={handleScroll}
-        className="chat-scroller relative overflow-y-auto px-3 py-3"
+        className={scrollerClass}
       >
         {loading && (
           <div className="flex justify-center py-10">

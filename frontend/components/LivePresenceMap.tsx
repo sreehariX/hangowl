@@ -5,7 +5,12 @@ import type {
   Map as LeafletMap,
   Marker as LeafletMarker,
   LatLngBounds,
+  TileLayer,
 } from "leaflet";
+// Bundle Leaflet's stylesheet from the package. Importing from a CDN leaves
+// a window where tiles render at container width (Tailwind's image reset
+// wins), producing the "one tile in a black void" bug.
+import "leaflet/dist/leaflet.css";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -26,6 +31,14 @@ interface LivePresenceMapProps {
   destination?: LatLng | null;
   /** Destination label ("H7", "Sameer Hill Gate"). */
   destinationLabel?: string;
+  /**
+   * Layout variant.
+   *  - "card"  (default): fixed-height card with its own rounded panel + header.
+   *  - "fill": fills the parent's height. Used inside PlanDock's full-screen
+   *    sheet where the map should own the whole viewport and the header is
+   *    rendered by the dock instead.
+   */
+  variant?: "card" | "fill";
 }
 
 /**
@@ -49,6 +62,36 @@ const STALE_MS = 60_000;
 const FRESH_MS = 10_000;
 
 /**
+ * Wait for a DOM node to actually have non-zero pixel dimensions. Leaflet
+ * measures its container at construction time; a 0×0 container produces a
+ * map that only ever requests the single centre tile.
+ */
+function waitForDimensions(el: HTMLElement, timeoutMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    if (el.clientWidth > 0 && el.clientHeight > 0) {
+      resolve();
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      ro?.disconnect();
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            if (el.clientWidth > 0 && el.clientHeight > 0) finish();
+          })
+        : null;
+    ro?.observe(el);
+    const timeout = window.setTimeout(finish, timeoutMs);
+  });
+}
+
+/**
  * Live "Uber-style" map that shows every hangout member moving toward the
  * destination in real time.
  *
@@ -70,6 +113,7 @@ export function LivePresenceMap({
   hostId,
   destination,
   destinationLabel,
+  variant = "card",
 }: LivePresenceMapProps) {
   const { userId, personaName, isAuthenticated } = useAuth();
   const isHost = !!userId && userId === hostId;
@@ -109,27 +153,50 @@ export function LivePresenceMap({
     let cancelled = false;
     (async () => {
       const L = (await import("leaflet")).default;
-      if (cancelled || !containerRef.current) return;
+      const container = containerRef.current;
+      if (cancelled || !container) return;
+
+      // Wait for real pixel dimensions so Leaflet never mounts at 0×0.
+      await waitForDimensions(container);
+      if (cancelled) return;
 
       const start = destination ?? CAMPUS_CENTER;
-      const map = L.map(containerRef.current, {
+      const map = L.map(container, {
         center: [start.lat, start.lng],
         zoom: 17,
         zoomControl: false,
         attributionControl: true,
       });
       L.control.zoom({ position: "topright" }).addTo(map);
-      // Dark-themed tiles so the map blends into the app's midnight palette.
-      // CartoDB Dark Matter is free, no API key, still attributed to OSM.
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      // Primary tile layer: CartoDB Voyager — colourful, high-contrast,
+      // reads like Google Maps. Free, no API key, OSM-attributed.
+      const voyager = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
         {
           maxZoom: 20,
           subdomains: "abcd",
+          crossOrigin: true,
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         },
-      ).addTo(map);
+      ) as TileLayer;
+      voyager.addTo(map);
+      // Fallback to canonical OSM if Voyager errors out repeatedly.
+      let tileErrors = 0;
+      let swapped = false;
+      voyager.on("tileerror", () => {
+        tileErrors += 1;
+        if (!swapped && tileErrors >= 3) {
+          swapped = true;
+          voyager.remove();
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            crossOrigin: true,
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          }).addTo(map);
+        }
+      });
 
       if (destination) {
         const iconBase = "https://unpkg.com/leaflet@1.9.4/dist/images";
@@ -458,6 +525,113 @@ export function LivePresenceMap({
     permission !== "unsupported" &&
     permission !== "denied";
 
+  const deniedOrUnsupported =
+    permission === "denied" || permission === "unsupported";
+
+  if (variant === "fill") {
+    // Full-bleed layout used inside the PlanDock sheet. The map fills the
+    // whole viewport; a compact floating status chip sits at the top and
+    // the action buttons (Share / Stop / Directions) live in a bottom
+    // "action card" similar to Uber's driver sheet / Zepto's tracker.
+    return (
+      <div className="relative h-full w-full">
+        <div ref={containerRef} className="absolute inset-0" />
+
+        {!mapReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-ink-900/60">
+            <Spinner size={18} />
+          </div>
+        )}
+
+        {/* Top status chip */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-[400] flex justify-center">
+          <div className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-ink-900/90 px-3 py-1.5 text-[12px] text-text-secondary shadow-[0_6px_20px_rgba(0,0,0,0.45)] backdrop-blur">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${sharing ? "bg-success" : othersSharing > 0 ? "bg-amber" : "bg-text-muted"}`} />
+            <span className="truncate">{statusLine}</span>
+          </div>
+        </div>
+
+        {sharing && !myPos && (
+          <div className="pointer-events-none absolute left-3 top-14 z-[400] rounded-full bg-ink-900/85 px-3 py-1.5 text-[11px] text-text-secondary backdrop-blur">
+            Getting your location…
+          </div>
+        )}
+
+        {/* Bottom action card */}
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[400]">
+          <div className="pointer-events-auto rounded-2xl border border-border bg-ink-900/92 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+            {error && !deniedOrUnsupported && (
+              <p className="mb-2 rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
+                {error}
+              </p>
+            )}
+            {deniedOrUnsupported ? (
+              <>
+                <p className="text-body font-semibold text-text-primary">
+                  {permission === "denied"
+                    ? "Location is blocked for this site."
+                    : "Live location isn't supported here."}
+                </p>
+                <p className="mt-0.5 text-[12px] text-text-tertiary">
+                  Open directions in Google Maps and navigate like usual.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDirections(destinationLabel ?? "", destination ?? null)
+                  }
+                  className="btn-primary btn-sm mt-2.5 w-full gap-1.5"
+                >
+                  <NavigationIcon size={14} />
+                  Directions in Google Maps
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-1">
+                  <span className="presence-legend-dot is-host" />
+                  <span className="presence-legend-dot is-joiner ml-1" />
+                  <span className="presence-legend-dot is-me ml-1" />
+                </div>
+                <p className="ml-1 flex-1 truncate text-[12px] text-text-tertiary">
+                  Host · Joined · You
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDirections(destinationLabel ?? "", destination ?? null)
+                  }
+                  className="btn-secondary btn-sm gap-1.5"
+                  aria-label="Open directions in Google Maps"
+                >
+                  <NavigationIcon size={13} />
+                  Directions
+                </button>
+                {isAuthenticated && sharing ? (
+                  <button
+                    type="button"
+                    onClick={stopSharing}
+                    className="btn-secondary btn-sm"
+                  >
+                    Stop
+                  </button>
+                ) : isAuthenticated && canShare ? (
+                  <button
+                    type="button"
+                    onClick={startSharing}
+                    className="btn-primary btn-sm"
+                  >
+                    Share live
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="surface-panel overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -511,12 +685,7 @@ export function LivePresenceMap({
           </div>
         )}
 
-        {/*
-         * Permission-denied / unsupported overlay. Explicitly offers the
-         * "old method" (Google Maps directions) so a user who doesn't want
-         * to grant location still has a path to reach the spot.
-         */}
-        {!sharing && (permission === "denied" || permission === "unsupported") && (
+        {!sharing && deniedOrUnsupported && (
           <div className="pointer-events-auto absolute inset-x-3 bottom-3 rounded-xl border border-border bg-ink-900/90 p-3 text-caption text-text-secondary backdrop-blur">
             <p className="font-semibold text-text-primary">
               {permission === "denied"
@@ -541,15 +710,13 @@ export function LivePresenceMap({
           </div>
         )}
 
-        {error &&
-          !(permission === "denied" || permission === "unsupported") && (
-            <div className="pointer-events-auto absolute inset-x-3 bottom-3 rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
-              {error}
-            </div>
-          )}
+        {error && !deniedOrUnsupported && (
+          <div className="pointer-events-auto absolute inset-x-3 bottom-3 rounded-lg bg-danger/15 px-3 py-2 text-caption text-danger">
+            {error}
+          </div>
+        )}
       </div>
 
-      {/* Legend. Tiny, but saves a minute of "which dot is who?" confusion. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-text-tertiary">
         <span className="inline-flex items-center gap-1.5">
           <span className="presence-legend-dot is-host" />
