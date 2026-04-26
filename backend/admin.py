@@ -188,3 +188,105 @@ async def get_metrics(admin: dict = Depends(verify_admin)):
             "plan_joins_this_week": plan_joins_week,
         },
     }
+
+
+def _bucket_by_day(rows: list[dict], field: str, days: int, now: datetime) -> list[int]:
+    """Bucket a list of rows by UTC day for the trailing `days` days.
+
+    Returns a list of `days` ints, oldest first, where index 0 is the count
+    for `(now - days + 1).date()` and index `days - 1` is today's count.
+    Rows whose `field` doesn't parse to an ISO timestamp are silently
+    skipped — better to lose one row than 500 the dashboard.
+    """
+    today_utc = now.date()
+    counts = [0] * days
+    for r in rows:
+        ts = r.get(field)
+        if not ts:
+            continue
+        try:
+            # Supabase returns ISO with `+00:00` or `Z`; both parse fine.
+            dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        delta = (today_utc - dt.date()).days
+        if 0 <= delta < days:
+            counts[days - 1 - delta] += 1
+    return counts
+
+
+@router.get("/metrics/timeseries")
+async def get_metrics_timeseries(
+    days: int = 14,
+    admin: dict = Depends(verify_admin),
+):
+    """Per-day buckets for the trailing `days` days (inclusive of today).
+
+    We pull the relevant `created_at` columns once and bucket in Python
+    rather than running 14 SQL `count` queries — Supabase's count="exact"
+    on a tight time window is cheap individually but expensive when fanned
+    out per-day, and the row volume here is tiny (campus-scale).
+    """
+    if days < 2:
+        days = 2
+    if days > 60:
+        days = 60
+
+    db = get_supabase()
+    now = datetime.now(timezone.utc)
+    window_start = (now - timedelta(days=days - 1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    window_iso = window_start.isoformat()
+
+    users = (
+        db.table("users")
+        .select("created_at")
+        .gte("created_at", window_iso)
+        .limit(10000)
+        .execute()
+    )
+    posts = (
+        db.table("posts")
+        .select("created_at")
+        .eq("is_hidden", False)
+        .gte("created_at", window_iso)
+        .limit(10000)
+        .execute()
+    )
+    plans = (
+        db.table("plans")
+        .select("created_at")
+        .eq("is_hidden", False)
+        .gte("created_at", window_iso)
+        .limit(10000)
+        .execute()
+    )
+    actives = (
+        db.table("users")
+        .select("last_active_at")
+        .gte("last_active_at", window_iso)
+        .limit(10000)
+        .execute()
+    )
+
+    # Build the date label list (oldest to newest, ISO date strings) so the
+    # frontend can render an x-axis without recomputing dates client-side.
+    today_utc = now.date()
+    labels = [
+        (today_utc - timedelta(days=days - 1 - i)).isoformat() for i in range(days)
+    ]
+
+    return {
+        "generated_at": now.isoformat(),
+        "days": days,
+        "labels": labels,
+        "series": {
+            "registrations": _bucket_by_day(users.data or [], "created_at", days, now),
+            "posts": _bucket_by_day(posts.data or [], "created_at", days, now),
+            "plans": _bucket_by_day(plans.data or [], "created_at", days, now),
+            "active_users": _bucket_by_day(
+                actives.data or [], "last_active_at", days, now
+            ),
+        },
+    }
