@@ -312,7 +312,7 @@ export default function FeedHomePage() {
         {isAuthenticated && !showCompose && (
           <button
             onClick={() => setShowCompose(true)}
-            className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50%-340px+16px))]"
+            className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50vw-360px))] xl:right-[max(16px,calc(50vw-454px))]"
             aria-label="New post"
           >
             <PlusIcon size={24} />

@@ -58,7 +58,7 @@ export default function RootLayout({
             <LocationSharingProvider>
               <SWRegister />
               <InstallPrompt />
-              <div className="flex min-h-dvh flex-col">
+              <div className="flex min-h-dvh flex-col md:pl-[72px] xl:pl-[260px]">
                 <AdminBar />
                 <main className="flex-1">{children}</main>
                 <Nav />

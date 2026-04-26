@@ -52,7 +52,7 @@ function MobileButton({
   );
 }
 
-function DesktopLink({
+function SidebarLink({
   href,
   label,
   icon,
@@ -63,17 +63,17 @@ function DesktopLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+      className={`group relative flex items-center gap-4 rounded-full px-4 py-2.5 text-[16px] font-medium transition-colors xl:px-5 ${
         active
           ? "bg-surface-hover text-text-primary"
-          : "text-text-tertiary hover:bg-surface-hover/60 hover:text-text-primary"
+          : "text-text-secondary hover:bg-surface-hover/60 hover:text-text-primary"
       }`}
     >
       <span className="relative inline-flex">
         {icon}
         {badge}
       </span>
-      <span>{label}</span>
+      <span className="hidden xl:inline">{label}</span>
     </Link>
   );
 }
@@ -115,6 +115,8 @@ export const Nav = memo(function Nav() {
   const { isAuthenticated, personaName, loading: authLoading } = useAuth();
   const { unreadCount, pulse } = useNotifications();
   const scrolledDown = useScrollState();
+  const isAdmin = useIsAdmin();
+  const metricsActive = pathname === "/admin/metrics";
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -200,26 +202,38 @@ export const Nav = memo(function Nav() {
         </div>
       </nav>
 
-      {/* Desktop top nav: premium, centred, compact */}
-      <nav
+      {/*
+       * Desktop left sidebar (Twitter/X style). Two-step layout:
+       *   - md (≥768px): icon-only rail (~72px wide) so we don't gobble
+       *     reading width on smaller laptops
+       *   - xl (≥1280px): expanded rail (~260px) with labels alongside the
+       *     icons, matching X/Twitter's wide breakpoint
+       *
+       * The sidebar is `fixed` so the timeline scrolls independently
+       * underneath it, exactly like Twitter/X. Page content gets a left
+       * gutter (md:pl-[72px] xl:pl-[260px]) from the layout shell so it
+       * doesn't slide under the sidebar.
+       */}
+      <aside
         aria-label="Primary"
-        className="desktop-nav hidden md:flex"
+        className="fixed inset-y-0 left-0 z-40 hidden h-dvh w-[72px] flex-col border-r border-border bg-ink-900/70 backdrop-blur-md md:flex xl:w-[260px]"
       >
-        <div className="mx-auto flex w-full max-w-[1080px] items-center gap-6 px-6 py-3">
+        <div className="flex h-full flex-col gap-1 px-2 py-3 xl:px-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-text-primary"
+            className="flex h-12 items-center justify-center rounded-full text-amber transition-colors hover:bg-surface-hover/60 xl:justify-start xl:gap-2 xl:px-4 xl:text-[20px] xl:font-semibold xl:tracking-tight xl:text-text-primary"
+            aria-label="HangOwl home"
           >
-            <span aria-hidden className="text-lg">🦉</span>
-            HangOwl
+            <span aria-hidden className="text-2xl">🦉</span>
+            <span className="hidden xl:inline">HangOwl</span>
           </Link>
 
-          <div className="flex items-center gap-1">
+          <nav className="mt-2 flex flex-col gap-1">
             {BASE_ITEMS.map((item) => (
-              <DesktopLink key={item.href} {...item} active={isActive(item.href)} />
+              <SidebarLink key={item.href} {...item} active={isActive(item.href)} />
             ))}
             {!authLoading && isAuthenticated && (
-              <DesktopLink
+              <SidebarLink
                 href="/notifications"
                 label="Notifications"
                 active={bellActive}
@@ -227,48 +241,67 @@ export const Nav = memo(function Nav() {
                 badge={desktopBellBadge}
               />
             )}
-          </div>
+            {isAdmin === true && (
+              <Link
+                href="/admin/metrics"
+                aria-current={metricsActive ? "page" : undefined}
+                title="Metrics"
+                className={`group relative mt-1 flex items-center gap-4 rounded-full px-4 py-2.5 text-[16px] font-medium transition-colors xl:px-5 ${
+                  metricsActive
+                    ? "bg-amber/15 text-amber"
+                    : "text-amber/80 hover:bg-amber/10 hover:text-amber"
+                }`}
+              >
+                <BarChartIcon size={ICON_SIZE} />
+                <span className="hidden xl:inline">Metrics</span>
+              </Link>
+            )}
+          </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="mt-auto pt-4">
             {!authLoading && isAuthenticated ? (
               <Link
                 href="/profile"
                 aria-label="Profile"
                 aria-current={profileActive ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-full px-2 py-1 transition-colors ${
+                className={`flex items-center gap-3 rounded-full p-2 transition-colors xl:p-3 ${
                   profileActive ? "bg-surface-hover" : "hover:bg-surface-hover/60"
                 }`}
               >
-                <Avatar name={personaName || ""} size={28} />
-                <span className="max-w-[140px] truncate text-[13px] font-medium text-text-primary">
-                  {personaName}
+                <Avatar name={personaName || ""} size={32} />
+                <span className="hidden min-w-0 flex-1 xl:block">
+                  <span className="block truncate text-[14px] font-semibold text-text-primary">
+                    {personaName}
+                  </span>
+                  <span className="block truncate text-[12px] text-text-tertiary">
+                    Anonymous
+                  </span>
                 </span>
               </Link>
             ) : !authLoading ? (
               <Link
                 href="/verify"
-                className="btn-primary btn-xs px-3"
+                className="btn-primary btn-xs flex w-full items-center justify-center px-3"
               >
-                Sign in
+                <span className="hidden xl:inline">Sign in</span>
+                <LoginIcon size={18} className="xl:hidden" />
               </Link>
             ) : null}
           </div>
         </div>
-      </nav>
+      </aside>
 
     </>
   );
 });
 
 /**
- * Admin-only access bar. Renders directly under the navbar with a single
- * "Metrics" button; hidden entirely for non-admins so the admin surface is
- * invisible to regular users.
+ * Mobile-only admin entry. Sits between the page header and content as a
+ * thin sticky bar with a single Metrics button. On desktop, the equivalent
+ * link is rendered inside the left sidebar (see Nav above), so this bar
+ * is hidden via `md:hidden`.
  *
- * Lives as its own slot in the document flow (rendered from RootLayout
- * rather than inside the Nav fragment) so the bar can position itself
- * relative to the natural document order without fighting the existing
- * sticky/fixed behaviour of the surrounding nav elements.
+ * Returns null for non-admins so the link is invisible to regular users.
  */
 export function AdminBar() {
   const pathname = usePathname();
@@ -278,9 +311,9 @@ export function AdminBar() {
   return (
     <div
       aria-label="Admin tools"
-      className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur"
+      className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur md:hidden"
     >
-      <div className="mx-auto flex w-full max-w-[1080px] items-center gap-2 px-4 py-1.5 md:px-6">
+      <div className="mx-auto flex w-full max-w-[600px] items-center gap-2 px-4 py-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-amber">
           Admin
         </span>
