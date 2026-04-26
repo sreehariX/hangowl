@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { LocationSharingProvider } from "@/lib/location-sharing-context";
-import { Nav } from "@/components/Nav";
+import { Nav, AdminBar } from "@/components/Nav";
 import { SWRegister } from "@/components/SWRegister";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { Analytics } from "@vercel/analytics/next";
@@ -59,6 +59,7 @@ export default function RootLayout({
               <SWRegister />
               <InstallPrompt />
               <div className="flex min-h-dvh flex-col">
+                <AdminBar />
                 <main className="flex-1">{children}</main>
                 <Nav />
               </div>

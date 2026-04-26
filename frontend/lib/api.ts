@@ -237,6 +237,9 @@ export const api = {
   checkAdmin: () =>
     request<{ is_admin: boolean }>("/admin/check"),
 
+  getAdminMetrics: () =>
+    request<import("./types").AdminMetrics>("/admin/metrics"),
+
   adminDeletePost: (postId: string) =>
     request<{ message: string }>(`/admin/posts/${postId}`, { method: "DELETE" }),
 
