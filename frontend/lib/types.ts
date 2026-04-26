@@ -102,6 +102,18 @@ export interface Stats {
   total_users: number;
 }
 
+export interface AdminMetricsTimeseries {
+  generated_at: string;
+  days: number;
+  labels: string[];
+  series: {
+    registrations: number[];
+    posts: number[];
+    plans: number[];
+    active_users: number[];
+  };
+}
+
 export interface AdminMetrics {
   generated_at: string;
   registrations: {

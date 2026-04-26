@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useIsAdmin } from "@/lib/hooks";
 import { EmptyState, SectionHeading, Spinner } from "@/components/primitives";
+import { MetricsChart } from "@/components/MetricsChart";
 import { BarChartIcon } from "@/components/icons";
-import type { AdminMetrics } from "@/lib/types";
+import type { AdminMetrics, AdminMetricsTimeseries } from "@/lib/types";
+
+const RANGE_OPTIONS = [7, 14, 30] as const;
+type Range = (typeof RANGE_OPTIONS)[number];
+
+const AUTO_REFRESH_MS = 60_000; // 1 minute
 
 function StatCard({
   label,
@@ -26,9 +32,7 @@ function StatCard({
       <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">
         {value}
       </p>
-      {hint && (
-        <p className="mt-0.5 text-[11px] text-text-muted">{hint}</p>
-      )}
+      {hint && <p className="mt-0.5 text-[11px] text-text-muted">{hint}</p>}
     </div>
   );
 }
@@ -48,13 +52,71 @@ function MetricSection({
   );
 }
 
+function RefreshIcon({ size = 14, spinning = false }: { size?: number; spinning?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={spinning ? "animate-spin" : undefined}
+    >
+      <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
 export default function AdminMetricsPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [series, setSeries] = useState<AdminMetricsTimeseries | null>(null);
+  const [range, setRange] = useState<Range>(14);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const inflightRef = useRef(false);
+
+  const load = useCallback(
+    async (
+      opts: { mode?: "initial" | "refresh"; rangeOverride?: Range } = {},
+    ) => {
+      const mode = opts.mode ?? "refresh";
+      const r = opts.rangeOverride ?? range;
+      if (inflightRef.current) return;
+      inflightRef.current = true;
+      if (mode === "refresh") setRefreshing(true);
+      try {
+        const [m, s] = await Promise.all([
+          api.getAdminMetrics(),
+          api.getAdminMetricsTimeseries(r),
+        ]);
+        setMetrics(m);
+        setSeries(s);
+        setLastUpdated(new Date());
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        inflightRef.current = false;
+        if (mode === "initial") setLoading(false);
+        if (mode === "refresh") setRefreshing(false);
+      }
+    },
+    [range],
+  );
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -68,23 +130,34 @@ export default function AdminMetricsPage() {
 
   useEffect(() => {
     if (isAdmin !== true) return;
-    let active = true;
-    (async () => {
-      try {
-        const data = await api.getAdminMetrics();
-        if (active) setMetrics(data);
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load");
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
+    void load({ mode: "initial" });
+  }, [isAdmin, load]);
+
+  // Auto-refresh on a fixed interval and when the tab regains focus, so the
+  // dashboard stays current without the user mashing Refresh. Skipped while
+  // the tab is hidden (no point burning quota when nobody's watching).
+  useEffect(() => {
+    if (isAdmin !== true || !autoRefresh) return;
+    let id: ReturnType<typeof setInterval> | null = null;
+    const tick = () => {
+      if (document.hidden) return;
+      void load({ mode: "refresh" });
     };
-  }, [isAdmin]);
+    id = setInterval(tick, AUTO_REFRESH_MS);
+    const onVisible = () => {
+      if (!document.hidden) void load({ mode: "refresh" });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      if (id) clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isAdmin, autoRefresh, load]);
+
+  function handleRangeChange(r: Range) {
+    setRange(r);
+    if (isAdmin === true) void load({ mode: "refresh", rangeOverride: r });
+  }
 
   if (authLoading || isAdmin === null) {
     return (
@@ -104,28 +177,50 @@ export default function AdminMetricsPage() {
         <header className="top-bar">
           <BarChartIcon size={18} className="text-amber" />
           <h1 className="text-[17px] font-semibold text-text-primary">Metrics</h1>
-          {metrics && (
-            <span className="ml-auto text-[11px] text-text-tertiary">
-              Updated{" "}
-              {new Date(metrics.generated_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {lastUpdated && (
+              <span className="hidden text-[11px] text-text-tertiary sm:inline">
+                Updated{" "}
+                {lastUpdated.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+            <label className="hidden items-center gap-1.5 text-[11px] text-text-tertiary sm:flex">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="h-3 w-3 accent-amber"
+                aria-label="Auto-refresh every minute"
+              />
+              Auto
+            </label>
+            <button
+              type="button"
+              onClick={() => void load({ mode: "refresh" })}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-hover px-3 py-1 text-[12px] font-medium text-text-primary transition-colors hover:bg-surface-hover/80 disabled:opacity-60"
+              aria-label="Refresh metrics"
+            >
+              <RefreshIcon spinning={refreshing} />
+              {refreshing ? "Refreshing" : "Refresh"}
+            </button>
+          </div>
         </header>
 
         {loading ? (
           <div className="flex justify-center py-16">
             <Spinner />
           </div>
-        ) : error ? (
+        ) : error && !metrics ? (
           <EmptyState
             title="Couldn't load metrics"
             description={error}
             action={
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => void load({ mode: "initial" })}
                 className="btn-secondary"
               >
                 Retry
@@ -221,6 +316,66 @@ export default function AdminMetricsPage() {
                 hint={`${metrics.activity.plan_joins_total.toLocaleString()} all-time`}
               />
             </MetricSection>
+
+            <section className="px-4 pb-10 pt-2">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="section-eyebrow">Trends</h2>
+                <div
+                  role="tablist"
+                  aria-label="Time range"
+                  className="inline-flex overflow-hidden rounded-full border border-border bg-surface-hover/40 text-[11px]"
+                >
+                  {RANGE_OPTIONS.map((r) => (
+                    <button
+                      key={r}
+                      role="tab"
+                      aria-selected={range === r}
+                      onClick={() => handleRangeChange(r)}
+                      className={`px-3 py-1 font-medium transition-colors ${
+                        range === r
+                          ? "bg-amber text-ink-950"
+                          : "text-text-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      {r}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {series ? (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <MetricsChart
+                    name="New registrations"
+                    labels={series.labels}
+                    values={series.series.registrations}
+                    color="#F6BA3D"
+                  />
+                  <MetricsChart
+                    name="Active users"
+                    labels={series.labels}
+                    values={series.series.active_users}
+                    color="#34D99F"
+                  />
+                  <MetricsChart
+                    name="Posts"
+                    labels={series.labels}
+                    values={series.series.posts}
+                    color="#7BB7FF"
+                  />
+                  <MetricsChart
+                    name="Plans"
+                    labels={series.labels}
+                    values={series.series.plans}
+                    color="#E879F9"
+                  />
+                </div>
+              ) : (
+                <div className="flex justify-center py-10">
+                  <Spinner />
+                </div>
+              )}
+            </section>
           </>
         ) : null}
       </div>
