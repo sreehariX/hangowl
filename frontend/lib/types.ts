@@ -102,6 +102,37 @@ export interface Stats {
   total_users: number;
 }
 
+export interface AdminMetrics {
+  generated_at: string;
+  registrations: {
+    total: number;
+    new_today: number;
+    new_this_week: number;
+    new_this_month: number;
+  };
+  active_users: {
+    online_now: number;
+    dau: number;
+    wau: number;
+    mau: number;
+    dau_over_mau_pct: number;
+    wau_over_mau_pct: number;
+  };
+  activity: {
+    posts_total: number;
+    posts_today: number;
+    posts_this_week: number;
+    likes_total: number;
+    likes_today: number;
+    plans_total: number;
+    plans_today: number;
+    plans_this_week: number;
+    plans_active_now: number;
+    plan_joins_total: number;
+    plan_joins_this_week: number;
+  };
+}
+
 export interface Notification {
   id: string;
   user_id: string;

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { api } from "./api";
+import { useAuth } from "./auth-context";
 
 export function usePolling<T>(
   fetcher: () => Promise<T>,
@@ -80,4 +82,59 @@ export function useMediaQuery(query: string) {
     () => window.matchMedia(query).matches,
     () => false
   );
+}
+
+/**
+ * Lightweight admin gate. Returns the admin status of the current user, or
+ * `null` while we don't yet know (i.e. before the auth state has resolved
+ * or before the /admin/check round-trip completes). Callers typically
+ * branch with `isAdmin === true` so the UI never flashes admin chrome for
+ * a non-admin user during the in-flight request.
+ *
+ * The check is cached per session in `sessionStorage` so navigating
+ * between pages doesn't re-hit the backend on every route change.
+ */
+export function useIsAdmin(): boolean | null {
+  const { isAuthenticated, userId, loading: authLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const cached = sessionStorage.getItem("hangowl_is_admin");
+      if (cached === "1") return true;
+      if (cached === "0") return false;
+    } catch {}
+    return null;
+  });
+
+  // Signed-out users are definitively non-admin: derive that synchronously
+  // (no setState-in-effect) so the UI never flashes admin chrome before the
+  // effect runs.
+  const definitelyNotAdmin = !authLoading && (!isAuthenticated || !userId);
+  const effectiveIsAdmin = definitelyNotAdmin ? false : isAdmin;
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || !userId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.checkAdmin();
+        if (!active) return;
+        setIsAdmin(res.is_admin);
+        try {
+          sessionStorage.setItem(
+            "hangowl_is_admin",
+            res.is_admin ? "1" : "0",
+          );
+        } catch {}
+      } catch {
+        if (active) setIsAdmin(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [authLoading, isAuthenticated, userId]);
+
+  return effectiveIsAdmin;
 }

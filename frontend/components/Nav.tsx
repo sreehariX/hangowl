@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
+import { useIsAdmin } from "@/lib/hooks";
 import { Avatar } from "@/components/Avatar";
 import {
   HomeIcon,
   CompassIcon,
   BellIcon,
   LoginIcon,
+  BarChartIcon,
 } from "@/components/icons";
 
 interface Item {
@@ -253,6 +255,48 @@ export const Nav = memo(function Nav() {
           </div>
         </div>
       </nav>
+
     </>
   );
 });
+
+/**
+ * Admin-only access bar. Renders directly under the navbar with a single
+ * "Metrics" button; hidden entirely for non-admins so the admin surface is
+ * invisible to regular users.
+ *
+ * Lives as its own slot in the document flow (rendered from RootLayout
+ * rather than inside the Nav fragment) so the bar can position itself
+ * relative to the natural document order without fighting the existing
+ * sticky/fixed behaviour of the surrounding nav elements.
+ */
+export function AdminBar() {
+  const pathname = usePathname();
+  const isAdmin = useIsAdmin();
+  if (isAdmin !== true) return null;
+  const metricsActive = pathname === "/admin/metrics";
+  return (
+    <div
+      aria-label="Admin tools"
+      className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur"
+    >
+      <div className="mx-auto flex w-full max-w-[1080px] items-center gap-2 px-4 py-1.5 md:px-6">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-amber">
+          Admin
+        </span>
+        <Link
+          href="/admin/metrics"
+          aria-current={metricsActive ? "page" : undefined}
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+            metricsActive
+              ? "bg-amber text-ink-950"
+              : "bg-surface-hover text-text-primary hover:bg-surface-hover/80"
+          }`}
+        >
+          <BarChartIcon size={14} />
+          Metrics
+        </Link>
+      </div>
+    </div>
+  );
+}
