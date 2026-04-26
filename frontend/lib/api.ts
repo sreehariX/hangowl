@@ -240,6 +240,11 @@ export const api = {
   getAdminMetrics: () =>
     request<import("./types").AdminMetrics>("/admin/metrics"),
 
+  getAdminMetricsTimeseries: (days = 14) =>
+    request<import("./types").AdminMetricsTimeseries>(
+      `/admin/metrics/timeseries?days=${days}`,
+    ),
+
   adminDeletePost: (postId: string) =>
     request<{ message: string }>(`/admin/posts/${postId}`, { method: "DELETE" }),
 
