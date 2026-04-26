@@ -5,52 +5,21 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useIsAdmin } from "@/lib/hooks";
-import { EmptyState, SectionHeading, Spinner } from "@/components/primitives";
+import { EmptyState, Spinner } from "@/components/primitives";
 import { MetricsChart } from "@/components/MetricsChart";
-import { BarChartIcon } from "@/components/icons";
 import type { AdminMetrics, AdminMetricsTimeseries } from "@/lib/types";
 
 const RANGE_OPTIONS = [7, 14, 30] as const;
 type Range = (typeof RANGE_OPTIONS)[number];
 
-const AUTO_REFRESH_MS = 60_000; // 1 minute
+const AUTO_REFRESH_MS = 60_000;
 
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: number | string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-text-tertiary">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">
-        {value}
-      </p>
-      {hint && <p className="mt-0.5 text-[11px] text-text-muted">{hint}</p>}
-    </div>
-  );
-}
-
-function MetricSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="px-4 pb-6 pt-2">
-      <SectionHeading>{title}</SectionHeading>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{children}</div>
-    </section>
-  );
-}
+const SERIES_COLORS = {
+  registrations: "#F6BA3D", // amber — primary brand
+  active_users: "#34D99F",  // emerald — health
+  posts: "#7BB7FF",         // sky    — engagement
+  plans: "#E879F9",         // fuchsia — meetups
+} as const;
 
 function RefreshIcon({ size = 14, spinning = false }: { size?: number; spinning?: boolean }) {
   return (
@@ -71,6 +40,61 @@ function RefreshIcon({ size = 14, spinning = false }: { size?: number; spinning?
       <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
       <path d="M3 21v-5h5" />
     </svg>
+  );
+}
+
+/**
+ * "Right now" KPI tile. Big number, small label. Designed to be glanceable
+ * — these four are the only stat-as-text tiles on the page; everything
+ * else lives in the trend charts so we don't repeat the same number in
+ * three different boxes.
+ */
+function KPI({
+  label,
+  value,
+  hint,
+  accent,
+  pulse,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: string;
+  pulse?: boolean;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-b from-surface to-surface/60 p-4">
+      {accent && (
+        <span
+          aria-hidden
+          className="absolute inset-x-4 top-0 h-px"
+          style={{
+            background: `linear-gradient(to right, transparent, ${accent}, transparent)`,
+          }}
+        />
+      )}
+      <div className="flex items-center gap-2">
+        {pulse && (
+          <span aria-hidden className="relative flex h-1.5 w-1.5">
+            <span
+              className="absolute inline-flex h-full w-full animate-pulse rounded-full opacity-70"
+              style={{ background: accent ?? "#34D99F" }}
+            />
+            <span
+              className="relative inline-flex h-1.5 w-1.5 rounded-full"
+              style={{ background: accent ?? "#34D99F" }}
+            />
+          </span>
+        )}
+        <p className="text-[11px] font-medium uppercase tracking-wider text-text-tertiary">
+          {label}
+        </p>
+      </div>
+      <p className="mt-1.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-text-primary">
+        {value}
+      </p>
+      {hint && <p className="mt-1 text-[11px] text-text-tertiary">{hint}</p>}
+    </div>
   );
 }
 
@@ -123,9 +147,7 @@ export default function AdminMetricsPage() {
       router.replace("/verify");
       return;
     }
-    if (isAdmin === false) {
-      router.replace("/");
-    }
+    if (isAdmin === false) router.replace("/");
   }, [authLoading, isAuthenticated, isAdmin, router]);
 
   useEffect(() => {
@@ -133,23 +155,19 @@ export default function AdminMetricsPage() {
     void load({ mode: "initial" });
   }, [isAdmin, load]);
 
-  // Auto-refresh on a fixed interval and when the tab regains focus, so the
-  // dashboard stays current without the user mashing Refresh. Skipped while
-  // the tab is hidden (no point burning quota when nobody's watching).
   useEffect(() => {
     if (isAdmin !== true || !autoRefresh) return;
-    let id: ReturnType<typeof setInterval> | null = null;
     const tick = () => {
       if (document.hidden) return;
       void load({ mode: "refresh" });
     };
-    id = setInterval(tick, AUTO_REFRESH_MS);
+    const id = setInterval(tick, AUTO_REFRESH_MS);
     const onVisible = () => {
       if (!document.hidden) void load({ mode: "refresh" });
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      if (id) clearInterval(id);
+      clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [isAdmin, autoRefresh, load]);
@@ -171,23 +189,75 @@ export default function AdminMetricsPage() {
 
   if (isAdmin !== true) return null;
 
+  const stickiness = metrics?.active_users.dau_over_mau_pct ?? 0;
+  const rangeLabel = `Last ${range} days`;
+  const updatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+
   return (
     <div className="app-shell pt-0">
       <div className="app-content">
-        <header className="top-bar">
-          <BarChartIcon size={18} className="text-amber" />
-          <h1 className="text-[17px] font-semibold text-text-primary">Metrics</h1>
-          <div className="ml-auto flex items-center gap-2">
-            {lastUpdated && (
-              <span className="hidden text-[11px] text-text-tertiary sm:inline">
-                Updated{" "}
-                {lastUpdated.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+        {/* Page header — premium minimal: title, ambient pulse, controls */}
+        <header className="border-b border-border px-4 pb-4 pt-5 md:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-amber">
+                Admin
+              </p>
+              <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-text-primary md:text-[28px]">
+                Dashboard
+              </h1>
+              <p className="mt-1 text-[12px] text-text-tertiary">
+                Growth and engagement at a glance · {rangeLabel}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                role="tablist"
+                aria-label="Time range"
+                className="inline-flex overflow-hidden rounded-full border border-border bg-surface-hover/40 p-0.5 text-[11px]"
+              >
+                {RANGE_OPTIONS.map((r) => (
+                  <button
+                    key={r}
+                    role="tab"
+                    aria-selected={range === r}
+                    onClick={() => handleRangeChange(r)}
+                    className={`rounded-full px-3 py-1 font-semibold transition-colors ${
+                      range === r
+                        ? "bg-amber text-ink-950 shadow-[0_0_0_1px_rgba(246,186,61,0.4)]"
+                        : "text-text-secondary hover:text-text-primary"
+                    }`}
+                  >
+                    {r}d
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => void load({ mode: "refresh" })}
+                disabled={refreshing}
+                aria-label="Refresh metrics"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-hover/60 px-3 py-1 text-[12px] font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:opacity-60"
+              >
+                <RefreshIcon spinning={refreshing} />
+                <span className="hidden sm:inline">
+                  {refreshing ? "Refreshing" : "Refresh"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-tertiary">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
               </span>
-            )}
-            <label className="hidden items-center gap-1.5 text-[11px] text-text-tertiary sm:flex">
+              Live · updated {updatedLabel}
+            </span>
+            <label className="inline-flex cursor-pointer items-center gap-1.5">
               <input
                 type="checkbox"
                 checked={autoRefresh}
@@ -195,23 +265,13 @@ export default function AdminMetricsPage() {
                 className="h-3 w-3 accent-amber"
                 aria-label="Auto-refresh every minute"
               />
-              Auto
+              Auto-refresh
             </label>
-            <button
-              type="button"
-              onClick={() => void load({ mode: "refresh" })}
-              disabled={refreshing}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-hover px-3 py-1 text-[12px] font-medium text-text-primary transition-colors hover:bg-surface-hover/80 disabled:opacity-60"
-              aria-label="Refresh metrics"
-            >
-              <RefreshIcon spinning={refreshing} />
-              {refreshing ? "Refreshing" : "Refresh"}
-            </button>
           </div>
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-16">
+          <div className="flex justify-center py-20">
             <Spinner />
           </div>
         ) : error && !metrics ? (
@@ -229,153 +289,96 @@ export default function AdminMetricsPage() {
           />
         ) : metrics ? (
           <>
-            <p className="px-4 pb-2 pt-4 text-caption text-text-tertiary">
-              Focus on growth — registrations, active users, and on-platform
-              activity. Revenue, NPS, and cohort retention are intentionally
-              skipped until they make sense for HangOwl.
-            </p>
-
-            <MetricSection title="Total registrations">
-              <StatCard
-                label="All-time"
-                value={metrics.registrations.total.toLocaleString()}
-              />
-              <StatCard
-                label="Today"
-                value={metrics.registrations.new_today.toLocaleString()}
-              />
-              <StatCard
-                label="Last 7d"
-                value={metrics.registrations.new_this_week.toLocaleString()}
-              />
-              <StatCard
-                label="Last 30d"
-                value={metrics.registrations.new_this_month.toLocaleString()}
-              />
-            </MetricSection>
-
-            <MetricSection title="Active users">
-              <StatCard
+            {/* Right-now KPI strip — only the four numbers that change in
+                real time and that no chart already shows. Everything else
+                (today, 7d, 30d totals) is now embedded in the chart cards
+                below as headline + delta. */}
+            <section className="grid grid-cols-2 gap-3 px-4 pt-5 md:grid-cols-4 md:px-6">
+              <KPI
                 label="Online now"
                 value={metrics.active_users.online_now.toLocaleString()}
                 hint="Active in last 5 min"
+                accent="#34D99F"
+                pulse
               />
-              <StatCard
-                label="DAU"
-                value={metrics.active_users.dau.toLocaleString()}
-                hint="Active in last 24h"
+              <KPI
+                label="Total members"
+                value={metrics.registrations.total.toLocaleString()}
+                hint="All-time registrations"
+                accent="#F6BA3D"
               />
-              <StatCard
-                label="WAU"
-                value={metrics.active_users.wau.toLocaleString()}
-                hint="Active in last 7d"
+              <KPI
+                label="Stickiness"
+                value={`${stickiness}%`}
+                hint="DAU ÷ MAU"
+                accent="#7BB7FF"
               />
-              <StatCard
-                label="MAU"
-                value={metrics.active_users.mau.toLocaleString()}
-                hint="Active in last 30d"
-              />
-            </MetricSection>
-
-            <MetricSection title="Activity levels">
-              <StatCard
-                label="Stickiness (DAU/MAU)"
-                value={`${metrics.active_users.dau_over_mau_pct}%`}
-                hint="Higher = more habitual"
-              />
-              <StatCard
-                label="WAU/MAU"
-                value={`${metrics.active_users.wau_over_mau_pct}%`}
-              />
-              <StatCard
-                label="Posts today"
-                value={metrics.activity.posts_today.toLocaleString()}
-                hint={`${metrics.activity.posts_total.toLocaleString()} all-time`}
-              />
-              <StatCard
-                label="Posts last 7d"
-                value={metrics.activity.posts_this_week.toLocaleString()}
-              />
-              <StatCard
-                label="Likes today"
-                value={metrics.activity.likes_today.toLocaleString()}
-                hint={`${metrics.activity.likes_total.toLocaleString()} all-time`}
-              />
-              <StatCard
-                label="Plans today"
-                value={metrics.activity.plans_today.toLocaleString()}
-                hint={`${metrics.activity.plans_total.toLocaleString()} all-time`}
-              />
-              <StatCard
-                label="Active plans now"
+              <KPI
+                label="Active plans"
                 value={metrics.activity.plans_active_now.toLocaleString()}
+                hint="Hangouts happening now"
+                accent="#E879F9"
               />
-              <StatCard
-                label="Plan joins (7d)"
-                value={metrics.activity.plan_joins_this_week.toLocaleString()}
-                hint={`${metrics.activity.plan_joins_total.toLocaleString()} all-time`}
-              />
-            </MetricSection>
+            </section>
 
-            <section className="px-4 pb-10 pt-2">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="section-eyebrow">Trends</h2>
-                <div
-                  role="tablist"
-                  aria-label="Time range"
-                  className="inline-flex overflow-hidden rounded-full border border-border bg-surface-hover/40 text-[11px]"
-                >
-                  {RANGE_OPTIONS.map((r) => (
-                    <button
-                      key={r}
-                      role="tab"
-                      aria-selected={range === r}
-                      onClick={() => handleRangeChange(r)}
-                      className={`px-3 py-1 font-medium transition-colors ${
-                        range === r
-                          ? "bg-amber text-ink-950"
-                          : "text-text-secondary hover:text-text-primary"
-                      }`}
-                    >
-                      {r}d
-                    </button>
-                  ))}
-                </div>
+            {/* Trends — four chart cards. Each card is self-describing
+                (headline + delta + sparkline), so we don't repeat
+                "today / 7d / 30d" totals as separate boxes. */}
+            <section className="px-4 pb-12 pt-6 md:px-6">
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="text-[15px] font-semibold tracking-tight text-text-primary">
+                  Trends
+                </h2>
+                <p className="text-[11px] text-text-tertiary">
+                  Δ vs previous {Math.floor(range / 2)}d
+                </p>
               </div>
-
               {series ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <MetricsChart
                     name="New registrations"
+                    subtitle={`Sum over ${rangeLabel.toLowerCase()}`}
                     labels={series.labels}
                     values={series.series.registrations}
-                    color="#F6BA3D"
+                    color={SERIES_COLORS.registrations}
+                    total
                   />
                   <MetricsChart
-                    name="Active users"
+                    name="Daily active users"
+                    subtitle="Unique users active each day"
                     labels={series.labels}
                     values={series.series.active_users}
-                    color="#34D99F"
+                    color={SERIES_COLORS.active_users}
+                    total={false}
                   />
                   <MetricsChart
                     name="Posts"
+                    subtitle={`Sum over ${rangeLabel.toLowerCase()}`}
                     labels={series.labels}
                     values={series.series.posts}
-                    color="#7BB7FF"
+                    color={SERIES_COLORS.posts}
+                    total
                   />
                   <MetricsChart
                     name="Plans"
+                    subtitle={`Sum over ${rangeLabel.toLowerCase()}`}
                     labels={series.labels}
                     values={series.series.plans}
-                    color="#E879F9"
+                    color={SERIES_COLORS.plans}
+                    total
                   />
                 </div>
               ) : (
-                <div className="flex justify-center py-10">
+                <div className="flex justify-center py-12">
                   <Spinner />
                 </div>
               )}
             </section>
+
+            <p className="px-4 pb-10 text-[11px] text-text-tertiary md:px-6">
+              Revenue, NPS, and cohort retention are intentionally omitted
+              until they apply to HangOwl.
+            </p>
           </>
         ) : null}
       </div>
