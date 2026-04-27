@@ -16,6 +16,7 @@ import {
   BarChartIcon,
   CalendarIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CheckIcon,
   ClockIcon,
   CloseIcon,
@@ -272,7 +273,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
             <button
               type="button"
               onClick={openChat}
-              className="mb-3 w-full overflow-hidden rounded-3xl border border-amber/35 bg-gradient-to-br from-amber/18 via-surface to-brand-500/10 p-4 text-left shadow-[0_18px_45px_rgba(0,0,0,0.24)] transition-transform active:scale-[0.99]"
+              className="group mb-3 w-full overflow-hidden rounded-3xl border border-amber/45 bg-gradient-to-br from-amber/20 via-surface to-brand-500/10 p-3.5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.26)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-amber/70 hover:shadow-[0_22px_55px_rgba(0,0,0,0.32)] focus-visible:ring-2 focus-visible:ring-amber/70 active:translate-y-0 active:scale-[0.985]"
               aria-label={
                 unread > 0
                   ? `Open group chat with ${unread} unread ${
@@ -281,8 +282,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                   : "Open group chat"
               }
             >
-              <div className="flex items-start gap-3">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink-950 shadow-[0_10px_24px_rgba(246,186,61,0.28)]">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink-950 shadow-[0_10px_24px_rgba(246,186,61,0.32)] transition-transform duration-200 group-hover:scale-105">
                   <MessageCircleIcon size={20} />
                   {unread > 0 && (
                     <span className="chat-fab-badge tabular-nums" aria-hidden>
@@ -291,7 +292,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-[15px] font-semibold text-text-primary">
+                  <span className="flex flex-wrap items-center gap-2 text-[15px] font-semibold leading-tight text-text-primary">
                     Coordinate in group chat
                     {unread > 0 && (
                       <span className="rounded-full bg-danger px-2 py-0.5 text-[11px] font-bold text-white">
@@ -302,6 +303,10 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                   <span className="mt-1 block text-caption leading-relaxed text-text-tertiary">
                     Share exact meeting points, delays, and quick updates with only this hangout.
                   </span>
+                </span>
+                <span className="ml-auto hidden shrink-0 items-center gap-1 rounded-full bg-amber px-3 py-2 text-xs font-bold text-ink-950 shadow-[0_8px_20px_rgba(246,186,61,0.22)] transition-transform duration-200 group-hover:translate-x-0.5 sm:inline-flex">
+                  Open chat
+                  <ChevronRightIcon size={14} />
                 </span>
               </div>
             </button>
@@ -322,14 +327,6 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={scrollToJoin}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber px-3.5 py-2 text-xs font-bold text-ink-950 shadow-[0_10px_24px_rgba(246,186,61,0.22)]"
-              >
-                Scroll to join
-                <ChevronDownIcon size={14} />
-              </button>
             </section>
           )}
 
@@ -557,7 +554,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
       {!ended && alreadyJoined && !chatOpen && (
         <button
           onClick={openChat}
-          className="fab bottom-24 right-4 min-w-14 gap-2 px-4 md:bottom-8 md:right-[max(16px,calc(50vw-360px))] xl:right-[max(16px,calc(50vw-454px))]"
+          className="fab !w-auto bottom-24 right-4 gap-2 px-4 shadow-[0_16px_40px_rgba(246,186,61,0.24)] md:bottom-8 md:right-[max(16px,calc(50vw-360px))] xl:right-[max(16px,calc(50vw-454px))]"
           aria-label={
             unread > 0
               ? `Open group chat (${unread} new ${
@@ -567,7 +564,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           }
         >
           <MessageCircleIcon size={22} />
-          <span className="text-sm font-bold">
+          <span className="min-w-[34px] text-center text-sm font-bold leading-none">
             {unread > 0 ? `${unread > 9 ? "9+" : unread} new` : "Chat"}
           </span>
           {unread > 0 && (
@@ -578,6 +575,30 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
               {unread > 9 ? "9+" : unread}
             </span>
           )}
+        </button>
+      )}
+
+      {!ended && !alreadyJoined && (
+        <button
+          type="button"
+          onClick={scrollToJoin}
+          className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-[568px] items-center justify-between gap-3 rounded-full border border-amber/45 bg-ink-900/90 px-3 py-2.5 text-left shadow-[0_18px_55px_rgba(0,0,0,0.42)] backdrop-blur-xl transition-all duration-200 hover:border-amber/70 hover:bg-ink-850 active:scale-[0.985] md:bottom-6 md:max-w-[648px]"
+          aria-label="Scroll down to join this hangout"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber text-ink-950 shadow-[0_8px_20px_rgba(246,186,61,0.24)]">
+            <ChevronDownIcon size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-bold text-text-primary">
+              Scroll down to join
+            </span>
+            <span className="block truncate text-[11px] text-text-tertiary">
+              Join first, then chat with this hangout.
+            </span>
+          </span>
+          <span className="rounded-full bg-amber px-3 py-1.5 text-xs font-bold text-ink-950">
+            Join
+          </span>
         </button>
       )}
 
