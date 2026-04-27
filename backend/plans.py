@@ -41,6 +41,37 @@ class SendMessageRequest(BaseModel):
     message: str
 
 
+def _ensure_plan_member(db, plan_id: str, user_id: str) -> None:
+    membership = (
+        db.table("plan_members")
+        .select("id")
+        .eq("plan_id", plan_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if membership.data:
+        return
+
+    # Also allow the creator. Creators are normally inserted into
+    # plan_members when the plan is created, but this keeps older rows or
+    # data drift from breaking their chat access.
+    creator = (
+        db.table("plans")
+        .select("creator_id")
+        .eq("id", plan_id)
+        .limit(1)
+        .execute()
+    )
+    if creator.data and creator.data[0]["creator_id"] == user_id:
+        return
+
+    raise HTTPException(
+        status_code=403,
+        detail="Join this hangout before chatting in it.",
+    )
+
+
 @router.get("")
 async def get_plans(location: str | None = None, activity: str | None = None):
     db = get_supabase()
@@ -173,29 +204,7 @@ async def send_message(plan_id: str, body: SendMessageRequest, user: dict = Depe
     enforce("chat.send", _CHAT_SEND_PER_USER, identifier=user["sub"])
 
     # Only members of a plan should be able to post in its chat.
-    membership = (
-        db.table("plan_members")
-        .select("id")
-        .eq("plan_id", plan_id)
-        .eq("user_id", user["sub"])
-        .limit(1)
-        .execute()
-    )
-    if not membership.data:
-        # Also allow the creator (they're auto-inserted into plan_members
-        # on create, but we're paranoid about data drift).
-        creator = (
-            db.table("plans")
-            .select("creator_id")
-            .eq("id", plan_id)
-            .limit(1)
-            .execute()
-        )
-        if not creator.data or creator.data[0]["creator_id"] != user["sub"]:
-            raise HTTPException(
-                status_code=403,
-                detail="Join this hangout before chatting in it.",
-            )
+    _ensure_plan_member(db, plan_id, user["sub"])
 
     result = (
         db.table("plan_messages")
@@ -208,6 +217,55 @@ async def send_message(plan_id: str, body: SendMessageRequest, user: dict = Depe
     )
 
     return {"message": result.data[0]}
+
+
+@router.get("/{plan_id}/messages/unread-count")
+async def get_unread_message_count(plan_id: str, user: dict = Depends(verify_token)):
+    db = get_supabase()
+    user_id = user["sub"]
+    _ensure_plan_member(db, plan_id, user_id)
+
+    read = (
+        db.table("plan_chat_reads")
+        .select("last_read_at")
+        .eq("plan_id", plan_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    last_read_at = read.data[0]["last_read_at"] if read.data else "1970-01-01T00:00:00+00:00"
+
+    messages = (
+        db.table("plan_messages")
+        .select("id")
+        .eq("plan_id", plan_id)
+        .neq("user_id", user_id)
+        .gt("created_at", last_read_at)
+        .limit(100)
+        .execute()
+    )
+
+    return {"count": min(len(messages.data), 99)}
+
+
+@router.post("/{plan_id}/messages/read")
+async def mark_messages_read(plan_id: str, user: dict = Depends(verify_token)):
+    db = get_supabase()
+    user_id = user["sub"]
+    _ensure_plan_member(db, plan_id, user_id)
+    now = datetime.now(timezone.utc).isoformat()
+
+    db.table("plan_chat_reads").upsert(
+        {
+            "plan_id": plan_id,
+            "user_id": user_id,
+            "last_read_at": now,
+            "updated_at": now,
+        },
+        on_conflict="plan_id,user_id",
+    ).execute()
+
+    return {"ok": True}
 
 
 @router.post("")

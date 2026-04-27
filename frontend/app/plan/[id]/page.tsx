@@ -15,6 +15,7 @@ import {
   ArrowLeftIcon,
   BarChartIcon,
   CalendarIcon,
+  ChevronDownIcon,
   CheckIcon,
   ClockIcon,
   CloseIcon,
@@ -104,7 +105,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   // Opening the sheet counts as "seen".
   useEffect(() => {
     if (chatOpen) setUnread(0);
-  }, [chatOpen]);
+    if (chatOpen) api.markPlanChatRead(plan.id).catch(() => {});
+  }, [chatOpen, plan.id]);
 
   const emoji = ACTIVITY_EMOJI[plan.activity] || "✨";
   const creatorName = plan.users?.persona_name ?? "Anonymous";
@@ -117,10 +119,32 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
   const isCreator = userId === plan.creator_id;
   const alreadyJoined = members.some((m) => m.user_id === userId);
 
+  function openChat() {
+    setUnread(0);
+    setChatOpen(true);
+    api.markPlanChatRead(plan.id).catch(() => {});
+  }
+
+  function scrollToJoin() {
+    document.getElementById("join-plan-actions")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }
+
   // Realtime unread counter. Only spin up the subscription for
   // members — non-members never see the FAB.
   useEffect(() => {
     if (!alreadyJoined || ended || !plan.id) return;
+    let active = true;
+    api
+      .getPlanChatUnreadCount(plan.id)
+      .then((data) => {
+        if (!active || chatOpenRef.current) return;
+        setUnread(Math.min(data.count, 99));
+      })
+      .catch(() => {});
+
     const channel = supabase
       .channel(`plan-chat-unread-${plan.id}`)
       .on(
@@ -132,14 +156,18 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           filter: `plan_id=eq.${plan.id}`,
         },
         (payload) => {
-          const row = payload.new as { user_id?: string };
+          const row = payload.new as { user_id?: string; created_at?: string };
           if (row.user_id === userId) return;
-          if (chatOpenRef.current) return;
+          if (chatOpenRef.current) {
+            api.markPlanChatRead(plan.id).catch(() => {});
+            return;
+          }
           setUnread((n) => Math.min(n + 1, 99));
         },
       )
       .subscribe();
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
   }, [alreadyJoined, ended, plan.id, userId]);
@@ -240,6 +268,71 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
         )}
 
         <div className="px-4 pt-4">
+          {!ended && alreadyJoined && (
+            <button
+              type="button"
+              onClick={openChat}
+              className="mb-3 w-full overflow-hidden rounded-3xl border border-amber/35 bg-gradient-to-br from-amber/18 via-surface to-brand-500/10 p-4 text-left shadow-[0_18px_45px_rgba(0,0,0,0.24)] transition-transform active:scale-[0.99]"
+              aria-label={
+                unread > 0
+                  ? `Open group chat with ${unread} unread ${
+                      unread === 1 ? "message" : "messages"
+                    }`
+                  : "Open group chat"
+              }
+            >
+              <div className="flex items-start gap-3">
+                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink-950 shadow-[0_10px_24px_rgba(246,186,61,0.28)]">
+                  <MessageCircleIcon size={20} />
+                  {unread > 0 && (
+                    <span className="chat-fab-badge tabular-nums" aria-hidden>
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-[15px] font-semibold text-text-primary">
+                    Coordinate in group chat
+                    {unread > 0 && (
+                      <span className="rounded-full bg-danger px-2 py-0.5 text-[11px] font-bold text-white">
+                        {unread} new
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-1 block text-caption leading-relaxed text-text-tertiary">
+                    Share exact meeting points, delays, and quick updates with only this hangout.
+                  </span>
+                </span>
+              </div>
+            </button>
+          )}
+
+          {!ended && !alreadyJoined && (
+            <section className="mb-3 rounded-3xl border border-amber/35 bg-gradient-to-br from-amber/16 via-surface to-surface-hover/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
+              <div className="flex gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber/20 text-amber">
+                  <MessageCircleIcon size={20} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold text-text-primary">
+                    Interested in this hangout?
+                  </p>
+                  <p className="mt-1 text-caption leading-relaxed text-text-tertiary">
+                    Join below to unlock the private group chat for this plan and coordinate before you go.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={scrollToJoin}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber px-3.5 py-2 text-xs font-bold text-ink-950 shadow-[0_10px_24px_rgba(246,186,61,0.22)]"
+              >
+                Scroll to join
+                <ChevronDownIcon size={14} />
+              </button>
+            </section>
+          )}
+
           <section className="surface-panel overflow-hidden">
             {plan.image_url ? (
               <button
@@ -365,7 +458,7 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           )}
 
           {!ended ? (
-            <div className="mt-5 space-y-2">
+            <div id="join-plan-actions" className="mt-5 space-y-2 scroll-mt-24">
               <button
                 onClick={handleJoin}
                 disabled={joining || alreadyJoined || (!isAuthenticated ? false : isFull)}
@@ -463,8 +556,8 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
 
       {!ended && alreadyJoined && !chatOpen && (
         <button
-          onClick={() => setChatOpen(true)}
-          className="fab bottom-24 right-4 md:bottom-8 md:right-[max(16px,calc(50vw-360px))] xl:right-[max(16px,calc(50vw-454px))]"
+          onClick={openChat}
+          className="fab bottom-24 right-4 min-w-14 gap-2 px-4 md:bottom-8 md:right-[max(16px,calc(50vw-360px))] xl:right-[max(16px,calc(50vw-454px))]"
           aria-label={
             unread > 0
               ? `Open group chat (${unread} new ${
@@ -474,6 +567,9 @@ function PlanContent({ plan, onRefresh }: { plan: PlanDetail; onRefresh: () => v
           }
         >
           <MessageCircleIcon size={22} />
+          <span className="text-sm font-bold">
+            {unread > 0 ? `${unread > 9 ? "9+" : unread} new` : "Chat"}
+          </span>
           {unread > 0 && (
             <span
               className="chat-fab-badge tabular-nums"

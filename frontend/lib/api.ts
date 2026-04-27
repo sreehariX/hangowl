@@ -155,6 +155,12 @@ export const api = {
       body: JSON.stringify({ message }),
     }),
 
+  getPlanChatUnreadCount: (planId: string) =>
+    request<{ count: number }>(`/plans/${planId}/messages/unread-count`),
+
+  markPlanChatRead: (planId: string) =>
+    request<{ ok: boolean }>(`/plans/${planId}/messages/read`, { method: "POST" }),
+
   getLeaderboard: () =>
     request<{
       leaderboard: import("./types").LeaderboardEntry[];
